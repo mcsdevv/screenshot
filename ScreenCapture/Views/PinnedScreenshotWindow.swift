@@ -44,8 +44,12 @@ class PinnedScreenshotWindow {
     }
 
     func close() {
-        window?.close()
+        guard let windowToClose = window else { return }
         window = nil
+        // Defer window closing to next run loop to avoid layout recursion when called from SwiftUI
+        DispatchQueue.main.async {
+            windowToClose.close()
+        }
     }
 
     private func calculateInitialSize() -> NSSize {

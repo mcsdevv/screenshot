@@ -16,6 +16,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
+        // Initialize debug logger
+        debugLog("Application launching...")
+        debugLog("Log file at: \(DebugLogger.shared.logFilePath)")
+
         storageManager = StorageManager()
         screenshotManager = ScreenshotManager(storageManager: storageManager)
         screenRecordingManager = ScreenRecordingManager(storageManager: storageManager)
@@ -31,6 +35,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         setupNotifications()
 
         requestPermissions()
+
+        debugLog("Application finished launching")
     }
 
     private func setupKeyboardShortcuts() {
@@ -147,8 +153,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     func closeQuickAccessOverlay() {
-        quickAccessWindow?.close()
+        guard let windowToClose = quickAccessWindow else { return }
         quickAccessWindow = nil
+        DispatchQueue.main.async {
+            windowToClose.close()
+        }
     }
 
     func showAllInOneMenu() {
