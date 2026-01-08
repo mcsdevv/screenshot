@@ -10,6 +10,7 @@ class MenuBarController: NSObject {
 
     private var recordingMenuItem: NSMenuItem?
     private var isRecording = false
+    private var visibilityTimer: Timer?
 
     init(screenshotManager: ScreenshotManager, screenRecordingManager: ScreenRecordingManager, storageManager: StorageManager) {
         self.screenshotManager = screenshotManager
@@ -19,6 +20,18 @@ class MenuBarController: NSObject {
         setupStatusItem()
         setupMenu()
         setupNotifications()
+        setupVisibilityMonitor()
+    }
+
+    deinit {
+        visibilityTimer?.invalidate()
+    }
+
+    private func setupVisibilityMonitor() {
+        // Periodically ensure the status item remains visible
+        visibilityTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            self?.ensureVisible()
+        }
     }
 
     private func setupStatusItem() {
@@ -40,8 +53,23 @@ class MenuBarController: NSObject {
 
     /// Ensures the menu bar item is visible
     func ensureVisible() {
-        statusItem.isVisible = true
-        debugLog("MenuBarController: Ensured status item visibility")
+        guard statusItem != nil else {
+            debugLog("MenuBarController: Status item was nil, recreating...")
+            setupStatusItem()
+            return
+        }
+
+        if !statusItem.isVisible {
+            statusItem.isVisible = true
+            debugLog("MenuBarController: Restored status item visibility")
+        }
+
+        // Ensure button is properly configured
+        if statusItem.button?.image == nil {
+            let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+            statusItem.button?.image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: "ScreenCapture")?.withSymbolConfiguration(config)
+            debugLog("MenuBarController: Restored status item image")
+        }
     }
 
     private func setupMenu() {
@@ -104,6 +132,16 @@ class MenuBarController: NSObject {
     private func setupNotifications() {
         NotificationCenter.default.addObserver(self, selector: #selector(recordingDidStart), name: .recordingStarted, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(recordingDidStop), name: .recordingStopped, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(appDidBecomeActive), name: NSApplication.didBecomeActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(appDidFinishLaunching), name: NSApplication.didFinishLaunchingNotification, object: nil)
+    }
+
+    @objc private func appDidBecomeActive() {
+        ensureVisible()
+    }
+
+    @objc private func appDidFinishLaunching() {
+        ensureVisible()
     }
 
     @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
