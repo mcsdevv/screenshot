@@ -442,13 +442,13 @@ struct AnnotationToolbar: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(alignment: .center, spacing: 0) {
             // Left padding for traffic light buttons (close/minimize/fullscreen)
             Spacer()
                 .frame(width: 78)
 
             // Tool buttons
-            HStack(spacing: DSSpacing.xxxs) {
+            HStack(spacing: 2) {
                 ForEach(primaryTools, id: \.self) { tool in
                     AnnotationToolbarButton(
                         tool: tool,
@@ -457,32 +457,35 @@ struct AnnotationToolbar: View {
                     )
                 }
             }
-            .padding(.horizontal, DSSpacing.sm)
-            .padding(.vertical, DSSpacing.xs)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
             .background(
-                RoundedRectangle(cornerRadius: DSRadius.md)
+                RoundedRectangle(cornerRadius: 8)
                     .fill(Color.dsBackgroundSecondary)
                     .overlay(
-                        RoundedRectangle(cornerRadius: DSRadius.md)
+                        RoundedRectangle(cornerRadius: 8)
                             .strokeBorder(Color.dsBorder, lineWidth: 1)
                     )
             )
 
-            DSDivider(.vertical)
-                .frame(height: 28)
-                .padding(.horizontal, DSSpacing.md)
+            // Vertical divider
+            Rectangle()
+                .fill(Color.white.opacity(0.1))
+                .frame(width: 1, height: 24)
+                .padding(.horizontal, 12)
 
             // Text options (shown when text tool is selected)
             if viewModel.state.currentTool == .text {
                 TextOptionsBar(viewModel: viewModel)
 
-                DSDivider(.vertical)
-                    .frame(height: 28)
-                    .padding(.horizontal, DSSpacing.md)
+                Rectangle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 1, height: 24)
+                    .padding(.horizontal, 12)
             }
 
             // Color and stroke
-            HStack(spacing: DSSpacing.sm) {
+            HStack(alignment: .center, spacing: 8) {
                 ColorPickerButton(selectedColor: $viewModel.state.currentColor)
                 StrokeWidthButton(strokeWidth: $viewModel.state.currentStrokeWidth)
             }
@@ -490,7 +493,7 @@ struct AnnotationToolbar: View {
             Spacer()
 
             // Undo/Redo
-            HStack(spacing: DSSpacing.xxs) {
+            HStack(alignment: .center, spacing: 4) {
                 DSIconButton(icon: "arrow.uturn.backward", size: 28) {
                     viewModel.state.undo()
                 }
@@ -505,7 +508,7 @@ struct AnnotationToolbar: View {
                 .opacity(viewModel.state.redoStack.isEmpty ? 0.4 : 1)
                 .help("Redo (⌘⇧Z)")
             }
-            .padding(.horizontal, DSSpacing.sm)
+            .padding(.horizontal, 8)
 
             // Delete selected
             if viewModel.state.selectedAnnotationId != nil {
@@ -513,12 +516,14 @@ struct AnnotationToolbar: View {
                     viewModel.state.deleteSelectedAnnotation()
                 }
                 .help("Delete selected (⌫)")
-                .padding(.trailing, DSSpacing.sm)
+                .padding(.trailing, 8)
             }
 
-            DSDivider(.vertical)
-                .frame(height: 28)
-                .padding(.horizontal, DSSpacing.sm)
+            // Vertical divider
+            Rectangle()
+                .fill(Color.white.opacity(0.1))
+                .frame(width: 1, height: 24)
+                .padding(.horizontal, 8)
 
             // Done button - accent colored
             DSPrimaryButton("Done", icon: "checkmark") {
@@ -526,8 +531,8 @@ struct AnnotationToolbar: View {
             }
             .help("Save and copy to clipboard (⌘↵)")
         }
-        .padding(.horizontal, DSSpacing.md)
-        .padding(.vertical, DSSpacing.sm)
+        .frame(height: 44)
+        .padding(.horizontal, 12)
         .background(
             ZStack {
                 Color.dsBackgroundElevated
@@ -539,7 +544,10 @@ struct AnnotationToolbar: View {
             }
         )
         .overlay(
-            DSDivider(), alignment: .bottom
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(height: 1),
+            alignment: .bottom
         )
     }
 }
