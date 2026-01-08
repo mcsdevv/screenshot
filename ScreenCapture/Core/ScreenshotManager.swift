@@ -1,4 +1,6 @@
 import AppKit
+import CoreImage
+import CoreMedia
 import ScreenCaptureKit
 import SwiftUI
 import Vision
@@ -8,6 +10,38 @@ import Vision
 class KeyableWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+}
+
+// Helper class to capture a single frame from SCStream
+class SingleFrameCaptureOutput: NSObject, SCStreamOutput {
+    private let onCapture: (CGImage) -> Void
+    private var hasCaptured = false
+
+    init(onCapture: @escaping (CGImage) -> Void) {
+        self.onCapture = onCapture
+        super.init()
+    }
+
+    func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
+        guard type == .screen, !hasCaptured else { return }
+
+        guard let imageBuffer = sampleBuffer.imageBuffer else {
+            debugLog("SingleFrameCaptureOutput: No image buffer in sample")
+            return
+        }
+
+        let ciImage = CIImage(cvImageBuffer: imageBuffer)
+        let context = CIContext()
+
+        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else {
+            debugLog("SingleFrameCaptureOutput: Failed to create CGImage")
+            return
+        }
+
+        hasCaptured = true
+        debugLog("SingleFrameCaptureOutput: Captured frame")
+        onCapture(cgImage)
+    }
 }
 
 @MainActor
@@ -106,18 +140,33 @@ class ScreenshotManager: NSObject, ObservableObject {
                 config.scalesToFit = false
                 config.showsCursor = false
                 config.captureResolution = .best
-
-                // Set high resolution
                 config.width = 3840
                 config.height = 2160
+                config.minimumFrameInterval = CMTime(value: 1, timescale: 1)
+                config.queueDepth = 1
 
-                debugLog("Capturing image with filter...")
-                let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
-                debugLog("Image captured: \(image.width)x\(image.height)")
+                debugLog("Creating stream for single frame capture...")
 
-                await MainActor.run {
-                    handleCapturedImage(image)
+                // Use SCStream to capture a single frame (works with picker without extra permissions)
+                let stream = SCStream(filter: filter, configuration: config, delegate: nil)
+
+                // Use the stream output to get a frame
+                let streamOutput = SingleFrameCaptureOutput { [weak self] image in
+                    debugLog("Frame captured: \(image.width)x\(image.height)")
+                    Task { @MainActor in
+                        self?.handleCapturedImage(image)
+                    }
                 }
+
+                try stream.addStreamOutput(streamOutput, type: .screen, sampleHandlerQueue: .main)
+                try await stream.startCapture()
+
+                // Wait a moment for the frame to be captured
+                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+
+                try await stream.stopCapture()
+                debugLog("Stream stopped")
+
             } catch {
                 errorLog("Screenshot capture failed", error: error)
             }
