@@ -4,19 +4,38 @@ import Combine
 
 class StorageManager: ObservableObject {
     @Published var history: CaptureHistory
+    @Published var storageVerified: Bool = false
 
-    let screenshotsDirectory: URL
+    /// The current screenshots directory based on user preferences
+    var screenshotsDirectory: URL {
+        return resolveStorageDirectory()
+    }
+
+    /// The default app support directory (always available)
+    let defaultDirectory: URL
+
+    private let appDirectory: URL
     private let historyFile: URL
     private var autoSaveTimer: Timer?
 
+    // UserDefaults keys
+    private static let storageLocationKey = "storageLocation"
+    private static let customFolderBookmarkKey = "customFolderBookmark"
+
     init() {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let appDirectory = appSupport.appendingPathComponent("ScreenCapture", isDirectory: true)
+        appDirectory = appSupport.appendingPathComponent("ScreenCapture", isDirectory: true)
 
-        screenshotsDirectory = appDirectory.appendingPathComponent("Screenshots", isDirectory: true)
+        defaultDirectory = appDirectory.appendingPathComponent("Screenshots", isDirectory: true)
         historyFile = appDirectory.appendingPathComponent("history.json")
 
-        try? FileManager.default.createDirectory(at: screenshotsDirectory, withIntermediateDirectories: true)
+        // Create default directory
+        do {
+            try FileManager.default.createDirectory(at: defaultDirectory, withIntermediateDirectories: true)
+            debugLog("StorageManager: Created/verified default directory at \(defaultDirectory.path)")
+        } catch {
+            errorLog("StorageManager: Failed to create default directory", error: error)
+        }
 
         if let data = try? Data(contentsOf: historyFile),
            let loadedHistory = try? JSONDecoder().decode(CaptureHistory.self, from: data) {
@@ -27,6 +46,135 @@ class StorageManager: ObservableObject {
 
         setupAutoSave()
         cleanupOldCaptures()
+
+        // Verify storage permissions on startup
+        verifyStoragePermissions()
+    }
+
+    /// Resolves the storage directory based on user preferences
+    private func resolveStorageDirectory() -> URL {
+        let storageLocation = UserDefaults.standard.string(forKey: Self.storageLocationKey) ?? "default"
+
+        switch storageLocation {
+        case "desktop":
+            return FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
+        case "custom":
+            if let customURL = getCustomFolderURL() {
+                return customURL
+            }
+            debugLog("StorageManager: Custom folder not accessible, falling back to default")
+            return defaultDirectory
+        default:
+            return defaultDirectory
+        }
+    }
+
+    /// Gets the custom folder URL from the stored security-scoped bookmark
+    func getCustomFolderURL() -> URL? {
+        guard let bookmarkData = UserDefaults.standard.data(forKey: Self.customFolderBookmarkKey) else {
+            return nil
+        }
+
+        do {
+            var isStale = false
+            let url = try URL(resolvingBookmarkData: bookmarkData,
+                             options: .withSecurityScope,
+                             relativeTo: nil,
+                             bookmarkDataIsStale: &isStale)
+
+            if isStale {
+                debugLog("StorageManager: Bookmark is stale, need to re-select folder")
+                return nil
+            }
+
+            // Start accessing the security-scoped resource
+            if url.startAccessingSecurityScopedResource() {
+                debugLog("StorageManager: Accessed custom folder at \(url.path)")
+                return url
+            } else {
+                errorLog("StorageManager: Failed to access security-scoped resource")
+                return nil
+            }
+        } catch {
+            errorLog("StorageManager: Failed to resolve bookmark", error: error)
+            return nil
+        }
+    }
+
+    /// Sets a custom folder and stores a security-scoped bookmark
+    func setCustomFolder(_ url: URL) -> Bool {
+        do {
+            // Create a security-scoped bookmark
+            let bookmarkData = try url.bookmarkData(
+                options: .withSecurityScope,
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+
+            UserDefaults.standard.set(bookmarkData, forKey: Self.customFolderBookmarkKey)
+            UserDefaults.standard.set("custom", forKey: Self.storageLocationKey)
+
+            debugLog("StorageManager: Set custom folder to \(url.path)")
+
+            // Verify we can write to it
+            verifyStoragePermissions()
+
+            return true
+        } catch {
+            errorLog("StorageManager: Failed to create bookmark for custom folder", error: error)
+            return false
+        }
+    }
+
+    /// Sets the storage location preference
+    func setStorageLocation(_ location: String) {
+        UserDefaults.standard.set(location, forKey: Self.storageLocationKey)
+        debugLog("StorageManager: Storage location set to \(location)")
+        verifyStoragePermissions()
+    }
+
+    /// Gets the current storage location preference
+    func getStorageLocation() -> String {
+        return UserDefaults.standard.string(forKey: Self.storageLocationKey) ?? "default"
+    }
+
+    /// Verifies that we have write permissions to the storage directory
+    func verifyStoragePermissions() {
+        debugLog("StorageManager: Verifying storage permissions...")
+
+        // Test write access by creating a temporary file
+        let testFile = screenshotsDirectory.appendingPathComponent(".write_test_\(UUID().uuidString)")
+
+        do {
+            try "test".write(to: testFile, atomically: true, encoding: .utf8)
+            try FileManager.default.removeItem(at: testFile)
+            storageVerified = true
+            debugLog("StorageManager: Storage permissions verified successfully")
+            debugLog("StorageManager: Screenshots will be saved to: \(screenshotsDirectory.path)")
+        } catch {
+            storageVerified = false
+            errorLog("StorageManager: Storage permission verification failed", error: error)
+
+            // Show alert on main thread
+            DispatchQueue.main.async {
+                self.showStoragePermissionAlert()
+            }
+        }
+    }
+
+    private func showStoragePermissionAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Storage Permission Required"
+        alert.informativeText = "ScreenCapture cannot write to the screenshots folder:\n\n\(screenshotsDirectory.path)\n\nPlease ensure the app has permission to access this location."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Open in Finder")
+        alert.addButton(withTitle: "OK")
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            // Try to create the directory and open parent in Finder
+            let parentDir = screenshotsDirectory.deletingLastPathComponent()
+            NSWorkspace.shared.open(parentDir)
+        }
     }
 
     private func setupAutoSave() {
@@ -55,10 +203,53 @@ class StorageManager: ObservableObject {
         let filename = generateFilename(for: type)
         let url = screenshotsDirectory.appendingPathComponent(filename)
 
-        if let tiffData = image.tiffRepresentation,
-           let bitmap = NSBitmapImageRep(data: tiffData),
-           let pngData = bitmap.representation(using: .png, properties: [:]) {
-            try? pngData.write(to: url)
+        debugLog("StorageManager: Saving capture to \(url.path)")
+
+        // Ensure directory exists
+        do {
+            try FileManager.default.createDirectory(at: screenshotsDirectory, withIntermediateDirectories: true)
+            debugLog("StorageManager: Directory verified at \(screenshotsDirectory.path)")
+        } catch {
+            errorLog("StorageManager: Failed to create directory", error: error)
+        }
+
+        // Convert and save image
+        guard let tiffData = image.tiffRepresentation else {
+            errorLog("StorageManager: Failed to get TIFF representation")
+            let capture = CaptureItem(type: type, filename: filename)
+            history.add(capture)
+            saveHistory()
+            return capture
+        }
+
+        guard let bitmap = NSBitmapImageRep(data: tiffData) else {
+            errorLog("StorageManager: Failed to create bitmap from TIFF data")
+            let capture = CaptureItem(type: type, filename: filename)
+            history.add(capture)
+            saveHistory()
+            return capture
+        }
+
+        guard let pngData = bitmap.representation(using: .png, properties: [:]) else {
+            errorLog("StorageManager: Failed to create PNG data")
+            let capture = CaptureItem(type: type, filename: filename)
+            history.add(capture)
+            saveHistory()
+            return capture
+        }
+
+        do {
+            try pngData.write(to: url)
+            debugLog("StorageManager: Successfully wrote \(pngData.count) bytes to \(url.path)")
+
+            // Verify file exists
+            if FileManager.default.fileExists(atPath: url.path) {
+                debugLog("StorageManager: File verified at \(url.path)")
+            } else {
+                errorLog("StorageManager: File not found after write!")
+            }
+        } catch {
+            errorLog("StorageManager: Failed to write file", error: error)
         }
 
         let capture = CaptureItem(type: type, filename: filename)

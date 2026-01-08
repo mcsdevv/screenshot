@@ -23,6 +23,9 @@ class ScrollingCapture: NSObject {
     private func showInstructions() {
         guard let screen = NSScreen.main else { return }
 
+        // Close any existing window first
+        closeControlWindow()
+
         let instructionView = ScrollingCaptureInstructionsView(
             onStart: { [weak self] in
                 self?.startCapturing()
@@ -39,23 +42,29 @@ class ScrollingCapture: NSObject {
         let centerX = screen.frame.midX - size.width / 2
         let centerY = screen.frame.midY - size.height / 2
 
-        controlWindow = NSWindow(
+        // Use KeyableWindow for proper event handling
+        let window = KeyableWindow(
             contentRect: NSRect(x: centerX, y: centerY, width: size.width, height: size.height),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
 
-        controlWindow?.contentView = hostingView
-        controlWindow?.isOpaque = false
-        controlWindow?.backgroundColor = .clear
-        controlWindow?.level = .floating
-        controlWindow?.hasShadow = true
-        controlWindow?.makeKeyAndOrderFront(nil)
+        // CRITICAL: Prevent double-release crash under ARC
+        window.isReleasedWhenClosed = false
+
+        window.contentView = hostingView
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.level = .floating
+        window.hasShadow = true
+
+        controlWindow = window
+        window.makeKeyAndOrderFront(nil)
     }
 
     private func startCapturing() {
-        controlWindow?.close()
+        closeControlWindow()
         isCapturing = true
         capturedImages = []
 
@@ -86,19 +95,38 @@ class ScrollingCapture: NSObject {
         let centerX = screen.frame.midX - size.width / 2
         let bottomY = screen.visibleFrame.minY + 20
 
-        controlWindow = NSWindow(
+        // Use KeyableWindow for proper event handling
+        let window = KeyableWindow(
             contentRect: NSRect(x: centerX, y: bottomY, width: size.width, height: size.height),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
 
-        controlWindow?.contentView = hostingView
-        controlWindow?.isOpaque = false
-        controlWindow?.backgroundColor = .clear
-        controlWindow?.level = .floating
-        controlWindow?.hasShadow = true
-        controlWindow?.makeKeyAndOrderFront(nil)
+        // CRITICAL: Prevent double-release crash under ARC
+        window.isReleasedWhenClosed = false
+
+        window.contentView = hostingView
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.level = .floating
+        window.hasShadow = true
+
+        controlWindow = window
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private func closeControlWindow() {
+        guard let windowToClose = controlWindow else { return }
+        controlWindow = nil
+
+        // Hide window immediately but defer all cleanup to next run loop
+        windowToClose.orderOut(nil)
+
+        DispatchQueue.main.async {
+            windowToClose.contentView = nil
+            windowToClose.close()
+        }
     }
 
     private func captureCurrentView() {
@@ -130,8 +158,7 @@ class ScrollingCapture: NSObject {
 
     private func finishCapture() {
         isCapturing = false
-        controlWindow?.close()
-        controlWindow = nil
+        closeControlWindow()
 
         guard !capturedImages.isEmpty else { return }
 
@@ -155,8 +182,7 @@ class ScrollingCapture: NSObject {
 
     private func cancel() {
         isCapturing = false
-        controlWindow?.close()
-        controlWindow = nil
+        closeControlWindow()
         capturedImages = []
     }
 }

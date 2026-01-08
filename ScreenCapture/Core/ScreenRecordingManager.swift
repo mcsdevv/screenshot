@@ -62,9 +62,8 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     }
 
     private func showAreaSelection(completion: @escaping (CGRect?) -> Void) {
-        // Dismiss any existing selection window
-        selectionWindow?.close()
-        selectionWindow = nil
+        // Dismiss any existing selection window first
+        closeSelectionWindow()
 
         guard let screen = NSScreen.main else {
             completion(nil)
@@ -73,18 +72,15 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
         let selectionView = RecordingSelectionView(
             onSelection: { [weak self] rect in
-                self?.selectionWindow?.close()
-                self?.selectionWindow = nil
+                self?.closeSelectionWindow()
                 completion(rect)
             },
             onFullscreen: { [weak self] in
-                self?.selectionWindow?.close()
-                self?.selectionWindow = nil
+                self?.closeSelectionWindow()
                 completion(screen.frame)
             },
             onCancel: { [weak self] in
-                self?.selectionWindow?.close()
-                self?.selectionWindow = nil
+                self?.closeSelectionWindow()
                 completion(nil)
             }
         )
@@ -92,19 +88,37 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         let hostingView = NSHostingView(rootView: selectionView)
         hostingView.frame = screen.frame
 
-        selectionWindow = KeyableWindow(
+        let window = KeyableWindow(
             contentRect: screen.frame,
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
 
-        selectionWindow?.contentView = hostingView
-        selectionWindow?.isOpaque = false
-        selectionWindow?.backgroundColor = .clear
-        selectionWindow?.level = .screenSaver
-        selectionWindow?.makeKeyAndOrderFront(nil)
-        selectionWindow?.makeFirstResponder(hostingView)
+        // CRITICAL: Prevent double-release crash under ARC
+        window.isReleasedWhenClosed = false
+
+        window.contentView = hostingView
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.level = .screenSaver
+
+        selectionWindow = window
+        window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(hostingView)
+    }
+
+    private func closeSelectionWindow() {
+        guard let windowToClose = selectionWindow else { return }
+        selectionWindow = nil
+
+        // Hide window immediately but defer all cleanup to next run loop
+        windowToClose.orderOut(nil)
+
+        DispatchQueue.main.async {
+            windowToClose.contentView = nil
+            windowToClose.close()
+        }
     }
 
     private func startRecording(in rect: CGRect?) {
@@ -320,6 +334,9 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     private func showRecordingControls() {
         guard let screen = NSScreen.main else { return }
 
+        // Close any existing control window first
+        hideRecordingControls()
+
         let controlView = RecordingControlsView(
             duration: Binding(get: { self.recordingDuration }, set: { _ in }),
             isPaused: Binding(get: { self.isPaused }, set: { _ in }),
@@ -342,25 +359,39 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         let centerX = screen.frame.midX - controlSize.width / 2
         let bottomY = screen.visibleFrame.minY + 20
 
-        controlWindow = NSWindow(
+        // Use KeyableWindow for proper event handling
+        let window = KeyableWindow(
             contentRect: NSRect(x: centerX, y: bottomY, width: controlSize.width, height: controlSize.height),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
 
-        controlWindow?.contentView = hostingView
-        controlWindow?.isOpaque = false
-        controlWindow?.backgroundColor = .clear
-        controlWindow?.level = .floating
-        controlWindow?.hasShadow = true
-        controlWindow?.collectionBehavior = [.canJoinAllSpaces, .stationary]
-        controlWindow?.makeKeyAndOrderFront(nil)
+        // CRITICAL: Prevent double-release crash under ARC
+        window.isReleasedWhenClosed = false
+
+        window.contentView = hostingView
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.level = .floating
+        window.hasShadow = true
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary]
+
+        controlWindow = window
+        window.makeKeyAndOrderFront(nil)
     }
 
     private func hideRecordingControls() {
-        controlWindow?.close()
+        guard let windowToClose = controlWindow else { return }
         controlWindow = nil
+
+        // Hide window immediately but defer all cleanup to next run loop
+        windowToClose.orderOut(nil)
+
+        DispatchQueue.main.async {
+            windowToClose.contentView = nil
+            windowToClose.close()
+        }
     }
 
     private func togglePause() {

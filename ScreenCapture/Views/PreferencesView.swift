@@ -25,41 +25,127 @@ struct PreferencesView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
-            List(PreferencesTab.allCases, id: \.self, selection: $selectedTab) { tab in
-                Label(tab.rawValue, systemImage: tab.icon)
-                    .tag(tab)
-            }
-            .listStyle(.sidebar)
-            .frame(minWidth: 180)
-        } detail: {
-            Group {
-                switch selectedTab {
-                case .general:
-                    GeneralPreferencesView()
-                case .shortcuts:
-                    ShortcutsPreferencesView()
-                case .capture:
-                    CapturePreferencesView()
-                case .recording:
-                    RecordingPreferencesView()
-                case .storage:
-                    StoragePreferencesView()
-                case .advanced:
-                    AdvancedPreferencesView()
+        HSplitView {
+            // Sidebar
+            VStack(alignment: .leading, spacing: 0) {
+                // Spacer for traffic light buttons
+                Spacer()
+                    .frame(height: 38)
+
+                // Sidebar items
+                VStack(spacing: 2) {
+                    ForEach(PreferencesTab.allCases, id: \.self) { tab in
+                        SidebarItem(
+                            icon: tab.icon,
+                            title: tab.rawValue,
+                            isSelected: selectedTab == tab
+                        ) {
+                            selectedTab = tab
+                        }
+                    }
                 }
+                .padding(.horizontal, 8)
+
+                Spacer()
             }
-            .frame(minWidth: 500, minHeight: 400)
-            .navigationTitle(selectedTab.rawValue)
-        }
-        .frame(width: 700, height: 500)
-        .navigationTitle("Settings")
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("ScreenCapture Settings")
-                    .font(.headline)
+            .frame(width: 200)
+            .background(VisualEffectView(material: .sidebar, blendingMode: .behindWindow))
+
+            // Main content
+            VStack(spacing: 0) {
+                // Toolbar area
+                HStack {
+                    Text(selectedTab.rawValue)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .frame(height: 52)
+                .background(VisualEffectView(material: .titlebar, blendingMode: .withinWindow))
+
+                Divider()
+
+                // Content area
+                ScrollView {
+                    Group {
+                        switch selectedTab {
+                        case .general:
+                            GeneralPreferencesView()
+                        case .shortcuts:
+                            ShortcutsPreferencesView()
+                        case .capture:
+                            CapturePreferencesView()
+                        case .recording:
+                            RecordingPreferencesView()
+                        case .storage:
+                            StoragePreferencesView()
+                        case .advanced:
+                            AdvancedPreferencesView()
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(nsColor: .windowBackgroundColor))
             }
         }
+        .frame(minWidth: 700, minHeight: 550)
+        .frame(width: 750, height: 600)
+    }
+}
+
+struct SidebarItem: View {
+    let icon: String
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                    .foregroundColor(isSelected ? .white : .primary)
+                    .frame(width: 20)
+
+                Text(title)
+                    .font(.system(size: 13))
+                    .foregroundColor(isSelected ? .white : .primary)
+
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isSelected ? Color.accentColor : (isHovered ? Color.primary.opacity(0.08) : Color.clear))
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
+struct VisualEffectView: NSViewRepresentable {
+    let material: NSVisualEffectView.Material
+    let blendingMode: NSVisualEffectView.BlendingMode
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = blendingMode
+        view.state = .followsWindowActiveState
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = material
+        nsView.blendingMode = blendingMode
     }
 }
 
@@ -270,32 +356,61 @@ struct RecordingPreferencesView: View {
 }
 
 struct StoragePreferencesView: View {
-    @AppStorage("storageLocation") private var storageLocation = "default"
     @AppStorage("autoCleanup") private var autoCleanup = true
     @AppStorage("cleanupDays") private var cleanupDays = 30
 
-    @State private var customLocation: URL?
+    @State private var storageLocation: String = "default"
+    @State private var customLocationPath: String = "Not set"
     @State private var storageUsed: String = "Calculating..."
+    @State private var currentPath: String = ""
+
+    // Access StorageManager from environment or create reference
+    private var storageManager: StorageManager {
+        // Get from app delegate
+        if let appDelegate = NSApp.delegate as? AppDelegate {
+            return appDelegate.storageManager
+        }
+        // Fallback - shouldn't happen
+        return StorageManager()
+    }
 
     var body: some View {
         Form {
             Section("Storage Location") {
                 Picker("Save screenshots to", selection: $storageLocation) {
-                    Text("Default Location").tag("default")
+                    Text("Default (App Support)").tag("default")
                     Text("Desktop").tag("desktop")
-                    Text("Custom...").tag("custom")
+                    Text("Custom Folder").tag("custom")
+                }
+                .onChange(of: storageLocation) { _, newValue in
+                    if newValue != "custom" {
+                        storageManager.setStorageLocation(newValue)
+                        updateCurrentPath()
+                    }
                 }
 
                 if storageLocation == "custom" {
                     HStack {
-                        Text(customLocation?.path ?? "Not set")
+                        Text(customLocationPath)
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
                         Spacer()
                         Button("Choose...") {
                             chooseCustomLocation()
                         }
                     }
                 }
+
+                HStack {
+                    Text("Current location:")
+                        .foregroundColor(.secondary)
+                    Text(currentPath)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .font(.caption)
 
                 Button("Open Screenshots Folder") {
                     openScreenshotsFolder()
@@ -333,8 +448,22 @@ struct StoragePreferencesView: View {
         .formStyle(.grouped)
         .padding()
         .onAppear {
+            loadCurrentSettings()
             calculateStorageUsed()
         }
+    }
+
+    private func loadCurrentSettings() {
+        storageLocation = storageManager.getStorageLocation()
+        updateCurrentPath()
+
+        if let customURL = storageManager.getCustomFolderURL() {
+            customLocationPath = customURL.path
+        }
+    }
+
+    private func updateCurrentPath() {
+        currentPath = storageManager.screenshotsDirectory.path
     }
 
     private func chooseCustomLocation() {
@@ -342,23 +471,34 @@ struct StoragePreferencesView: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
+        panel.message = "Choose a folder to save screenshots"
+        panel.prompt = "Select Folder"
 
-        if panel.runModal() == .OK {
-            customLocation = panel.url
+        if panel.runModal() == .OK, let url = panel.url {
+            if storageManager.setCustomFolder(url) {
+                customLocationPath = url.path
+                storageLocation = "custom"
+                updateCurrentPath()
+                debugLog("StoragePreferences: Custom folder set to \(url.path)")
+            } else {
+                // Show error
+                let alert = NSAlert()
+                alert.messageText = "Cannot Use This Folder"
+                alert.informativeText = "ScreenCapture doesn't have permission to save files to this folder. Please choose a different location."
+                alert.alertStyle = .warning
+                alert.runModal()
+            }
         }
     }
 
     private func openScreenshotsFolder() {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let screenshotsDir = appSupport.appendingPathComponent("ScreenCapture/Screenshots")
-        NSWorkspace.shared.open(screenshotsDir)
+        NSWorkspace.shared.open(storageManager.screenshotsDirectory)
     }
 
     private func calculateStorageUsed() {
-        DispatchQueue.global(qos: .background).async {
-            let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            let screenshotsDir = appSupport.appendingPathComponent("ScreenCapture/Screenshots")
+        let screenshotsDir = storageManager.screenshotsDirectory
 
+        DispatchQueue.global(qos: .background).async {
             var totalSize: Int64 = 0
             if let enumerator = FileManager.default.enumerator(at: screenshotsDir, includingPropertiesForKeys: [.fileSizeKey]) {
                 while let url = enumerator.nextObject() as? URL {

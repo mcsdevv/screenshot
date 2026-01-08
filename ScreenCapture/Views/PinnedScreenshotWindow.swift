@@ -4,9 +4,13 @@ import AppKit
 class PinnedScreenshotWindow {
     private var window: NSWindow?
     private let image: NSImage
+    private let id: UUID
+    private let onCloseCallback: ((UUID) -> Void)?
 
-    init(image: NSImage) {
+    init(image: NSImage, id: UUID = UUID(), onClose: ((UUID) -> Void)? = nil) {
         self.image = image
+        self.id = id
+        self.onCloseCallback = onClose
     }
 
     func show() {
@@ -33,6 +37,9 @@ class PinnedScreenshotWindow {
             defer: false
         )
 
+        // CRITICAL: Prevent double-release crash under ARC
+        window?.isReleasedWhenClosed = false
+
         window?.contentView = hostingView
         window?.isOpaque = false
         window?.backgroundColor = .clear
@@ -46,8 +53,15 @@ class PinnedScreenshotWindow {
     func close() {
         guard let windowToClose = window else { return }
         window = nil
-        // Defer window closing to next run loop to avoid layout recursion when called from SwiftUI
+
+        // Notify the manager that this window is closing
+        onCloseCallback?(id)
+
+        // Hide window immediately but defer all cleanup to next run loop
+        windowToClose.orderOut(nil)
+
         DispatchQueue.main.async {
+            windowToClose.contentView = nil
             windowToClose.close()
         }
     }
@@ -217,7 +231,10 @@ class PinnedScreenshotManager {
 
     func pin(image: NSImage) -> UUID {
         let id = UUID()
-        let window = PinnedScreenshotWindow(image: image)
+        let window = PinnedScreenshotWindow(image: image, id: id) { [weak self] closedId in
+            // Remove from dictionary when window is closed via X button
+            self?.pinnedWindows.removeValue(forKey: closedId)
+        }
         pinnedWindows[id] = window
         window.show()
         return id
@@ -225,12 +242,13 @@ class PinnedScreenshotManager {
 
     func unpin(id: UUID) {
         pinnedWindows[id]?.close()
-        pinnedWindows.removeValue(forKey: id)
+        // Note: close() will call the callback which removes from dictionary
     }
 
     func unpinAll() {
-        pinnedWindows.values.forEach { $0.close() }
-        pinnedWindows.removeAll()
+        // Make a copy of values to iterate since close() modifies the dictionary
+        let windows = Array(pinnedWindows.values)
+        windows.forEach { $0.close() }
     }
 
     var pinnedCount: Int {

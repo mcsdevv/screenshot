@@ -257,15 +257,29 @@ struct SliderOption: View {
     }
 }
 
-struct BackgroundToolWindow {
+class BackgroundToolWindow {
+    private static var currentWindow: NSWindow?
+
     static func show(for image: NSImage, storageManager: StorageManager) {
+        // Close any existing window first
+        closeWindow()
+
         let view = BackgroundToolView(
             image: image,
             onSave: { exportedImage in
                 let capture = storageManager.saveCapture(image: exportedImage, type: .screenshot)
                 NotificationCenter.default.post(name: .captureCompleted, object: capture)
+                // Defer close to avoid deallocating view during callback
+                DispatchQueue.main.async {
+                    closeWindow()
+                }
             },
-            onCancel: { }
+            onCancel: {
+                // Defer close to avoid deallocating view during callback
+                DispatchQueue.main.async {
+                    closeWindow()
+                }
+            }
         )
 
         let window = NSWindow(
@@ -275,9 +289,26 @@ struct BackgroundToolWindow {
             defer: false
         )
 
+        // CRITICAL: Prevent double-release crash under ARC
+        window.isReleasedWhenClosed = false
+
         window.title = "Background Tool"
         window.contentView = NSHostingView(rootView: view)
         window.center()
+
+        currentWindow = window
         window.makeKeyAndOrderFront(nil)
+    }
+
+    static func closeWindow() {
+        guard let windowToClose = currentWindow else { return }
+        currentWindow = nil
+
+        windowToClose.orderOut(nil)
+
+        DispatchQueue.main.async {
+            windowToClose.contentView = nil
+            windowToClose.close()
+        }
     }
 }

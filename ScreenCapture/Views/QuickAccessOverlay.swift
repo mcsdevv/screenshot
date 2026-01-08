@@ -1,28 +1,190 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
-struct QuickAccessOverlay: View {
+// Use a class to safely manage the overlay's actions and lifecycle
+class QuickAccessOverlayController: ObservableObject {
     let capture: CaptureItem
     let storageManager: StorageManager
-    let onDismiss: () -> Void
+    private var dismissAction: (() -> Void)?
 
-    @State private var isHovered = false
-    @State private var thumbnail: NSImage?
+    // NOT @Published - we manually control when SwiftUI updates
+    // This prevents crashes from @Published updates during teardown
+    var thumbnail: NSImage?
+    var isVisible = true
+
+    init(capture: CaptureItem, storageManager: StorageManager) {
+        self.capture = capture
+        self.storageManager = storageManager
+        // Don't load thumbnail in init - do it when view appears
+    }
+
+    func setDismissAction(_ action: @escaping () -> Void) {
+        self.dismissAction = action
+    }
+
+    func loadThumbnailIfNeeded() {
+        guard thumbnail == nil, isVisible else { return }
+        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+        if let image = NSImage(contentsOf: url) {
+            self.thumbnail = image
+            // Manually trigger SwiftUI update - only do this when visible
+            objectWillChange.send()
+        }
+    }
+
+    func dismiss() {
+        // Ensure we're on main thread for UI updates
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { self.dismiss() }
+            return
+        }
+        guard isVisible else { return }
+        // Mark as not visible but DON'T trigger @Published updates yet
+        // Setting @Published properties while SwiftUI is rendering causes crashes
+        isVisible = false
+        // Call dismiss action - the window cleanup will handle releasing resources
+        // Do NOT set thumbnail = nil here as it triggers SwiftUI re-render during teardown
+        dismissAction?()
+    }
+
+    func copyToClipboard() {
+        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+        debugLog("Copying image from: \(url.path)")
+
+        if let image = NSImage(contentsOf: url) {
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.writeObjects([image])
+            debugLog("Image copied to clipboard successfully")
+            NSSound(named: "Pop")?.play()
+        } else {
+            debugLog("Failed to load image for clipboard")
+        }
+        dismiss()
+    }
+
+    func saveToConfiguredLocation() {
+        // The file is already saved in the default location, get its path
+        let sourceURL = storageManager.defaultDirectory.appendingPathComponent(capture.filename)
+        let destinationURL = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+
+        debugLog("Save button pressed")
+        debugLog("Source: \(sourceURL.path)")
+        debugLog("Destination: \(destinationURL.path)")
+
+        // Check if source exists
+        guard FileManager.default.fileExists(atPath: sourceURL.path) else {
+            errorLog("Source file not found at: \(sourceURL.path)")
+            let alert = NSAlert()
+            alert.messageText = "File Not Found"
+            alert.informativeText = "The screenshot file could not be located."
+            alert.alertStyle = .warning
+            alert.runModal()
+            dismiss()
+            return
+        }
+
+        // If source and destination are the same, just reveal in Finder
+        if sourceURL.path == destinationURL.path {
+            debugLog("File already at destination, revealing in Finder")
+            NSSound(named: "Pop")?.play()
+            NSWorkspace.shared.activateFileViewerSelecting([destinationURL])
+            dismiss()
+            return
+        }
+
+        // Copy to configured location
+        do {
+            // Create destination directory if needed
+            try FileManager.default.createDirectory(at: storageManager.screenshotsDirectory,
+                                                    withIntermediateDirectories: true)
+
+            // Remove existing file if it exists
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try FileManager.default.removeItem(at: destinationURL)
+            }
+
+            try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+
+            debugLog("Screenshot saved to: \(destinationURL.path)")
+            NSSound(named: "Pop")?.play()
+
+            // Reveal in Finder
+            NSWorkspace.shared.activateFileViewerSelecting([destinationURL])
+        } catch {
+            errorLog("Failed to save screenshot: \(error)")
+            let alert = NSAlert()
+            alert.messageText = "Failed to Save"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.runModal()
+        }
+
+        dismiss()
+    }
+
+    func openAnnotationEditor() {
+        dismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+
+    func pinScreenshot() {
+        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+        if let image = NSImage(contentsOf: url) {
+            // Use the manager to retain the window reference
+            _ = PinnedScreenshotManager.shared.pin(image: image)
+        }
+        dismiss()
+    }
+
+    func performOCR() {
+        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+        guard let image = NSImage(contentsOf: url),
+              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            dismiss()
+            return
+        }
+
+        let ocrService = OCRService()
+        ocrService.recognizeText(in: cgImage) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let text):
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                case .failure:
+                    break
+                }
+                self?.dismiss()
+            }
+        }
+    }
+
+    func deleteCapture() {
+        storageManager.deleteCapture(capture)
+        dismiss()
+    }
+
+    func openInFinder() {
+        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+        dismiss()
+    }
+}
+
+struct QuickAccessOverlay: View {
+    @ObservedObject var controller: QuickAccessOverlayController
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Spacer()
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .padding(8)
-            }
+            // Spacer for title bar area (traffic light buttons)
+            Spacer()
+                .frame(height: 28)
 
-            if let thumbnail = thumbnail {
+            if let thumbnail = controller.thumbnail {
                 Image(nsImage: thumbnail)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -35,7 +197,7 @@ struct QuickAccessOverlay: View {
                     .fill(Color.secondary.opacity(0.1))
                     .frame(height: 160)
                     .overlay(
-                        Image(systemName: capture.type.icon)
+                        Image(systemName: controller.capture.type.icon)
                             .font(.system(size: 40))
                             .foregroundColor(.secondary)
                     )
@@ -43,20 +205,40 @@ struct QuickAccessOverlay: View {
             }
 
             HStack(spacing: 12) {
-                QuickActionButton(icon: "doc.on.clipboard", title: "Copy", shortcut: "⌘C") {
-                    copyToClipboard()
+                QuickActionButton(
+                    icon: "doc.on.clipboard",
+                    title: "Copy",
+                    shortcut: "⌘C",
+                    tooltipText: "Copy the screenshot to your clipboard for pasting into other apps."
+                ) {
+                    controller.copyToClipboard()
                 }
 
-                QuickActionButton(icon: "square.and.arrow.down", title: "Save", shortcut: "⌘S") {
-                    saveToDesktop()
+                QuickActionButton(
+                    icon: "square.and.arrow.down",
+                    title: "Save",
+                    shortcut: "⌘S",
+                    tooltipText: "Save the screenshot to your configured folder."
+                ) {
+                    controller.saveToConfiguredLocation()
                 }
 
-                QuickActionButton(icon: "pencil", title: "Annotate", shortcut: "⌘E") {
-                    openAnnotationEditor()
+                QuickActionButton(
+                    icon: "pencil",
+                    title: "Annotate",
+                    shortcut: "⌘E",
+                    tooltipText: "Open the annotation editor to draw, add text, or highlight areas."
+                ) {
+                    controller.openAnnotationEditor()
                 }
 
-                QuickActionButton(icon: "pin", title: "Pin", shortcut: "⌘P") {
-                    pinScreenshot()
+                QuickActionButton(
+                    icon: "pin",
+                    title: "Pin",
+                    shortcut: "⌘P",
+                    tooltipText: "Pin the screenshot as a floating window that stays on top."
+                ) {
+                    controller.pinScreenshot()
                 }
             }
             .padding(.top, 16)
@@ -67,123 +249,39 @@ struct QuickAccessOverlay: View {
                 .padding(.horizontal, 16)
 
             HStack(spacing: 12) {
-                SecondaryActionButton(icon: "text.viewfinder", title: "OCR") {
-                    performOCR()
+                SecondaryActionButton(
+                    icon: "text.viewfinder",
+                    title: "OCR",
+                    tooltipText: "Extract text from the screenshot and copy it to clipboard."
+                ) {
+                    controller.performOCR()
                 }
 
-                SecondaryActionButton(icon: "trash", title: "Delete") {
-                    deleteCapture()
+                SecondaryActionButton(
+                    icon: "trash",
+                    title: "Delete",
+                    tooltipText: "Delete this screenshot permanently."
+                ) {
+                    controller.deleteCapture()
                 }
 
-                SecondaryActionButton(icon: "folder", title: "Open") {
-                    openInFinder()
+                SecondaryActionButton(
+                    icon: "folder",
+                    title: "Open",
+                    tooltipText: "Show the screenshot file in Finder."
+                ) {
+                    controller.openInFinder()
                 }
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 16)
         }
         .frame(width: 340)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.25), radius: 20, x: 0, y: 10)
+        .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
-            loadThumbnail()
+            // Load thumbnail when view appears, not during init
+            controller.loadThumbnailIfNeeded()
         }
-        .onHover { hovering in
-            isHovered = hovering
-        }
-    }
-
-    private func loadThumbnail() {
-        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        if let image = NSImage(contentsOf: url) {
-            thumbnail = image
-        }
-    }
-
-    private func copyToClipboard() {
-        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        if let image = NSImage(contentsOf: url) {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.writeObjects([image])
-            showFeedback(message: "Copied to clipboard")
-        }
-        onDismiss()
-    }
-
-    private func saveToDesktop() {
-        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        let desktopURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
-        let destinationURL = desktopURL.appendingPathComponent(capture.filename)
-
-        do {
-            try FileManager.default.copyItem(at: url, to: destinationURL)
-            showFeedback(message: "Saved to Desktop")
-        } catch {
-            print("Save error: \(error)")
-        }
-        onDismiss()
-    }
-
-    private func openAnnotationEditor() {
-        onDismiss()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            if NSApp.delegate is AppDelegate {
-                NSApp.activate(ignoringOtherApps: true)
-            }
-        }
-    }
-
-    private func pinScreenshot() {
-        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        if let image = NSImage(contentsOf: url) {
-            let pinnedWindow = PinnedScreenshotWindow(image: image)
-            pinnedWindow.show()
-        }
-        onDismiss()
-    }
-
-    private func performOCR() {
-        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        guard let image = NSImage(contentsOf: url),
-              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            return
-        }
-
-        let ocrService = OCRService()
-        ocrService.recognizeText(in: cgImage) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let text):
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(text, forType: .string)
-                    self.showFeedback(message: "Text copied to clipboard")
-                case .failure:
-                    self.showFeedback(message: "OCR failed")
-                }
-                self.onDismiss()
-            }
-        }
-    }
-
-    private func deleteCapture() {
-        storageManager.deleteCapture(capture)
-        onDismiss()
-    }
-
-    private func openInFinder() {
-        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        NSWorkspace.shared.activateFileViewerSelecting([url])
-        onDismiss()
-    }
-
-    private func showFeedback(message: String) {
-        // Could implement a toast notification here
-        print(message)
     }
 }
 
@@ -191,39 +289,78 @@ struct QuickActionButton: View {
     let icon: String
     let title: String
     let shortcut: String
+    let tooltipText: String
     let action: () -> Void
 
     @State private var isHovered = false
+    @State private var showTooltip = false
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 6) {
+            VStack(spacing: 0) {
+                // Fixed size container for icon to ensure alignment
                 Image(systemName: icon)
-                    .font(.system(size: 20))
+                    .font(.system(size: 18, weight: .regular))
+                    .frame(width: 28, height: 28)
                     .foregroundColor(isHovered ? .accentColor : .primary)
 
+                Spacer()
+                    .frame(height: 6)
+
+                // Text anchored at bottom
                 Text(title)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(isHovered ? .accentColor : .primary)
             }
-            .frame(width: 60, height: 50)
-            .background(isHovered ? Color.accentColor.opacity(0.1) : Color.clear)
-            .cornerRadius(8)
+            .frame(width: 64, height: 52)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isHovered ? Color.accentColor.opacity(0.1) : Color.clear)
+            )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            isHovered = hovering
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+            // Show tooltip after a short delay
+            if hovering {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if isHovered {
+                        showTooltip = true
+                    }
+                }
+            } else {
+                showTooltip = false
+            }
         }
-        .help("\(title) (\(shortcut))")
+        .popover(isPresented: $showTooltip, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(tooltipText)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                Text(shortcut)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .padding(.top, 2)
+            }
+            .padding(10)
+            .frame(width: 180)
+        }
     }
 }
 
 struct SecondaryActionButton: View {
     let icon: String
     let title: String
+    let tooltipText: String
     let action: () -> Void
 
     @State private var isHovered = false
+    @State private var showTooltip = false
 
     var body: some View {
         Button(action: action) {
@@ -233,15 +370,40 @@ struct SecondaryActionButton: View {
                 Text(title)
                     .font(.system(size: 12))
             }
-            .foregroundColor(isHovered ? .accentColor : .secondary)
+            .foregroundColor(isHovered ? .primary : .secondary)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(isHovered ? Color.accentColor.opacity(0.1) : Color.clear)
-            .cornerRadius(6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isHovered ? Color.primary.opacity(0.1) : Color.clear)
+            )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            isHovered = hovering
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+            if hovering {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if isHovered {
+                        showTooltip = true
+                    }
+                }
+            } else {
+                showTooltip = false
+            }
+        }
+        .popover(isPresented: $showTooltip, arrowEdge: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(tooltipText)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            .padding(10)
+            .frame(width: 160)
         }
     }
 }

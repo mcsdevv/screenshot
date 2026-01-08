@@ -3,14 +3,16 @@ import SwiftUI
 import ScreenCaptureKit
 import Combine
 
-class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
+class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, ObservableObject {
     var menuBarController: MenuBarController!
     var screenshotManager: ScreenshotManager!
     var screenRecordingManager: ScreenRecordingManager!
     var storageManager: StorageManager!
     var keyboardShortcuts: KeyboardShortcuts!
     var quickAccessWindow: NSWindow?
+    var quickAccessController: QuickAccessOverlayController?
     var selectionOverlayWindow: NSWindow?
+    var settingsWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -33,10 +35,72 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
         setupKeyboardShortcuts()
         setupNotifications()
+        setupMainMenu()
 
         requestPermissions()
 
         debugLog("Application finished launching")
+    }
+
+    private func setupMainMenu() {
+        let mainMenu = NSMenu()
+
+        // Application menu
+        let appMenuItem = NSMenuItem()
+        mainMenu.addItem(appMenuItem)
+        let appMenu = NSMenu()
+        appMenuItem.submenu = appMenu
+
+        appMenu.addItem(NSMenuItem(title: "About ScreenCapture", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: ""))
+        appMenu.addItem(NSMenuItem.separator())
+
+        let preferencesItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
+        preferencesItem.target = self
+        appMenu.addItem(preferencesItem)
+
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(NSMenuItem(title: "Hide ScreenCapture", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"))
+
+        let hideOthersItem = NSMenuItem(title: "Hide Others", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
+        hideOthersItem.keyEquivalentModifierMask = [.command, .option]
+        appMenu.addItem(hideOthersItem)
+
+        appMenu.addItem(NSMenuItem(title: "Show All", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: ""))
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(NSMenuItem(title: "Quit ScreenCapture", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+
+        // File menu
+        let fileMenuItem = NSMenuItem()
+        mainMenu.addItem(fileMenuItem)
+        let fileMenu = NSMenu(title: "File")
+        fileMenuItem.submenu = fileMenu
+
+        fileMenu.addItem(NSMenuItem(title: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w"))
+
+        // Edit menu
+        let editMenuItem = NSMenuItem()
+        mainMenu.addItem(editMenuItem)
+        let editMenu = NSMenu(title: "Edit")
+        editMenuItem.submenu = editMenu
+
+        editMenu.addItem(NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
+        editMenu.addItem(NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
+        editMenu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
+        editMenu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
+
+        // Window menu
+        let windowMenuItem = NSMenuItem()
+        mainMenu.addItem(windowMenuItem)
+        let windowMenu = NSMenu(title: "Window")
+        windowMenuItem.submenu = windowMenu
+
+        windowMenu.addItem(NSMenuItem(title: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m"))
+        windowMenu.addItem(NSMenuItem(title: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: ""))
+        windowMenu.addItem(NSMenuItem.separator())
+        windowMenu.addItem(NSMenuItem(title: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: ""))
+
+        NSApp.mainMenu = mainMenu
+        NSApp.windowsMenu = windowMenu
     }
 
     private func setupKeyboardShortcuts() {
@@ -94,7 +158,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             .compactMap { $0.object as? CaptureItem }
             .receive(on: DispatchQueue.main)
             .sink { [weak self] capture in
-                self?.showQuickAccessOverlay(for: capture)
+                // Defer overlay display to ensure capture processing is complete
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self?.showQuickAccessOverlay(for: capture)
+                }
             }
             .store(in: &cancellables)
 
@@ -102,7 +169,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             .compactMap { $0.object as? CaptureItem }
             .receive(on: DispatchQueue.main)
             .sink { [weak self] capture in
-                self?.showQuickAccessOverlay(for: capture)
+                // Defer overlay display to ensure recording processing is complete
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self?.showQuickAccessOverlay(for: capture)
+                }
             }
             .store(in: &cancellables)
     }
@@ -115,54 +185,100 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     func showQuickAccessOverlay(for capture: CaptureItem) {
-        let overlayView = QuickAccessOverlay(capture: capture, storageManager: storageManager) {
-            self.closeQuickAccessOverlay()
+        // Close any existing overlay first
+        closeQuickAccessOverlay()
+
+        // Create a controller that manages the overlay's lifecycle safely
+        let controller = QuickAccessOverlayController(capture: capture, storageManager: storageManager)
+        quickAccessController = controller
+
+        // Set up the dismiss action - use weak self to prevent retain cycles
+        controller.setDismissAction { [weak self] in
+            // Defer to next run loop to ensure button action completes
+            DispatchQueue.main.async {
+                self?.closeQuickAccessOverlay()
+            }
         }
 
+        let overlayView = QuickAccessOverlay(controller: controller)
+
+        let windowSize = NSSize(width: 340, height: 300)
         let hostingView = NSHostingView(rootView: overlayView)
-        hostingView.frame = NSRect(x: 0, y: 0, width: 340, height: 280)
+        hostingView.frame = NSRect(origin: .zero, size: windowSize)
 
         if let screen = NSScreen.main {
             let screenFrame = screen.visibleFrame
+
+            // Position in bottom-left corner, ensuring window is fully visible
+            let padding: CGFloat = 20
+            // Calculate Y position so window is fully above the bottom of visible area
+            let yPosition = screenFrame.minY + padding
+            // Verify window fits - if not, adjust
+            let maxY = yPosition + windowSize.height
+            let adjustedY = maxY > screenFrame.maxY ? screenFrame.maxY - windowSize.height - padding : yPosition
+
             let windowFrame = NSRect(
-                x: screenFrame.maxX - 360,
-                y: screenFrame.minY + 20,
-                width: 340,
-                height: 280
+                x: screenFrame.minX + padding,
+                y: max(adjustedY, screenFrame.minY + padding),
+                width: windowSize.width,
+                height: windowSize.height
             )
 
-            quickAccessWindow = NSWindow(
+            // Use standard window with traffic light buttons
+            let window = NSWindow(
                 contentRect: windowFrame,
-                styleMask: [.borderless],
+                styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
 
-            quickAccessWindow?.contentView = hostingView
-            quickAccessWindow?.isOpaque = false
-            quickAccessWindow?.backgroundColor = .clear
-            quickAccessWindow?.level = .floating
-            quickAccessWindow?.hasShadow = true
-            quickAccessWindow?.collectionBehavior = [.canJoinAllSpaces, .stationary]
-            quickAccessWindow?.makeKeyAndOrderFront(nil)
+            // CRITICAL: Prevent double-release crash under ARC
+            // NSWindow defaults to isReleasedWhenClosed=true, which causes
+            // AppKit to release the window on close. Combined with ARC's
+            // automatic release, this causes EXC_BAD_ACCESS in objc_release.
+            window.isReleasedWhenClosed = false
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
-                self?.closeQuickAccessOverlay()
-            }
+            // Configure title bar appearance
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+            window.title = "Screenshot Preview"
+
+            window.contentView = hostingView
+            window.level = .floating
+            window.hasShadow = true
+            window.collectionBehavior = [.canJoinAllSpaces, .stationary]
+
+            // Set delegate to handle window close
+            window.delegate = self
+
+            quickAccessWindow = window
+            window.makeKeyAndOrderFront(nil)
         }
     }
 
     func closeQuickAccessOverlay() {
         guard let windowToClose = quickAccessWindow else { return }
         quickAccessWindow = nil
+
+        // Mark controller as not visible to prevent any further actions
+        quickAccessController?.isVisible = false
+
+        // Hide window immediately
         windowToClose.orderOut(nil)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+
+        // Defer cleanup to next run loop to allow SwiftUI to finish
+        DispatchQueue.main.async { [weak self] in
+            windowToClose.contentView = nil
             windowToClose.close()
+            self?.quickAccessController = nil
         }
     }
 
     func showAllInOneMenu() {
         guard let screen = NSScreen.main else { return }
+
+        // Close any existing overlay first
+        closeSelectionOverlay()
 
         let menuView = AllInOneMenuView(
             onCaptureArea: { [weak self] in
@@ -201,8 +317,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                 }
             },
             onDismiss: { [weak self] in
-                self?.selectionOverlayWindow?.close()
-                self?.selectionOverlayWindow = nil
+                // Defer close to avoid deallocating view during callback
+                DispatchQueue.main.async {
+                    self?.closeSelectionOverlay()
+                }
             }
         )
 
@@ -213,18 +331,37 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         let centerX = screen.frame.midX - menuSize.width / 2
         let centerY = screen.frame.midY - menuSize.height / 2
 
-        selectionOverlayWindow = NSWindow(
+        // Use KeyableWindow for proper event handling in borderless windows
+        let window = KeyableWindow(
             contentRect: NSRect(x: centerX, y: centerY, width: menuSize.width, height: menuSize.height),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
 
-        selectionOverlayWindow?.contentView = hostingView
-        selectionOverlayWindow?.isOpaque = false
-        selectionOverlayWindow?.backgroundColor = .clear
-        selectionOverlayWindow?.level = .screenSaver
-        selectionOverlayWindow?.makeKeyAndOrderFront(nil)
+        // CRITICAL: Prevent double-release crash under ARC
+        window.isReleasedWhenClosed = false
+
+        window.contentView = hostingView
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.level = .screenSaver
+
+        selectionOverlayWindow = window
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private func closeSelectionOverlay() {
+        guard let windowToClose = selectionOverlayWindow else { return }
+        selectionOverlayWindow = nil
+
+        // Hide window immediately but defer all cleanup to next run loop
+        windowToClose.orderOut(nil)
+
+        DispatchQueue.main.async {
+            windowToClose.contentView = nil
+            windowToClose.close()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -233,6 +370,62 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         return true
+    }
+
+    // MARK: - NSWindowDelegate
+
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+
+        // Handle QuickAccessOverlay window close
+        if window === quickAccessWindow {
+            quickAccessWindow = nil
+            quickAccessController?.isVisible = false
+            quickAccessController = nil
+        }
+
+        // Handle Settings window close
+        if window === settingsWindow {
+            settingsWindow = nil
+        }
+    }
+
+    // MARK: - Settings
+
+    @objc func openSettings() {
+        // If settings window already exists, just bring it to front
+        if let existingWindow = settingsWindow {
+            existingWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let preferencesView = PreferencesView()
+        let hostingView = NSHostingView(rootView: preferencesView)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 750, height: 600),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+
+        // CRITICAL: Prevent double-release crash under ARC
+        window.isReleasedWhenClosed = false
+
+        window.title = "Settings"
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.toolbarStyle = .unified
+        window.contentView = hostingView
+        window.center()
+        window.delegate = self
+        window.minSize = NSSize(width: 700, height: 550)
+        window.maxSize = NSSize(width: 1200, height: 900)
+
+        settingsWindow = window
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }
 

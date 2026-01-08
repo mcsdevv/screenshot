@@ -23,6 +23,7 @@ class MenuBarController: NSObject {
 
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem.isVisible = true
 
         if let button = statusItem.button {
             let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
@@ -31,7 +32,16 @@ class MenuBarController: NSObject {
             button.action = #selector(statusItemClicked(_:))
             button.target = self
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            debugLog("MenuBarController: Status item created and configured")
+        } else {
+            errorLog("MenuBarController: Failed to get status item button")
         }
+    }
+
+    /// Ensures the menu bar item is visible
+    func ensureVisible() {
+        statusItem.isVisible = true
+        debugLog("MenuBarController: Ensured status item visibility")
     }
 
     private func setupMenu() {
@@ -170,8 +180,9 @@ class MenuBarController: NSObject {
     }
 
     @objc private func showPreferences() {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        NSApp.activate(ignoringOtherApps: true)
+        if let appDelegate = NSApp.delegate as? AppDelegate {
+            appDelegate.openSettings()
+        }
     }
 
     @objc private func openScreenshotsFolder() {
