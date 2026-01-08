@@ -35,12 +35,14 @@ class MenuBarController: NSObject {
     }
 
     private func setupStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        // Use variableLength for standard macOS menu bar icon spacing (not squareLength which adds extra padding)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.isVisible = true
 
         if let button = statusItem.button {
-            let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+            let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
             let image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: "ScreenCapture")?.withSymbolConfiguration(config)
+            image?.isTemplate = true  // Ensures proper rendering in light/dark mode
             button.image = image
             button.action = #selector(statusItemClicked(_:))
             button.target = self
@@ -66,8 +68,10 @@ class MenuBarController: NSObject {
 
         // Ensure button is properly configured
         if statusItem.button?.image == nil {
-            let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
-            statusItem.button?.image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: "ScreenCapture")?.withSymbolConfiguration(config)
+            let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
+            let image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: "ScreenCapture")?.withSymbolConfiguration(config)
+            image?.isTemplate = true
+            statusItem.button?.image = image
             debugLog("MenuBarController: Restored status item image")
         }
     }
@@ -236,8 +240,9 @@ class MenuBarController: NSObject {
         recordingMenuItem?.title = "Stop Recording"
 
         if let button = statusItem.button {
-            let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+            let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
             let image = NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: "Recording")?.withSymbolConfiguration(config)
+            // Don't set isTemplate for recording icon so it shows in red
             button.image = image
             button.contentTintColor = .systemRed
         }
@@ -248,8 +253,9 @@ class MenuBarController: NSObject {
         recordingMenuItem?.title = "Record Screen"
 
         if let button = statusItem.button {
-            let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+            let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
             let image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: "ScreenCapture")?.withSymbolConfiguration(config)
+            image?.isTemplate = true
             button.image = image
             button.contentTintColor = nil
         }
