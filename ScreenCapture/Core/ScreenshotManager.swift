@@ -43,6 +43,7 @@ class ScreenshotManager: NSObject, ObservableObject {
 
     func captureArea() {
         debugLog("captureArea() called")
+        guard checkScreenCapturePermission() else { return }
         captureMode = .area
         pendingAction = .save
         showSelectionOverlay()
@@ -50,6 +51,7 @@ class ScreenshotManager: NSObject, ObservableObject {
 
     func captureWindow() {
         debugLog("captureWindow() called")
+        guard checkScreenCapturePermission() else { return }
         captureMode = .window
         pendingAction = .save
         captureWindowUnderCursor()
@@ -57,6 +59,7 @@ class ScreenshotManager: NSObject, ObservableObject {
 
     func captureFullscreen() {
         debugLog("captureFullscreen() called")
+        guard checkScreenCapturePermission() else { return }
         captureMode = .fullscreen
         pendingAction = .save
         performFullscreenCapture()
@@ -64,6 +67,7 @@ class ScreenshotManager: NSObject, ObservableObject {
 
     func captureScrolling() {
         debugLog("captureScrolling() called")
+        guard checkScreenCapturePermission() else { return }
         captureMode = .scrolling
         pendingAction = .save
         showScrollingCaptureUI()
@@ -71,6 +75,7 @@ class ScreenshotManager: NSObject, ObservableObject {
 
     func captureForOCR() {
         debugLog("captureForOCR() called")
+        guard checkScreenCapturePermission() else { return }
         captureMode = .ocr
         pendingAction = .ocr
         showSelectionOverlay()
@@ -78,9 +83,19 @@ class ScreenshotManager: NSObject, ObservableObject {
 
     func captureForPinning() {
         debugLog("captureForPinning() called")
+        guard checkScreenCapturePermission() else { return }
         captureMode = .pin
         pendingAction = .pin
         showSelectionOverlay()
+    }
+
+    private func checkScreenCapturePermission() -> Bool {
+        if CGPreflightScreenCaptureAccess() {
+            return true
+        }
+        debugLog("Screen capture permission not granted, requesting...")
+        CGRequestScreenCaptureAccess()
+        return false
     }
 
     private func showSelectionOverlay() {
