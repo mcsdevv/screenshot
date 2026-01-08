@@ -141,16 +141,23 @@ class ScreenshotManager: NSObject, ObservableObject {
     }
 
     private func dismissSelectionOverlay() {
-        guard let window = selectionWindow else {
+        guard let window = selectionWindow as? KeyableWindow else {
             debugLog("dismissSelectionOverlay() called but no window exists")
             return
         }
         debugLog("Dismissing selection overlay")
+
+        // Clear the escape handler to break retain cycle before closing
+        window.onEscapePressed = nil
+
         selectionWindow = nil
         NSCursor.pop()
+
         // Defer window closing to next run loop to avoid crash when called from within SwiftUI event handler
         DispatchQueue.main.async {
             debugLog("Closing selection window (deferred)")
+            window.orderOut(nil) // Hide first
+            window.contentView = nil // Release SwiftUI view
             window.close()
             debugLog("Selection window closed successfully")
         }
@@ -263,10 +270,13 @@ class ScreenshotManager: NSObject, ObservableObject {
     private func showWindowPicker(content: SCShareableContent) {
         debugLog("showWindowPicker() called")
         // Prevent multiple overlays from stacking
-        if let existingWindow = overlayWindow {
+        if let existingWindow = overlayWindow as? KeyableWindow {
             debugLog("Closing existing overlay window")
+            existingWindow.onEscapePressed = nil
             overlayWindow = nil
             DispatchQueue.main.async {
+                existingWindow.orderOut(nil)
+                existingWindow.contentView = nil
                 existingWindow.close()
             }
         }
@@ -310,9 +320,12 @@ class ScreenshotManager: NSObject, ObservableObject {
 
     private func captureSpecificWindow(_ window: SCWindow) {
         debugLog("captureSpecificWindow() called for: \(window.title ?? "untitled")")
-        if let windowToClose = overlayWindow {
+        if let windowToClose = overlayWindow as? KeyableWindow {
+            windowToClose.onEscapePressed = nil
             overlayWindow = nil
             DispatchQueue.main.async {
+                windowToClose.orderOut(nil)
+                windowToClose.contentView = nil
                 windowToClose.close()
             }
         }
