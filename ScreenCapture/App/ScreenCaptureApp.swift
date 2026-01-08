@@ -52,29 +52,37 @@ struct MenuBarMenuView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            Button("Capture Area ⌘⇧4") {
+            Button("Capture Area") {
+                debugLog("MenuBar: Capture Area clicked")
                 Task { @MainActor in
                     appDelegate.screenshotManager.captureArea()
                 }
             }
+            .keyboardShortcut("4", modifiers: [.command, .shift])
 
-            Button("Capture Window ⌘⇧5") {
+            Button("Capture Window") {
+                debugLog("MenuBar: Capture Window clicked")
                 Task { @MainActor in
                     appDelegate.screenshotManager.captureWindow()
                 }
             }
+            .keyboardShortcut("5", modifiers: [.command, .shift])
 
-            Button("Capture Fullscreen ⌘⇧3") {
+            Button("Capture Fullscreen") {
+                debugLog("MenuBar: Capture Fullscreen clicked")
                 Task { @MainActor in
                     appDelegate.screenshotManager.captureFullscreen()
                 }
             }
+            .keyboardShortcut("3", modifiers: [.command, .shift])
 
-            Button("Scrolling Capture ⌘⇧6") {
+            Button("Scrolling Capture") {
+                debugLog("MenuBar: Scrolling Capture clicked")
                 Task { @MainActor in
                     appDelegate.screenshotManager.captureScrolling()
                 }
             }
+            .keyboardShortcut("6", modifiers: [.command, .shift])
 
             Divider()
 
@@ -82,17 +90,21 @@ struct MenuBarMenuView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            Button("Record Screen ⌘⇧7") {
+            Button("Record Screen") {
+                debugLog("MenuBar: Record Screen clicked")
                 Task { @MainActor in
                     appDelegate.screenRecordingManager.toggleRecording()
                 }
             }
+            .keyboardShortcut("7", modifiers: [.command, .shift])
 
-            Button("Record GIF ⌘⇧8") {
+            Button("Record GIF") {
+                debugLog("MenuBar: Record GIF clicked")
                 Task { @MainActor in
                     appDelegate.screenRecordingManager.toggleGIFRecording()
                 }
             }
+            .keyboardShortcut("8", modifiers: [.command, .shift])
 
             Divider()
 
@@ -100,21 +112,26 @@ struct MenuBarMenuView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            Button("Capture Text (OCR) ⌘⇧O") {
+            Button("Capture Text (OCR)") {
+                debugLog("MenuBar: Capture Text (OCR) clicked")
                 Task { @MainActor in
                     appDelegate.screenshotManager.captureForOCR()
                 }
             }
+            .keyboardShortcut("o", modifiers: [.command, .shift])
 
-            Button("Pin Screenshot ⌘⇧P") {
+            Button("Pin Screenshot") {
+                debugLog("MenuBar: Pin Screenshot clicked")
                 Task { @MainActor in
                     appDelegate.screenshotManager.captureForPinning()
                 }
             }
+            .keyboardShortcut("p", modifiers: [.command, .shift])
 
             Divider()
 
             Button("Open Screenshots Folder") {
+                debugLog("MenuBar: Open Screenshots Folder clicked")
                 NSWorkspace.shared.open(appDelegate.storageManager.screenshotsDirectory)
             }
 
@@ -126,6 +143,7 @@ struct MenuBarMenuView: View {
             Divider()
 
             Button("Quit ScreenCapture") {
+                debugLog("MenuBar: Quit clicked")
                 NSApplication.shared.terminate(nil)
             }
             .keyboardShortcut("q", modifiers: .command)

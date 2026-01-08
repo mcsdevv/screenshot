@@ -49,27 +49,28 @@ class QuickAccessOverlayController: ObservableObject {
     }
 
     func copyToClipboard() {
+        debugLog("QuickAccess: Copy button clicked")
         let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        debugLog("Copying image from: \(url.path)")
+        debugLog("QuickAccess: Copying image from: \(url.path)")
 
         if let image = NSImage(contentsOf: url) {
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             pasteboard.writeObjects([image])
-            debugLog("Image copied to clipboard successfully")
+            debugLog("QuickAccess: Image copied to clipboard successfully")
             NSSound(named: "Pop")?.play()
         } else {
-            debugLog("Failed to load image for clipboard")
+            errorLog("QuickAccess: Failed to load image for clipboard")
         }
         dismiss()
     }
 
     func saveToConfiguredLocation() {
+        debugLog("QuickAccess: Save button clicked")
         // The file is already saved to screenshotsDirectory when captured
         let fileURL = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
 
-        debugLog("Save button pressed")
-        debugLog("Looking for file at: \(fileURL.path)")
+        debugLog("QuickAccess: Looking for file at: \(fileURL.path)")
 
         // Check if file exists
         if FileManager.default.fileExists(atPath: fileURL.path) {
@@ -99,6 +100,7 @@ class QuickAccessOverlayController: ObservableObject {
     }
 
     func openAnnotationEditor() {
+        debugLog("QuickAccess: Annotate button clicked")
         dismiss()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             NSApp.activate(ignoringOtherApps: true)
@@ -106,18 +108,24 @@ class QuickAccessOverlayController: ObservableObject {
     }
 
     func pinScreenshot() {
+        debugLog("QuickAccess: Pin button clicked")
         let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
         if let image = NSImage(contentsOf: url) {
             // Use the manager to retain the window reference
             _ = PinnedScreenshotManager.shared.pin(image: image)
+            debugLog("QuickAccess: Screenshot pinned successfully")
+        } else {
+            errorLog("QuickAccess: Failed to load image for pinning")
         }
         dismiss()
     }
 
     func performOCR() {
+        debugLog("QuickAccess: OCR button clicked")
         let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
         guard let image = NSImage(contentsOf: url),
               let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            errorLog("QuickAccess: Failed to load image for OCR")
             dismiss()
             return
         }
@@ -127,10 +135,11 @@ class QuickAccessOverlayController: ObservableObject {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let text):
+                    debugLog("QuickAccess: OCR successful, extracted \(text.count) characters")
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(text, forType: .string)
-                case .failure:
-                    break
+                case .failure(let error):
+                    errorLog("QuickAccess: OCR failed: \(error)")
                 }
                 self?.dismiss()
             }
@@ -138,13 +147,17 @@ class QuickAccessOverlayController: ObservableObject {
     }
 
     func deleteCapture() {
+        debugLog("QuickAccess: Delete button clicked")
         storageManager.deleteCapture(capture)
+        debugLog("QuickAccess: Capture deleted")
         dismiss()
     }
 
     func openInFinder() {
+        debugLog("QuickAccess: Open button clicked")
         let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
         NSWorkspace.shared.activateFileViewerSelecting([url])
+        debugLog("QuickAccess: Opened in Finder: \(url.path)")
         dismiss()
     }
 }
