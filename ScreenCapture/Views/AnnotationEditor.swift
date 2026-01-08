@@ -240,21 +240,28 @@ class AnnotationEditorViewModel: ObservableObject {
     }
 
     private func drawLine(_ annotation: Annotation) {
+        let rect = annotation.cgRect
+        // Use origin and origin+size to preserve direction (not minX/maxX which normalizes)
+        let start = CGPoint(x: rect.origin.x, y: rect.origin.y)
+        let end = CGPoint(x: rect.origin.x + rect.width, y: rect.origin.y + rect.height)
+
         let path = NSBezierPath()
         path.lineWidth = annotation.strokeWidth
         path.lineCapStyle = .round
-        path.move(to: CGPoint(x: annotation.cgRect.minX, y: annotation.cgRect.minY))
-        path.line(to: CGPoint(x: annotation.cgRect.maxX, y: annotation.cgRect.maxY))
+        path.move(to: start)
+        path.line(to: end)
         path.stroke()
     }
 
     private func drawArrow(_ annotation: Annotation) {
+        let rect = annotation.cgRect
+        // Use origin and origin+size to preserve direction (not minX/maxX which normalizes)
+        let start = CGPoint(x: rect.origin.x, y: rect.origin.y)
+        let end = CGPoint(x: rect.origin.x + rect.width, y: rect.origin.y + rect.height)
+
         let path = NSBezierPath()
         path.lineWidth = annotation.strokeWidth
         path.lineCapStyle = .round
-
-        let start = CGPoint(x: annotation.cgRect.minX, y: annotation.cgRect.minY)
-        let end = CGPoint(x: annotation.cgRect.maxX, y: annotation.cgRect.maxY)
 
         // Draw line
         path.move(to: start)

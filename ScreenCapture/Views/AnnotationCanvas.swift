@@ -468,9 +468,12 @@ struct AnnotationCanvas: View {
             context.stroke(path, with: .color(color), lineWidth: annotation.strokeWidth)
 
         case .line:
+            // Use origin and origin+size to preserve direction (not minX/maxX which normalizes)
+            let start = CGPoint(x: scaledRect.origin.x, y: scaledRect.origin.y)
+            let end = CGPoint(x: scaledRect.origin.x + scaledRect.width, y: scaledRect.origin.y + scaledRect.height)
             var path = Path()
-            path.move(to: CGPoint(x: scaledRect.minX, y: scaledRect.minY))
-            path.addLine(to: CGPoint(x: scaledRect.maxX, y: scaledRect.maxY))
+            path.move(to: start)
+            path.addLine(to: end)
             context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: annotation.strokeWidth, lineCap: .round))
 
         case .arrow:
@@ -512,8 +515,9 @@ struct AnnotationCanvas: View {
 
     private func drawArrow(context: GraphicsContext, annotation: Annotation) {
         let scaledRect = scaleRect(annotation.cgRect)
-        let start = CGPoint(x: scaledRect.minX, y: scaledRect.minY)
-        let end = CGPoint(x: scaledRect.maxX, y: scaledRect.maxY)
+        // Use origin and origin+size to preserve direction (not minX/maxX which normalizes)
+        let start = CGPoint(x: scaledRect.origin.x, y: scaledRect.origin.y)
+        let end = CGPoint(x: scaledRect.origin.x + scaledRect.width, y: scaledRect.origin.y + scaledRect.height)
         let color = annotation.swiftUIColor
 
         // Draw line
@@ -704,23 +708,34 @@ struct CropOverlay: View {
     let onConfirm: () -> Void
     let onCancel: () -> Void
 
-    @State private var dragStart: CGPoint = .zero
-    @State private var isDragging = false
+    // Use @GestureState for smooth, performant dragging (auto-resets on gesture end)
+    @GestureState private var dragDelta: CGSize = .zero
+    @GestureState private var handleDragDelta: (handle: CropHandle, delta: CGSize)? = nil
+
+    // Track the rect at start of gesture for delta-based updates
+    @State private var rectAtDragStart: CGRect = .zero
+    @State private var isDrawingNewRect = false
+    @State private var newRectStart: CGPoint = .zero
 
     private var scaledImageSize: CGSize {
         CGSize(width: imageSize.width * zoom, height: imageSize.height * zoom)
     }
 
+    // Compute display rect with any active gesture delta applied
     private var displayRect: CGRect {
-        if let rect = cropRect {
-            return CGRect(
-                x: rect.origin.x * zoom,
-                y: rect.origin.y * zoom,
-                width: rect.width * zoom,
-                height: rect.height * zoom
-            )
+        var rect = cropRect ?? CGRect(origin: .zero, size: imageSize)
+
+        // Apply handle drag delta if active
+        if let handleDrag = handleDragDelta {
+            rect = applyHandleDelta(to: rectAtDragStart, handle: handleDrag.handle, delta: handleDrag.delta)
         }
-        return CGRect(origin: .zero, size: scaledImageSize)
+
+        return CGRect(
+            x: rect.origin.x * zoom,
+            y: rect.origin.y * zoom,
+            width: rect.width * zoom,
+            height: rect.height * zoom
+        )
     }
 
     var body: some View {
@@ -732,93 +747,186 @@ struct CropOverlay: View {
             }
             .fill(Color.black.opacity(0.5), style: FillStyle(eoFill: true))
 
-            // Crop border
-            Rectangle()
-                .stroke(Color.white, lineWidth: 2)
-                .frame(width: displayRect.width, height: displayRect.height)
-                .position(x: displayRect.midX, y: displayRect.midY)
+            // Crop border with rule-of-thirds grid
+            cropBorderView
 
-            // Corner handles
+            // All 8 handles: 4 corners + 4 edges
             ForEach(CropHandle.allCases, id: \.self) { handle in
-                Rectangle()
-                    .fill(Color.white)
-                    .frame(width: 12, height: 12)
-                    .position(handlePosition(for: handle))
-                    .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                handleCropResize(handle: handle, translation: value.translation)
-                            }
-                    )
+                handleView(for: handle)
             }
         }
         .frame(width: scaledImageSize.width, height: scaledImageSize.height)
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    if !isDragging {
-                        dragStart = value.startLocation
-                        isDragging = true
-                    }
-                    let rect = makeRect(from: dragStart, to: value.location)
-                    cropRect = CGRect(
-                        x: rect.origin.x / zoom,
-                        y: rect.origin.y / zoom,
-                        width: rect.width / zoom,
-                        height: rect.height / zoom
-                    )
-                }
-                .onEnded { _ in
-                    isDragging = false
-                }
-        )
+        .contentShape(Rectangle())
+        .gesture(drawNewRectGesture)
         .onAppear {
-            // Initialize with full image
             if cropRect == nil {
                 cropRect = CGRect(origin: .zero, size: imageSize)
             }
         }
     }
 
-    private func handlePosition(for handle: CropHandle) -> CGPoint {
-        switch handle {
-        case .topLeft: return CGPoint(x: displayRect.minX, y: displayRect.minY)
-        case .topRight: return CGPoint(x: displayRect.maxX, y: displayRect.minY)
-        case .bottomLeft: return CGPoint(x: displayRect.minX, y: displayRect.maxY)
-        case .bottomRight: return CGPoint(x: displayRect.maxX, y: displayRect.maxY)
+    // MARK: - Subviews
+
+    private var cropBorderView: some View {
+        ZStack {
+            // Main border
+            Rectangle()
+                .stroke(Color.white, lineWidth: 2)
+                .frame(width: displayRect.width, height: displayRect.height)
+                .position(x: displayRect.midX, y: displayRect.midY)
+
+            // Rule of thirds grid lines
+            Path { path in
+                let rect = displayRect
+                // Vertical lines
+                path.move(to: CGPoint(x: rect.minX + rect.width / 3, y: rect.minY))
+                path.addLine(to: CGPoint(x: rect.minX + rect.width / 3, y: rect.maxY))
+                path.move(to: CGPoint(x: rect.minX + 2 * rect.width / 3, y: rect.minY))
+                path.addLine(to: CGPoint(x: rect.minX + 2 * rect.width / 3, y: rect.maxY))
+                // Horizontal lines
+                path.move(to: CGPoint(x: rect.minX, y: rect.minY + rect.height / 3))
+                path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + rect.height / 3))
+                path.move(to: CGPoint(x: rect.minX, y: rect.minY + 2 * rect.height / 3))
+                path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + 2 * rect.height / 3))
+            }
+            .stroke(Color.white.opacity(0.4), lineWidth: 1)
         }
     }
 
-    private func handleCropResize(handle: CropHandle, translation: CGSize) {
-        guard var rect = cropRect else { return }
-        let dx = translation.width / zoom
-        let dy = translation.height / zoom
+    @ViewBuilder
+    private func handleView(for handle: CropHandle) -> some View {
+        let position = handlePosition(for: handle)
+        let size = handleSize(for: handle)
+
+        Rectangle()
+            .fill(Color.white)
+            .frame(width: size.width, height: size.height)
+            .position(position)
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .updating($handleDragDelta) { value, state, _ in
+                        state = (handle: handle, delta: value.translation)
+                    }
+                    .onChanged { _ in
+                        // Store rect at drag start (only on first change)
+                        if rectAtDragStart == .zero || handleDragDelta == nil {
+                            rectAtDragStart = cropRect ?? CGRect(origin: .zero, size: imageSize)
+                        }
+                    }
+                    .onEnded { value in
+                        // Commit the final rect
+                        let newRect = applyHandleDelta(to: rectAtDragStart, handle: handle, delta: value.translation)
+                        cropRect = clampRect(newRect)
+                        rectAtDragStart = .zero
+                    }
+            )
+    }
+
+    // MARK: - Gesture for drawing new crop rect
+
+    private var drawNewRectGesture: some Gesture {
+        DragGesture(minimumDistance: 5)
+            .onChanged { value in
+                if !isDrawingNewRect {
+                    newRectStart = value.startLocation
+                    isDrawingNewRect = true
+                }
+                let rect = makeRect(from: newRectStart, to: value.location)
+                cropRect = CGRect(
+                    x: rect.origin.x / zoom,
+                    y: rect.origin.y / zoom,
+                    width: rect.width / zoom,
+                    height: rect.height / zoom
+                )
+            }
+            .onEnded { _ in
+                isDrawingNewRect = false
+                if let rect = cropRect {
+                    cropRect = clampRect(rect)
+                }
+            }
+    }
+
+    // MARK: - Handle positioning and sizing
+
+    private func handlePosition(for handle: CropHandle) -> CGPoint {
+        let rect = displayRect
+        switch handle {
+        case .topLeft: return CGPoint(x: rect.minX, y: rect.minY)
+        case .top: return CGPoint(x: rect.midX, y: rect.minY)
+        case .topRight: return CGPoint(x: rect.maxX, y: rect.minY)
+        case .left: return CGPoint(x: rect.minX, y: rect.midY)
+        case .right: return CGPoint(x: rect.maxX, y: rect.midY)
+        case .bottomLeft: return CGPoint(x: rect.minX, y: rect.maxY)
+        case .bottom: return CGPoint(x: rect.midX, y: rect.maxY)
+        case .bottomRight: return CGPoint(x: rect.maxX, y: rect.maxY)
+        }
+    }
+
+    private func handleSize(for handle: CropHandle) -> CGSize {
+        switch handle {
+        case .topLeft, .topRight, .bottomLeft, .bottomRight:
+            return CGSize(width: 12, height: 12)
+        case .top, .bottom:
+            return CGSize(width: 24, height: 8)
+        case .left, .right:
+            return CGSize(width: 8, height: 24)
+        }
+    }
+
+    // MARK: - Resize logic
+
+    private func applyHandleDelta(to rect: CGRect, handle: CropHandle, delta: CGSize) -> CGRect {
+        var r = rect
+        let dx = delta.width / zoom
+        let dy = delta.height / zoom
 
         switch handle {
         case .topLeft:
-            rect.origin.x += dx
-            rect.origin.y += dy
-            rect.size.width -= dx
-            rect.size.height -= dy
+            r.origin.x += dx
+            r.origin.y += dy
+            r.size.width -= dx
+            r.size.height -= dy
+        case .top:
+            r.origin.y += dy
+            r.size.height -= dy
         case .topRight:
-            rect.origin.y += dy
-            rect.size.width += dx
-            rect.size.height -= dy
+            r.origin.y += dy
+            r.size.width += dx
+            r.size.height -= dy
+        case .left:
+            r.origin.x += dx
+            r.size.width -= dx
+        case .right:
+            r.size.width += dx
         case .bottomLeft:
-            rect.origin.x += dx
-            rect.size.width -= dx
-            rect.size.height += dy
+            r.origin.x += dx
+            r.size.width -= dx
+            r.size.height += dy
+        case .bottom:
+            r.size.height += dy
         case .bottomRight:
-            rect.size.width += dx
-            rect.size.height += dy
+            r.size.width += dx
+            r.size.height += dy
         }
+
+        return r
+    }
+
+    private func clampRect(_ rect: CGRect) -> CGRect {
+        var r = rect
+
+        // Ensure minimum size
+        r.size.width = max(r.size.width, 20)
+        r.size.height = max(r.size.height, 20)
 
         // Clamp to image bounds
-        rect = rect.intersection(CGRect(origin: .zero, size: imageSize))
+        r.origin.x = max(0, min(r.origin.x, imageSize.width - r.width))
+        r.origin.y = max(0, min(r.origin.y, imageSize.height - r.height))
+        r.size.width = min(r.width, imageSize.width - r.origin.x)
+        r.size.height = min(r.height, imageSize.height - r.origin.y)
 
-        if rect.width > 10 && rect.height > 10 {
-            cropRect = rect
-        }
+        return r
     }
 
     private func makeRect(from start: CGPoint, to end: CGPoint) -> CGRect {
@@ -830,8 +938,11 @@ struct CropOverlay: View {
         )
     }
 
+    // All 8 crop handles
     enum CropHandle: CaseIterable {
-        case topLeft, topRight, bottomLeft, bottomRight
+        case topLeft, top, topRight
+        case left, right
+        case bottomLeft, bottom, bottomRight
     }
 }
 
