@@ -315,10 +315,9 @@ struct QuickActionButton: View {
         }
         .popover(isPresented: $showTooltip, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
+                HStack(spacing: 6) {
                     Text(title)
-                        .font(.system(size: 12, weight: .semibold))
-                    Spacer()
+                        .font(.system(size: 13, weight: .semibold))
                     Text(shortcut)
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundColor(.secondary)
@@ -328,7 +327,7 @@ struct QuickActionButton: View {
                     .foregroundColor(.secondary)
             }
             .padding(10)
-            .frame(width: 200)
+            .frame(width: 200, alignment: .leading)
         }
     }
 }
@@ -377,10 +376,9 @@ struct SecondaryActionButton: View {
         }
         .popover(isPresented: $showTooltip, arrowEdge: .top) {
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
+                HStack(spacing: 6) {
                     Text(title)
-                        .font(.system(size: 12, weight: .semibold))
-                    Spacer()
+                        .font(.system(size: 13, weight: .semibold))
                     Text(shortcut)
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundColor(.secondary)
@@ -390,7 +388,7 @@ struct SecondaryActionButton: View {
                     .foregroundColor(.secondary)
             }
             .padding(10)
-            .frame(width: 200)
+            .frame(width: 200, alignment: .leading)
         }
     }
 }
