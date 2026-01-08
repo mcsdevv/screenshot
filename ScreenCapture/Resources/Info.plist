@@ -30,8 +30,6 @@
 	<string>ScreenCapture needs camera access to include your webcam in recordings.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2024. All rights reserved.</string>
-	<key>NSMainNibFile</key>
-	<string>MainMenu</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>ScreenCapture needs microphone access to record audio in your screen recordings.</string>
 	<key>NSPrincipalClass</key>
