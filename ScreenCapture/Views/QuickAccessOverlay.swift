@@ -288,24 +288,47 @@ struct QuickAccessOverlay: View {
 }
 
 // Keyboard event handling wrapper
+// Based on: https://cindori.com/developer/floating-panel
+// And: https://github.com/onmyway133/blog/issues/764
 struct KeyboardShortcutHandler: NSViewRepresentable {
     let controller: QuickAccessOverlayController
 
     func makeNSView(context: Context) -> NSView {
         let view = KeyboardView()
         view.controller = controller
-        DispatchQueue.main.async {
-            view.window?.makeFirstResponder(view)
+
+        // Request first responder after a brief delay to ensure view hierarchy is ready
+        // This is necessary for LSUIElement apps where keyboard focus doesn't happen automatically
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            if let window = view.window {
+                let success = window.makeFirstResponder(view)
+                debugLog("KeyboardShortcutHandler: makeFirstResponder result: \(success)")
+            } else {
+                debugLog("KeyboardShortcutHandler: window not available yet")
+            }
         }
         return view
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {}
+    func updateNSView(_ nsView: NSView, context: Context) {
+        // Re-request first responder on updates if needed
+        if let view = nsView as? KeyboardView, let window = view.window {
+            if window.firstResponder !== view {
+                DispatchQueue.main.async {
+                    _ = window.makeFirstResponder(view)
+                }
+            }
+        }
+    }
 
     class KeyboardView: NSView {
         weak var controller: QuickAccessOverlayController?
 
         override var acceptsFirstResponder: Bool { true }
+
+        // Accept first mouse click even when window is not active
+        // This allows clicking buttons without first clicking to activate
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
         override func keyDown(with event: NSEvent) {
             guard let controller = controller else {

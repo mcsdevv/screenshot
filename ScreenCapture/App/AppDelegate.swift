@@ -256,7 +256,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             window.delegate = self
 
             quickAccessWindow = window
+
+            // CRITICAL: For LSUIElement/accessory apps, we must activate the app
+            // AND make the window key for keyboard shortcuts to work immediately.
+            // Without activation, the window appears but doesn't receive keyboard focus.
+            // See: https://steipete.me/posts/2025/showing-settings-from-macos-menu-bar-items
+            // See: https://ar.al/2018/09/17/workaround-for-unclickable-app-menu-bug-with-window.makekeyandorderfront-and-nsapp.activate-on-macos/
+
+            // Activate the app first to bring it to foreground
+            NSApp.activate(ignoringOtherApps: true)
+
+            // Then make the window key and bring to front
             window.makeKeyAndOrderFront(nil)
+
+            // Force window to front regardless of app state
+            window.orderFrontRegardless()
+
+            debugLog("QuickAccessOverlay: Window shown and app activated for keyboard focus")
         }
     }
 
