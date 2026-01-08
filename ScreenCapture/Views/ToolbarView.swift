@@ -45,7 +45,7 @@ struct ToolbarView: View {
 
             strokeButton
 
-            if selectedTool == .rectangle || selectedTool == .ellipse {
+            if selectedTool == .rectangleOutline || selectedTool == .rectangleSolid || selectedTool == .circleOutline {
                 fillToggle
             }
         }
