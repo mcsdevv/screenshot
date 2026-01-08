@@ -185,7 +185,7 @@ struct QuickAccessOverlay: View {
                     shortcut: "⌘C",
                     tooltipText: "Copy the screenshot to your clipboard for pasting into other apps.",
                     action: { controller.copyToClipboard() },
-                    iconSize: 15
+                    iconSize: 14
                 )
 
                 QuickActionButton(
@@ -212,7 +212,7 @@ struct QuickAccessOverlay: View {
                     shortcut: "⌘P",
                     tooltipText: "Pin the screenshot as a floating window that stays on top.",
                     action: { controller.pinScreenshot() },
-                    iconSize: 15
+                    iconSize: 14
                 )
             }
             .padding(.top, 16)
@@ -254,7 +254,7 @@ struct QuickAccessOverlay: View {
             .padding(.horizontal, 16)
         }
         .frame(width: 340)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(.ultraThinMaterial)
         .onAppear {
             // Load thumbnail when view appears, not during init
             controller.loadThumbnailIfNeeded()

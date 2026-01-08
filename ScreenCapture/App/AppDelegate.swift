@@ -236,6 +236,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
             window.title = "Screenshot Preview"
+            window.backgroundColor = .clear
+            window.isOpaque = false
 
             window.contentView = hostingView
             window.level = .floating
