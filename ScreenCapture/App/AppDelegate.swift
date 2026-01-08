@@ -202,24 +202,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
         let overlayView = QuickAccessOverlay(controller: controller)
 
-        let windowSize = NSSize(width: 340, height: 300)
+        let windowSize = NSSize(width: 340, height: 340)
         let hostingView = NSHostingView(rootView: overlayView)
         hostingView.frame = NSRect(origin: .zero, size: windowSize)
 
         if let screen = NSScreen.main {
             let screenFrame = screen.visibleFrame
-
-            // Position in bottom-left corner, ensuring window is fully visible
             let padding: CGFloat = 20
-            // Calculate Y position so window is fully above the bottom of visible area
-            let yPosition = screenFrame.minY + padding
-            // Verify window fits - if not, adjust
-            let maxY = yPosition + windowSize.height
-            let adjustedY = maxY > screenFrame.maxY ? screenFrame.maxY - windowSize.height - padding : yPosition
 
+            // Position in bottom-left corner with consistent padding on all sides
             let windowFrame = NSRect(
                 x: screenFrame.minX + padding,
-                y: max(adjustedY, screenFrame.minY + padding),
+                y: screenFrame.minY + padding,
                 width: windowSize.width,
                 height: windowSize.height
             )

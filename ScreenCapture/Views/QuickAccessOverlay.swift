@@ -65,60 +65,34 @@ class QuickAccessOverlayController: ObservableObject {
     }
 
     func saveToConfiguredLocation() {
-        // The file is already saved in the default location, get its path
-        let sourceURL = storageManager.defaultDirectory.appendingPathComponent(capture.filename)
-        let destinationURL = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+        // The file is already saved to screenshotsDirectory when captured
+        let fileURL = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
 
         debugLog("Save button pressed")
-        debugLog("Source: \(sourceURL.path)")
-        debugLog("Destination: \(destinationURL.path)")
+        debugLog("Looking for file at: \(fileURL.path)")
 
-        // Check if source exists
-        guard FileManager.default.fileExists(atPath: sourceURL.path) else {
-            errorLog("Source file not found at: \(sourceURL.path)")
-            let alert = NSAlert()
-            alert.messageText = "File Not Found"
-            alert.informativeText = "The screenshot file could not be located."
-            alert.alertStyle = .warning
-            alert.runModal()
-            dismiss()
-            return
-        }
-
-        // If source and destination are the same, just reveal in Finder
-        if sourceURL.path == destinationURL.path {
-            debugLog("File already at destination, revealing in Finder")
+        // Check if file exists
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            debugLog("File found, revealing in Finder")
             NSSound(named: "Pop")?.play()
-            NSWorkspace.shared.activateFileViewerSelecting([destinationURL])
-            dismiss()
-            return
-        }
+            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+        } else {
+            // Try the default directory as fallback (in case settings changed after capture)
+            let fallbackURL = storageManager.defaultDirectory.appendingPathComponent(capture.filename)
+            debugLog("File not at configured location, checking default: \(fallbackURL.path)")
 
-        // Copy to configured location
-        do {
-            // Create destination directory if needed
-            try FileManager.default.createDirectory(at: storageManager.screenshotsDirectory,
-                                                    withIntermediateDirectories: true)
-
-            // Remove existing file if it exists
-            if FileManager.default.fileExists(atPath: destinationURL.path) {
-                try FileManager.default.removeItem(at: destinationURL)
+            if FileManager.default.fileExists(atPath: fallbackURL.path) {
+                debugLog("File found at default location, revealing in Finder")
+                NSSound(named: "Pop")?.play()
+                NSWorkspace.shared.activateFileViewerSelecting([fallbackURL])
+            } else {
+                errorLog("File not found at: \(fileURL.path) or \(fallbackURL.path)")
+                let alert = NSAlert()
+                alert.messageText = "File Not Found"
+                alert.informativeText = "The screenshot file could not be located at:\n\(fileURL.path)"
+                alert.alertStyle = .warning
+                alert.runModal()
             }
-
-            try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
-
-            debugLog("Screenshot saved to: \(destinationURL.path)")
-            NSSound(named: "Pop")?.play()
-
-            // Reveal in Finder
-            NSWorkspace.shared.activateFileViewerSelecting([destinationURL])
-        } catch {
-            errorLog("Failed to save screenshot: \(error)")
-            let alert = NSAlert()
-            alert.messageText = "Failed to Save"
-            alert.informativeText = error.localizedDescription
-            alert.alertStyle = .warning
-            alert.runModal()
         }
 
         dismiss()
@@ -209,10 +183,10 @@ struct QuickAccessOverlay: View {
                     icon: "doc.on.clipboard",
                     title: "Copy",
                     shortcut: "⌘C",
-                    tooltipText: "Copy the screenshot to your clipboard for pasting into other apps."
-                ) {
-                    controller.copyToClipboard()
-                }
+                    tooltipText: "Copy the screenshot to your clipboard for pasting into other apps.",
+                    action: { controller.copyToClipboard() },
+                    iconSize: 15
+                )
 
                 QuickActionButton(
                     icon: "square.and.arrow.down",
@@ -236,10 +210,10 @@ struct QuickAccessOverlay: View {
                     icon: "pin",
                     title: "Pin",
                     shortcut: "⌘P",
-                    tooltipText: "Pin the screenshot as a floating window that stays on top."
-                ) {
-                    controller.pinScreenshot()
-                }
+                    tooltipText: "Pin the screenshot as a floating window that stays on top.",
+                    action: { controller.pinScreenshot() },
+                    iconSize: 15
+                )
             }
             .padding(.top, 16)
             .padding(.bottom, 12)
@@ -252,25 +226,28 @@ struct QuickAccessOverlay: View {
                 SecondaryActionButton(
                     icon: "text.viewfinder",
                     title: "OCR",
+                    shortcut: "⌘T",
                     tooltipText: "Extract text from the screenshot and copy it to clipboard."
                 ) {
                     controller.performOCR()
                 }
 
                 SecondaryActionButton(
-                    icon: "trash",
-                    title: "Delete",
-                    tooltipText: "Delete this screenshot permanently."
-                ) {
-                    controller.deleteCapture()
-                }
-
-                SecondaryActionButton(
                     icon: "folder",
                     title: "Open",
+                    shortcut: "⌘O",
                     tooltipText: "Show the screenshot file in Finder."
                 ) {
                     controller.openInFinder()
+                }
+
+                SecondaryActionButton(
+                    icon: "trash",
+                    title: "Delete",
+                    shortcut: "⌘⌫",
+                    tooltipText: "Delete this screenshot permanently."
+                ) {
+                    controller.deleteCapture()
                 }
             }
             .padding(.vertical, 12)
@@ -291,6 +268,7 @@ struct QuickActionButton: View {
     let shortcut: String
     let tooltipText: String
     let action: () -> Void
+    var iconSize: CGFloat = 18
 
     @State private var isHovered = false
     @State private var showTooltip = false
@@ -300,7 +278,7 @@ struct QuickActionButton: View {
             VStack(spacing: 0) {
                 // Fixed size container for icon to ensure alignment
                 Image(systemName: icon)
-                    .font(.system(size: 18, weight: .regular))
+                    .font(.system(size: iconSize, weight: .regular))
                     .frame(width: 28, height: 28)
                     .foregroundColor(isHovered ? .accentColor : .primary)
 
@@ -337,18 +315,20 @@ struct QuickActionButton: View {
         }
         .popover(isPresented: $showTooltip, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 12, weight: .semibold))
+                HStack {
+                    Text(title)
+                        .font(.system(size: 12, weight: .semibold))
+                    Spacer()
+                    Text(shortcut)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.secondary)
+                }
                 Text(tooltipText)
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
-                Text(shortcut)
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .padding(.top, 2)
             }
             .padding(10)
-            .frame(width: 180)
+            .frame(width: 200)
         }
     }
 }
@@ -356,6 +336,7 @@ struct QuickActionButton: View {
 struct SecondaryActionButton: View {
     let icon: String
     let title: String
+    let shortcut: String
     let tooltipText: String
     let action: () -> Void
 
@@ -396,14 +377,20 @@ struct SecondaryActionButton: View {
         }
         .popover(isPresented: $showTooltip, arrowEdge: .top) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 12, weight: .semibold))
+                HStack {
+                    Text(title)
+                        .font(.system(size: 12, weight: .semibold))
+                    Spacer()
+                    Text(shortcut)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.secondary)
+                }
                 Text(tooltipText)
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
             .padding(10)
-            .frame(width: 160)
+            .frame(width: 200)
         }
     }
 }
