@@ -5,8 +5,19 @@ import Vision
 
 // Custom window class that accepts key events (required for borderless windows)
 class KeyableWindow: NSWindow {
+    var onEscapePressed: (() -> Void)?
+
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { // Escape key
+            debugLog("KeyableWindow: Escape key pressed")
+            onEscapePressed?()
+        } else {
+            super.keyDown(with: event)
+        }
+    }
 }
 
 @MainActor
@@ -102,13 +113,20 @@ class ScreenshotManager: NSObject, ObservableObject {
         let hostingView = NSHostingView(rootView: selectionView)
         hostingView.frame = screen.frame
 
-        selectionWindow = KeyableWindow(
+        let window = KeyableWindow(
             contentRect: screen.frame,
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
 
+        // Handle Escape key at window level
+        window.onEscapePressed = { [weak self] in
+            debugLog("Escape pressed - dismissing overlay")
+            self?.dismissSelectionOverlay()
+        }
+
+        selectionWindow = window
         selectionWindow?.contentView = hostingView
         selectionWindow?.isOpaque = false
         selectionWindow?.backgroundColor = .clear
