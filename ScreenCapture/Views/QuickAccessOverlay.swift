@@ -108,10 +108,12 @@ class QuickAccessOverlayController: ObservableObject {
 
     func openAnnotationEditor() {
         debugLog("QuickAccess: Annotate button clicked")
+        // Post notification to open annotation editor with this capture
+        NotificationCenter.default.post(
+            name: .openAnnotationEditor,
+            object: capture
+        )
         dismiss()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            NSApp.activate(ignoringOtherApps: true)
-        }
     }
 
     func pinScreenshot() {

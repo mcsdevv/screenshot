@@ -13,6 +13,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     var quickAccessController: QuickAccessOverlayController?
     var selectionOverlayWindow: NSWindow?
     var settingsWindow: NSWindow?
+    var annotationWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -181,6 +182,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     self?.showQuickAccessOverlay(for: capture)
                 }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .openAnnotationEditor)
+            .compactMap { $0.object as? CaptureItem }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] capture in
+                self?.showAnnotationEditor(for: capture)
             }
             .store(in: &cancellables)
     }
@@ -408,6 +417,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         if window === settingsWindow {
             settingsWindow = nil
         }
+
+        // Handle Annotation Editor window close
+        if window === annotationWindow {
+            annotationWindow = nil
+        }
     }
 
     // MARK: - Settings
@@ -446,6 +460,55 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         settingsWindow = window
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // MARK: - Annotation Editor
+
+    func showAnnotationEditor(for capture: CaptureItem) {
+        debugLog("AppDelegate: Opening annotation editor for \(capture.filename)")
+
+        // Close any existing annotation window
+        if let existingWindow = annotationWindow {
+            existingWindow.close()
+            annotationWindow = nil
+        }
+
+        let annotationView = AnnotationEditor(capture: capture)
+            .environmentObject(storageManager)
+
+        let hostingView = NSHostingView(rootView: annotationView)
+
+        // Get screen size to make window appropriately sized
+        let screenSize = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1200, height: 800)
+        let windowSize = NSSize(
+            width: min(screenSize.width * 0.85, 1400),
+            height: min(screenSize.height * 0.85, 900)
+        )
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: windowSize.width, height: windowSize.height),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+
+        // CRITICAL: Prevent double-release crash under ARC
+        window.isReleasedWhenClosed = false
+
+        window.title = "Annotate Screenshot"
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.toolbarStyle = .unified
+        window.contentView = hostingView
+        window.center()
+        window.delegate = self
+        window.minSize = NSSize(width: 600, height: 400)
+
+        annotationWindow = window
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        debugLog("AppDelegate: Annotation editor window shown")
     }
 }
 
@@ -580,4 +643,5 @@ extension Notification.Name {
     static let recordingCompleted = Notification.Name("recordingCompleted")
     static let recordingStarted = Notification.Name("recordingStarted")
     static let recordingStopped = Notification.Name("recordingStopped")
+    static let openAnnotationEditor = Notification.Name("openAnnotationEditor")
 }
