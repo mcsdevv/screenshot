@@ -594,35 +594,9 @@ struct CutoutMask: View {
 }
 
 struct CrosshairOverlay: View {
-    @State private var mousePosition: CGPoint = .zero
-
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                Path { path in
-                    path.move(to: CGPoint(x: mousePosition.x, y: 0))
-                    path.addLine(to: CGPoint(x: mousePosition.x, y: geometry.size.height))
-                }
-                .stroke(Color.white.opacity(0.5), lineWidth: 1)
-
-                Path { path in
-                    path.move(to: CGPoint(x: 0, y: mousePosition.y))
-                    path.addLine(to: CGPoint(x: geometry.size.width, y: mousePosition.y))
-                }
-                .stroke(Color.white.opacity(0.5), lineWidth: 1)
-
-                MagnifierView(position: mousePosition)
-            }
-            .onContinuousHover { phase in
-                switch phase {
-                case .active(let location):
-                    mousePosition = location
-                case .ended:
-                    break
-                }
-            }
-        }
-        .allowsHitTesting(false)
+        // Simplified - removed onContinuousHover which may cause crashes during cleanup
+        EmptyView()
     }
 }
 
