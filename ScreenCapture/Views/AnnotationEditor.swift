@@ -16,12 +16,13 @@ struct AnnotationEditor: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // CleanShot X style toolbar
+                // CleanShot X style toolbar - inline with traffic lights
                 AnnotationToolbar(
                     viewModel: viewModel,
                     onDone: finishEditing,
                     onCancel: { dismiss() }
                 )
+                .padding(.top, 4) // Small top padding to vertically center with traffic lights
 
                 // Main canvas area
                 ZStack {
@@ -43,6 +44,7 @@ struct AnnotationEditor: View {
                 AnnotationStatusBar(viewModel: viewModel)
             }
         }
+        .ignoresSafeArea(edges: .top) // Extend content into title bar area
         .onAppear {
             loadImage()
         }
@@ -431,21 +433,9 @@ struct AnnotationToolbar: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // Left side - Close button (traffic light area)
-            HStack(spacing: 8) {
-                Button(action: onCancel) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Cancel")
-            }
-            .frame(width: 60)
-
-            Divider()
-                .frame(height: 24)
-                .padding(.horizontal, 8)
+            // Left padding for traffic light buttons (close/minimize/fullscreen)
+            Spacer()
+                .frame(width: 78)
 
             // Tool buttons
             HStack(spacing: 2) {
