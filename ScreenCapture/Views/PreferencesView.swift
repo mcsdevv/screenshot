@@ -3,6 +3,7 @@ import ServiceManagement
 
 struct PreferencesView: View {
     @State private var selectedTab: PreferencesTab = .general
+    @State private var isAppearing = false
 
     enum PreferencesTab: String, CaseIterable {
         case general = "General"
@@ -14,12 +15,12 @@ struct PreferencesView: View {
 
         var icon: String {
             switch self {
-            case .general: return "gear"
-            case .shortcuts: return "keyboard"
-            case .capture: return "camera"
-            case .recording: return "video"
-            case .storage: return "externaldrive"
-            case .advanced: return "wrench.and.screwdriver"
+            case .general: return "gearshape.fill"
+            case .shortcuts: return "command"
+            case .capture: return "camera.fill"
+            case .recording: return "video.fill"
+            case .storage: return "externaldrive.fill"
+            case .advanced: return "wrench.and.screwdriver.fill"
             }
         }
     }
@@ -30,42 +31,87 @@ struct PreferencesView: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Spacer for traffic light buttons
                 Spacer()
-                    .frame(height: 38)
+                    .frame(height: 52)
+
+                // App icon and name
+                VStack(spacing: DSSpacing.sm) {
+                    Image(systemName: "camera.viewfinder")
+                        .font(.system(size: 32, weight: .light))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.dsAccent, .dsAccent.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+
+                    Text("ScreenCapture")
+                        .font(DSTypography.headlineSmall)
+                        .foregroundColor(.dsTextPrimary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, DSSpacing.xl)
 
                 // Sidebar items
-                VStack(spacing: 2) {
+                VStack(spacing: DSSpacing.xxs) {
                     ForEach(PreferencesTab.allCases, id: \.self) { tab in
-                        SidebarItem(
+                        PreferencesSidebarItem(
                             icon: tab.icon,
                             title: tab.rawValue,
                             isSelected: selectedTab == tab
                         ) {
-                            selectedTab = tab
+                            withAnimation(DSAnimation.quick) {
+                                selectedTab = tab
+                            }
                         }
                     }
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, DSSpacing.md)
 
                 Spacer()
+
+                // Version info
+                VStack(spacing: DSSpacing.xxs) {
+                    Text("Version 1.0.0")
+                        .font(DSTypography.caption)
+                        .foregroundColor(.dsTextTertiary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, DSSpacing.lg)
             }
             .frame(width: 200)
-            .background(VisualEffectView(material: .sidebar, blendingMode: .behindWindow))
+            .background(
+                ZStack {
+                    Color.dsBackground
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.02), Color.clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
+            )
 
             // Main content
             VStack(spacing: 0) {
-                // Toolbar area
+                // Header
                 HStack {
-                    Text(selectedTab.rawValue)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: DSSpacing.xxxs) {
+                        Text(selectedTab.rawValue)
+                            .font(DSTypography.headlineLarge)
+                            .foregroundColor(.dsTextPrimary)
+
+                        Text(tabDescription(for: selectedTab))
+                            .font(DSTypography.bodySmall)
+                            .foregroundColor(.dsTextTertiary)
+                    }
                     Spacer()
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .frame(height: 52)
-                .background(VisualEffectView(material: .titlebar, blendingMode: .withinWindow))
+                .padding(.horizontal, DSSpacing.xl)
+                .padding(.top, DSSpacing.huge)
+                .padding(.bottom, DSSpacing.lg)
 
-                Divider()
+                DSDivider()
+                    .padding(.horizontal, DSSpacing.xl)
 
                 // Content area
                 ScrollView {
@@ -85,17 +131,32 @@ struct PreferencesView: View {
                             AdvancedPreferencesView()
                         }
                     }
+                    .padding(.horizontal, DSSpacing.xl)
+                    .padding(.vertical, DSSpacing.lg)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(nsColor: .windowBackgroundColor))
             }
+            .background(Color.dsBackgroundElevated)
         }
         .frame(minWidth: 700, minHeight: 550)
-        .frame(width: 750, height: 600)
+        .frame(width: 780, height: 620)
+    }
+
+    private func tabDescription(for tab: PreferencesTab) -> String {
+        switch tab {
+        case .general: return "Startup behavior and feedback settings"
+        case .shortcuts: return "Keyboard shortcuts for quick access"
+        case .capture: return "Screenshot capture options"
+        case .recording: return "Screen recording configuration"
+        case .storage: return "File storage and cleanup settings"
+        case .advanced: return "Performance and developer options"
+        }
     }
 }
 
-struct SidebarItem: View {
+// MARK: - Sidebar Item
+
+struct PreferencesSidebarItem: View {
     let icon: String
     let title: String
     let isSelected: Bool
@@ -105,49 +166,129 @@ struct SidebarItem: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: DSSpacing.sm) {
                 Image(systemName: icon)
-                    .font(.system(size: 14))
-                    .foregroundColor(isSelected ? .white : .primary)
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                    .foregroundColor(isSelected ? .dsAccent : .dsTextSecondary)
                     .frame(width: 20)
 
                 Text(title)
-                    .font(.system(size: 13))
-                    .foregroundColor(isSelected ? .white : .primary)
+                    .font(DSTypography.bodyMedium)
+                    .foregroundColor(isSelected ? .dsTextPrimary : .dsTextSecondary)
 
                 Spacer()
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, DSSpacing.md)
+            .padding(.vertical, DSSpacing.sm)
             .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? Color.accentColor : (isHovered ? Color.primary.opacity(0.08) : Color.clear))
+                RoundedRectangle(cornerRadius: DSRadius.md)
+                    .fill(
+                        isSelected ? Color.dsAccent.opacity(0.12) :
+                        (isHovered ? Color.white.opacity(0.04) : Color.clear)
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DSRadius.md)
+                    .strokeBorder(
+                        isSelected ? Color.dsAccent.opacity(0.25) : Color.clear,
+                        lineWidth: 1
+                    )
             )
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            isHovered = hovering
+            withAnimation(DSAnimation.quick) {
+                isHovered = hovering
+            }
         }
     }
 }
 
-struct VisualEffectView: NSViewRepresentable {
-    let material: NSVisualEffectView.Material
-    let blendingMode: NSVisualEffectView.BlendingMode
+// MARK: - Preference Section
 
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = material
-        view.blendingMode = blendingMode
-        view.state = .followsWindowActiveState
-        return view
+struct PreferenceSection<Content: View>: View {
+    let title: String
+    let content: () -> Content
+
+    init(_ title: String, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title
+        self.content = content
     }
 
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.material = material
-        nsView.blendingMode = blendingMode
+    var body: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.md) {
+            Text(title.uppercased())
+                .font(DSTypography.captionMedium)
+                .foregroundColor(.dsTextTertiary)
+                .tracking(0.5)
+
+            VStack(spacing: DSSpacing.sm) {
+                content()
+            }
+            .padding(DSSpacing.lg)
+            .background(
+                RoundedRectangle(cornerRadius: DSRadius.lg)
+                    .fill(Color.dsBackgroundSecondary)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DSRadius.lg)
+                    .strokeBorder(Color.dsBorder, lineWidth: 1)
+            )
+        }
     }
 }
+
+// MARK: - Preference Row
+
+struct PreferenceRow<Content: View>: View {
+    let title: String
+    let subtitle: String?
+    let content: () -> Content
+
+    init(_ title: String, subtitle: String? = nil, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title
+        self.subtitle = subtitle
+        self.content = content
+    }
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: DSSpacing.xxxs) {
+                Text(title)
+                    .font(DSTypography.bodyMedium)
+                    .foregroundColor(.dsTextPrimary)
+
+                if let subtitle = subtitle {
+                    Text(subtitle)
+                        .font(DSTypography.caption)
+                        .foregroundColor(.dsTextTertiary)
+                }
+            }
+
+            Spacer()
+
+            content()
+        }
+    }
+}
+
+// MARK: - Custom Toggle
+
+struct DSToggle: View {
+    @Binding var isOn: Bool
+    let label: String
+
+    var body: some View {
+        Toggle(isOn: $isOn) {
+            Text(label)
+                .font(DSTypography.bodyMedium)
+                .foregroundColor(.dsTextPrimary)
+        }
+        .toggleStyle(SwitchToggleStyle(tint: .dsAccent))
+    }
+}
+
+// MARK: - General Preferences
 
 struct GeneralPreferencesView: View {
     @AppStorage("launchAtLogin") private var launchAtLogin = false
@@ -157,47 +298,56 @@ struct GeneralPreferencesView: View {
     @AppStorage("quickAccessDuration") private var quickAccessDuration = 5.0
 
     var body: some View {
-        Form {
-            Section("Startup") {
-                Toggle("Launch ScreenCapture at login", isOn: $launchAtLogin)
+        VStack(alignment: .leading, spacing: DSSpacing.xl) {
+            PreferenceSection("Startup") {
+                DSToggle(isOn: $launchAtLogin, label: "Launch ScreenCapture at login")
                     .onChange(of: launchAtLogin) { _, newValue in
                         updateLaunchAtLogin(newValue)
                     }
 
-                Toggle("Show icon in menu bar", isOn: $showMenuBarIcon)
+                DSDivider()
+
+                DSToggle(isOn: $showMenuBarIcon, label: "Show icon in menu bar")
             }
 
-            Section("Feedback") {
-                Toggle("Play sound after capture", isOn: $playSound)
+            PreferenceSection("Feedback") {
+                DSToggle(isOn: $playSound, label: "Play sound after capture")
 
-                Toggle("Show Quick Access overlay after capture", isOn: $showQuickAccess)
+                DSDivider()
+
+                DSToggle(isOn: $showQuickAccess, label: "Show Quick Access overlay after capture")
 
                 if showQuickAccess {
-                    HStack {
-                        Text("Auto-dismiss after")
+                    DSDivider()
+
+                    PreferenceRow("Auto-dismiss after") {
                         Picker("", selection: $quickAccessDuration) {
                             Text("3 seconds").tag(3.0)
                             Text("5 seconds").tag(5.0)
                             Text("10 seconds").tag(10.0)
                             Text("Never").tag(0.0)
                         }
-                        .labelsHidden()
-                        .frame(width: 120)
+                        .pickerStyle(.menu)
+                        .frame(width: 130)
+                        .tint(.dsAccent)
                     }
                 }
             }
 
-            Section("Default Actions") {
-                Picker("After capture", selection: .constant("quickAccess")) {
-                    Text("Show Quick Access").tag("quickAccess")
-                    Text("Copy to Clipboard").tag("clipboard")
-                    Text("Save to File").tag("save")
-                    Text("Open in Editor").tag("editor")
+            PreferenceSection("Default Actions") {
+                PreferenceRow("After capture") {
+                    Picker("", selection: .constant("quickAccess")) {
+                        Text("Show Quick Access").tag("quickAccess")
+                        Text("Copy to Clipboard").tag("clipboard")
+                        Text("Save to File").tag("save")
+                        Text("Open in Editor").tag("editor")
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 160)
+                    .tint(.dsAccent)
                 }
             }
         }
-        .formStyle(.grouped)
-        .padding()
     }
 
     private func updateLaunchAtLogin(_ enabled: Bool) {
@@ -213,29 +363,35 @@ struct GeneralPreferencesView: View {
     }
 }
 
+// MARK: - Shortcuts Preferences
+
 struct ShortcutsPreferencesView: View {
     var body: some View {
-        Form {
-            Section("Screenshot Shortcuts") {
+        VStack(alignment: .leading, spacing: DSSpacing.xl) {
+            PreferenceSection("Screenshot Shortcuts") {
                 ShortcutRow(name: "Capture Area", shortcut: "⌘⇧4")
+                DSDivider()
                 ShortcutRow(name: "Capture Window", shortcut: "⌘⇧5")
+                DSDivider()
                 ShortcutRow(name: "Capture Fullscreen", shortcut: "⌘⇧3")
+                DSDivider()
                 ShortcutRow(name: "Scrolling Capture", shortcut: "⌘⇧6")
             }
 
-            Section("Recording Shortcuts") {
+            PreferenceSection("Recording Shortcuts") {
                 ShortcutRow(name: "Record Screen", shortcut: "⌘⇧7")
+                DSDivider()
                 ShortcutRow(name: "Record GIF", shortcut: "⌘⇧8")
             }
 
-            Section("Tool Shortcuts") {
+            PreferenceSection("Tool Shortcuts") {
                 ShortcutRow(name: "Capture Text (OCR)", shortcut: "⌘⇧O")
+                DSDivider()
                 ShortcutRow(name: "Pin Screenshot", shortcut: "⌘⇧P")
+                DSDivider()
                 ShortcutRow(name: "All-in-One Menu", shortcut: "⌘⇧⌥A")
             }
         }
-        .formStyle(.grouped)
-        .padding()
     }
 }
 
@@ -246,16 +402,29 @@ struct ShortcutRow: View {
     var body: some View {
         HStack {
             Text(name)
+                .font(DSTypography.bodyMedium)
+                .foregroundColor(.dsTextPrimary)
+
             Spacer()
+
             Text(shortcut)
-                .font(.system(size: 12, design: .monospaced))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.secondary.opacity(0.1))
-                .cornerRadius(4)
+                .font(DSTypography.mono)
+                .foregroundColor(.dsTextSecondary)
+                .padding(.horizontal, DSSpacing.sm)
+                .padding(.vertical, DSSpacing.xxs)
+                .background(
+                    RoundedRectangle(cornerRadius: DSRadius.xs)
+                        .fill(Color.dsBackgroundTertiary)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DSRadius.xs)
+                        .strokeBorder(Color.dsBorder, lineWidth: 1)
+                )
         }
     }
 }
+
+// MARK: - Capture Preferences
 
 struct CapturePreferencesView: View {
     @AppStorage("hideDesktopIcons") private var hideDesktopIcons = false
@@ -266,40 +435,49 @@ struct CapturePreferencesView: View {
     @AppStorage("jpegQuality") private var jpegQuality = 0.9
 
     var body: some View {
-        Form {
-            Section("Capture Options") {
-                Toggle("Hide desktop icons during capture", isOn: $hideDesktopIcons)
-                Toggle("Include cursor in screenshots", isOn: $showCursor)
-                Toggle("Show selection dimensions", isOn: $showDimensions)
-                Toggle("Show magnifier when selecting", isOn: $showMagnifier)
+        VStack(alignment: .leading, spacing: DSSpacing.xl) {
+            PreferenceSection("Capture Options") {
+                DSToggle(isOn: $hideDesktopIcons, label: "Hide desktop icons during capture")
+                DSDivider()
+                DSToggle(isOn: $showCursor, label: "Include cursor in screenshots")
+                DSDivider()
+                DSToggle(isOn: $showDimensions, label: "Show selection dimensions")
+                DSDivider()
+                DSToggle(isOn: $showMagnifier, label: "Show magnifier when selecting")
             }
 
-            Section("Image Format") {
-                Picker("Default format", selection: $captureFormat) {
-                    Text("PNG").tag("png")
-                    Text("JPEG").tag("jpeg")
-                    Text("TIFF").tag("tiff")
+            PreferenceSection("Image Format") {
+                PreferenceRow("Default format") {
+                    Picker("", selection: $captureFormat) {
+                        Text("PNG").tag("png")
+                        Text("JPEG").tag("jpeg")
+                        Text("TIFF").tag("tiff")
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 180)
                 }
 
                 if captureFormat == "jpeg" {
-                    HStack {
-                        Text("JPEG Quality")
+                    DSDivider()
+
+                    PreferenceRow("JPEG Quality", subtitle: "\(Int(jpegQuality * 100))%") {
                         Slider(value: $jpegQuality, in: 0.1...1.0, step: 0.1)
-                        Text("\(Int(jpegQuality * 100))%")
-                            .frame(width: 40)
+                            .frame(width: 150)
+                            .tint(.dsAccent)
                     }
                 }
             }
 
-            Section("Window Capture") {
-                Toggle("Capture window shadow", isOn: .constant(true))
-                Toggle("Capture rounded corners", isOn: .constant(true))
+            PreferenceSection("Window Capture") {
+                DSToggle(isOn: .constant(true), label: "Capture window shadow")
+                DSDivider()
+                DSToggle(isOn: .constant(true), label: "Capture rounded corners")
             }
         }
-        .formStyle(.grouped)
-        .padding()
     }
 }
+
+// MARK: - Recording Preferences
 
 struct RecordingPreferencesView: View {
     @AppStorage("recordingQuality") private var recordingQuality = "high"
@@ -312,48 +490,71 @@ struct RecordingPreferencesView: View {
     @AppStorage("gifQuality") private var gifQuality = "medium"
 
     var body: some View {
-        Form {
-            Section("Video Recording") {
-                Picker("Quality", selection: $recordingQuality) {
-                    Text("Low (720p)").tag("low")
-                    Text("Medium (1080p)").tag("medium")
-                    Text("High (Native)").tag("high")
+        VStack(alignment: .leading, spacing: DSSpacing.xl) {
+            PreferenceSection("Video Recording") {
+                PreferenceRow("Quality") {
+                    Picker("", selection: $recordingQuality) {
+                        Text("Low (720p)").tag("low")
+                        Text("Medium (1080p)").tag("medium")
+                        Text("High (Native)").tag("high")
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 150)
+                    .tint(.dsAccent)
                 }
 
-                Picker("Frame Rate", selection: $recordingFPS) {
-                    Text("30 FPS").tag(30)
-                    Text("60 FPS").tag(60)
+                DSDivider()
+
+                PreferenceRow("Frame Rate") {
+                    Picker("", selection: $recordingFPS) {
+                        Text("30 FPS").tag(30)
+                        Text("60 FPS").tag(60)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 140)
                 }
             }
 
-            Section("Audio") {
-                Toggle("Record microphone", isOn: $recordMicrophone)
-                Toggle("Record system audio", isOn: $recordSystemAudio)
+            PreferenceSection("Audio") {
+                DSToggle(isOn: $recordMicrophone, label: "Record microphone")
+                DSDivider()
+                DSToggle(isOn: $recordSystemAudio, label: "Record system audio")
             }
 
-            Section("Visual Feedback") {
-                Toggle("Highlight mouse clicks", isOn: $showMouseClicks)
-                Toggle("Show keystrokes", isOn: $showKeystrokes)
+            PreferenceSection("Visual Feedback") {
+                DSToggle(isOn: $showMouseClicks, label: "Highlight mouse clicks")
+                DSDivider()
+                DSToggle(isOn: $showKeystrokes, label: "Show keystrokes")
             }
 
-            Section("GIF Recording") {
-                Picker("Frame Rate", selection: $gifFPS) {
-                    Text("10 FPS").tag(10)
-                    Text("15 FPS").tag(15)
-                    Text("20 FPS").tag(20)
+            PreferenceSection("GIF Recording") {
+                PreferenceRow("Frame Rate") {
+                    Picker("", selection: $gifFPS) {
+                        Text("10 FPS").tag(10)
+                        Text("15 FPS").tag(15)
+                        Text("20 FPS").tag(20)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 180)
                 }
 
-                Picker("Quality", selection: $gifQuality) {
-                    Text("Low").tag("low")
-                    Text("Medium").tag("medium")
-                    Text("High").tag("high")
+                DSDivider()
+
+                PreferenceRow("Quality") {
+                    Picker("", selection: $gifQuality) {
+                        Text("Low").tag("low")
+                        Text("Medium").tag("medium")
+                        Text("High").tag("high")
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 180)
                 }
             }
         }
-        .formStyle(.grouped)
-        .padding()
     }
 }
+
+// MARK: - Storage Preferences
 
 struct StoragePreferencesView: View {
     @AppStorage("autoCleanup") private var autoCleanup = true
@@ -364,89 +565,145 @@ struct StoragePreferencesView: View {
     @State private var storageUsed: String = "Calculating..."
     @State private var currentPath: String = ""
 
-    // Access StorageManager from environment or create reference
     private var storageManager: StorageManager {
-        // Get from app delegate
         if let appDelegate = NSApp.delegate as? AppDelegate {
             return appDelegate.storageManager
         }
-        // Fallback - shouldn't happen
         return StorageManager()
     }
 
     var body: some View {
-        Form {
-            Section("Storage Location") {
-                Picker("Save screenshots to", selection: $storageLocation) {
-                    Text("Default (App Support)").tag("default")
-                    Text("Desktop").tag("desktop")
-                    Text("Custom Folder").tag("custom")
-                }
-                .onChange(of: storageLocation) { _, newValue in
-                    if newValue != "custom" {
-                        storageManager.setStorageLocation(newValue)
-                        updateCurrentPath()
+        VStack(alignment: .leading, spacing: DSSpacing.xl) {
+            PreferenceSection("Storage Location") {
+                PreferenceRow("Save screenshots to") {
+                    Picker("", selection: $storageLocation) {
+                        Text("Default (App Support)").tag("default")
+                        Text("Desktop").tag("desktop")
+                        Text("Custom Folder").tag("custom")
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 180)
+                    .tint(.dsAccent)
+                    .onChange(of: storageLocation) { _, newValue in
+                        if newValue != "custom" {
+                            storageManager.setStorageLocation(newValue)
+                            updateCurrentPath()
+                        }
                     }
                 }
 
                 if storageLocation == "custom" {
+                    DSDivider()
+
                     HStack {
                         Text(customLocationPath)
-                            .foregroundColor(.secondary)
+                            .font(DSTypography.bodySmall)
+                            .foregroundColor(.dsTextTertiary)
                             .lineLimit(1)
                             .truncationMode(.middle)
+
                         Spacer()
-                        Button("Choose...") {
+
+                        DSSecondaryButton("Choose...", icon: "folder") {
                             chooseCustomLocation()
                         }
                     }
                 }
 
-                HStack {
-                    Text("Current location:")
-                        .foregroundColor(.secondary)
-                    Text(currentPath)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                .font(.caption)
+                DSDivider()
 
-                Button("Open Screenshots Folder") {
-                    openScreenshotsFolder()
+                HStack {
+                    VStack(alignment: .leading, spacing: DSSpacing.xxxs) {
+                        Text("Current location")
+                            .font(DSTypography.caption)
+                            .foregroundColor(.dsTextTertiary)
+                        Text(currentPath)
+                            .font(DSTypography.monoSmall)
+                            .foregroundColor(.dsTextSecondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+
+                    Spacer()
+
+                    DSSecondaryButton("Open Folder", icon: "arrow.up.right") {
+                        openScreenshotsFolder()
+                    }
                 }
             }
 
-            Section("Storage Management") {
-                HStack {
-                    Text("Storage used")
-                    Spacer()
-                    Text(storageUsed)
-                        .foregroundColor(.secondary)
+            PreferenceSection("Storage Management") {
+                PreferenceRow("Storage used") {
+                    HStack(spacing: DSSpacing.sm) {
+                        Text(storageUsed)
+                            .font(DSTypography.labelMedium)
+                            .foregroundColor(.dsAccent)
+
+                        // Storage indicator
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.dsAccent.opacity(0.3))
+                            .frame(width: 60, height: 6)
+                            .overlay(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(Color.dsAccent)
+                                    .frame(width: 20)
+                            }
+                    }
                 }
 
-                Toggle("Automatically delete old captures", isOn: $autoCleanup)
+                DSDivider()
+
+                DSToggle(isOn: $autoCleanup, label: "Automatically delete old captures")
 
                 if autoCleanup {
-                    Picker("Delete captures older than", selection: $cleanupDays) {
-                        Text("7 days").tag(7)
-                        Text("14 days").tag(14)
-                        Text("30 days").tag(30)
-                        Text("90 days").tag(90)
+                    DSDivider()
+
+                    PreferenceRow("Delete captures older than") {
+                        Picker("", selection: $cleanupDays) {
+                            Text("7 days").tag(7)
+                            Text("14 days").tag(14)
+                            Text("30 days").tag(30)
+                            Text("90 days").tag(90)
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 120)
+                        .tint(.dsAccent)
                     }
 
-                    Text("Favorites are never automatically deleted")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    HStack {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.dsWarmAccent)
+                        Text("Favorites are never automatically deleted")
+                            .font(DSTypography.caption)
+                            .foregroundColor(.dsTextTertiary)
+                    }
+                    .padding(.top, DSSpacing.xxs)
                 }
 
-                Button("Clear All Captures...", role: .destructive) {
-                    clearAllCaptures()
+                DSDivider()
+
+                HStack {
+                    Spacer()
+                    Button(action: clearAllCaptures) {
+                        HStack(spacing: DSSpacing.xs) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 12))
+                            Text("Clear All Captures...")
+                                .font(DSTypography.labelSmall)
+                        }
+                        .foregroundColor(.dsDanger)
+                        .padding(.horizontal, DSSpacing.md)
+                        .padding(.vertical, DSSpacing.xs)
+                        .background(
+                            RoundedRectangle(cornerRadius: DSRadius.sm)
+                                .fill(Color.dsDanger.opacity(0.1))
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
-        .formStyle(.grouped)
-        .padding()
         .onAppear {
             loadCurrentSettings()
             calculateStorageUsed()
@@ -481,7 +738,6 @@ struct StoragePreferencesView: View {
                 updateCurrentPath()
                 debugLog("StoragePreferences: Custom folder set to \(url.path)")
             } else {
-                // Show error
                 let alert = NSAlert()
                 alert.messageText = "Cannot Use This Folder"
                 alert.informativeText = "ScreenCapture doesn't have permission to save files to this folder. Please choose a different location."
@@ -528,11 +784,12 @@ struct StoragePreferencesView: View {
         alert.addButton(withTitle: "Cancel")
 
         if alert.runModal() == .alertFirstButtonReturn {
-            // Clear captures
             calculateStorageUsed()
         }
     }
 }
+
+// MARK: - Advanced Preferences
 
 struct AdvancedPreferencesView: View {
     @AppStorage("enableHardwareAcceleration") private var enableHardwareAcceleration = true
@@ -540,34 +797,76 @@ struct AdvancedPreferencesView: View {
     @AppStorage("debugMode") private var debugMode = false
 
     var body: some View {
-        Form {
-            Section("Performance") {
-                Toggle("Enable hardware acceleration", isOn: $enableHardwareAcceleration)
-                Toggle("Reduce motion effects", isOn: $reducedMotion)
+        VStack(alignment: .leading, spacing: DSSpacing.xl) {
+            PreferenceSection("Performance") {
+                DSToggle(isOn: $enableHardwareAcceleration, label: "Enable hardware acceleration")
+                DSDivider()
+                DSToggle(isOn: $reducedMotion, label: "Reduce motion effects")
             }
 
-            Section("Developer") {
-                Toggle("Enable debug mode", isOn: $debugMode)
+            PreferenceSection("Developer") {
+                DSToggle(isOn: $debugMode, label: "Enable debug mode")
 
-                Button("Reset All Preferences") {
-                    resetPreferences()
-                }
-            }
+                DSDivider()
 
-            Section("About") {
                 HStack {
-                    Text("Version")
                     Spacer()
-                    Text("1.0.0")
-                        .foregroundColor(.secondary)
+                    Button(action: resetPreferences) {
+                        HStack(spacing: DSSpacing.xs) {
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(.system(size: 12))
+                            Text("Reset All Preferences")
+                                .font(DSTypography.labelSmall)
+                        }
+                        .foregroundColor(.dsWarmAccent)
+                        .padding(.horizontal, DSSpacing.md)
+                        .padding(.vertical, DSSpacing.xs)
+                        .background(
+                            RoundedRectangle(cornerRadius: DSRadius.sm)
+                                .fill(Color.dsWarmAccent.opacity(0.1))
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
+            }
 
-                Link("View on GitHub", destination: URL(string: "https://github.com")!)
-                Link("Report an Issue", destination: URL(string: "https://github.com")!)
+            PreferenceSection("About") {
+                HStack {
+                    VStack(alignment: .leading, spacing: DSSpacing.xxxs) {
+                        Text("ScreenCapture")
+                            .font(DSTypography.headlineSmall)
+                            .foregroundColor(.dsTextPrimary)
+                        Text("Version 1.0.0 (Build 1)")
+                            .font(DSTypography.caption)
+                            .foregroundColor(.dsTextTertiary)
+                    }
+
+                    Spacer()
+
+                    HStack(spacing: DSSpacing.sm) {
+                        Link(destination: URL(string: "https://github.com")!) {
+                            HStack(spacing: DSSpacing.xxs) {
+                                Image(systemName: "link")
+                                    .font(.system(size: 11))
+                                Text("GitHub")
+                                    .font(DSTypography.labelSmall)
+                            }
+                            .foregroundColor(.dsAccent)
+                        }
+
+                        Link(destination: URL(string: "https://github.com")!) {
+                            HStack(spacing: DSSpacing.xxs) {
+                                Image(systemName: "exclamationmark.bubble")
+                                    .font(.system(size: 11))
+                                Text("Report Issue")
+                                    .font(DSTypography.labelSmall)
+                            }
+                            .foregroundColor(.dsAccent)
+                        }
+                    }
+                }
             }
         }
-        .formStyle(.grouped)
-        .padding()
     }
 
     private func resetPreferences() {
@@ -581,5 +880,25 @@ struct AdvancedPreferencesView: View {
         if alert.runModal() == .alertFirstButtonReturn {
             UserDefaults.standard.removePersistentDomain(forName: Bundle.main.bundleIdentifier!)
         }
+    }
+}
+
+// MARK: - Visual Effect View (for backwards compatibility)
+
+struct VisualEffectView: NSViewRepresentable {
+    let material: NSVisualEffectView.Material
+    let blendingMode: NSVisualEffectView.BlendingMode
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = blendingMode
+        view.state = .followsWindowActiveState
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = material
+        nsView.blendingMode = blendingMode
     }
 }

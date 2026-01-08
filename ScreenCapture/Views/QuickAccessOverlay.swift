@@ -171,127 +171,359 @@ class QuickAccessOverlayController: ObservableObject {
     }
 }
 
+// MARK: - Main Quick Access Overlay
+
 struct QuickAccessOverlay: View {
     @ObservedObject var controller: QuickAccessOverlayController
+    @State private var isAppearing = false
 
     var body: some View {
         VStack(spacing: 0) {
             // Spacer for title bar area (traffic light buttons)
             Spacer()
-                .frame(height: 28)
+                .frame(height: 32)
 
-            if let thumbnail = controller.thumbnail {
-                Image(nsImage: thumbnail)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 300, maxHeight: 160)
-                    .cornerRadius(8)
-                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                    .padding(.horizontal, 16)
-            } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.secondary.opacity(0.1))
-                    .frame(height: 160)
-                    .overlay(
-                        Image(systemName: controller.capture.type.icon)
-                            .font(.system(size: 40))
-                            .foregroundColor(.secondary)
-                    )
-                    .padding(.horizontal, 16)
-            }
+            // Thumbnail preview
+            thumbnailSection
+                .padding(.horizontal, DSSpacing.lg)
 
-            HStack(spacing: 12) {
-                QuickActionButton(
-                    icon: "doc.on.clipboard",
-                    title: "Copy",
-                    shortcut: "⌘C",
-                    tooltipText: "Copy the screenshot to your clipboard for pasting into other apps.",
-                    action: { controller.copyToClipboard() },
-                    iconSize: 14
-                )
+            // Primary actions
+            primaryActionsSection
+                .padding(.top, DSSpacing.lg)
+                .padding(.horizontal, DSSpacing.lg)
 
-                QuickActionButton(
-                    icon: "square.and.arrow.down",
-                    title: "Save",
-                    shortcut: "⌘S",
-                    tooltipText: "Save the screenshot to your configured folder."
-                ) {
-                    controller.saveToConfiguredLocation()
-                }
+            DSDivider()
+                .padding(.horizontal, DSSpacing.xl)
+                .padding(.vertical, DSSpacing.md)
 
-                QuickActionButton(
-                    icon: "pencil",
-                    title: "Annotate",
-                    shortcut: "⌘E",
-                    tooltipText: "Open the annotation editor to draw, add text, or highlight areas."
-                ) {
-                    controller.openAnnotationEditor()
-                }
-
-                QuickActionButton(
-                    icon: "pin",
-                    title: "Pin",
-                    shortcut: "⌘P",
-                    tooltipText: "Pin the screenshot as a floating window that stays on top.",
-                    action: { controller.pinScreenshot() },
-                    iconSize: 14
-                )
-            }
-            .padding(.top, 16)
-            .padding(.bottom, 12)
-            .padding(.horizontal, 16)
-
-            Divider()
-                .padding(.horizontal, 16)
-
-            HStack(spacing: 12) {
-                SecondaryActionButton(
-                    icon: "text.viewfinder",
-                    title: "OCR",
-                    shortcut: "⌘T",
-                    tooltipText: "Extract text from the screenshot and copy it to clipboard."
-                ) {
-                    controller.performOCR()
-                }
-
-                SecondaryActionButton(
-                    icon: "folder",
-                    title: "Open",
-                    shortcut: "⌘O",
-                    tooltipText: "Show the screenshot file in Finder."
-                ) {
-                    controller.openInFinder()
-                }
-
-                SecondaryActionButton(
-                    icon: "trash",
-                    title: "Delete",
-                    shortcut: "⌘⌫",
-                    tooltipText: "Delete this screenshot permanently."
-                ) {
-                    controller.deleteCapture()
-                }
-            }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 16)
+            // Secondary actions
+            secondaryActionsSection
+                .padding(.horizontal, DSSpacing.lg)
+                .padding(.bottom, DSSpacing.lg)
         }
-        .frame(width: 340)
-        .background(.ultraThinMaterial)
+        .frame(width: 360)
+        .background(quickAccessBackground)
         .background(KeyboardShortcutHandler(controller: controller))
+        .opacity(isAppearing ? 1 : 0)
+        .scaleEffect(isAppearing ? 1 : 0.95)
         .onAppear {
-            // Load thumbnail when view appears, not during init
             controller.loadThumbnailIfNeeded()
+            withAnimation(DSAnimation.spring) {
+                isAppearing = true
+            }
         }
-        // Handle keyboard shortcuts for the overlay
         .onExitCommand {
             controller.dismiss()
         }
     }
+
+    // MARK: - Background
+
+    private var quickAccessBackground: some View {
+        ZStack {
+            // Ultra thin material for glassmorphism
+            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+
+            // Gradient overlay for depth
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.08),
+                    Color.white.opacity(0.02),
+                    Color.black.opacity(0.05)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            // Top edge highlight
+            VStack {
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.15),
+                        Color.white.opacity(0.0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 80)
+                Spacer()
+            }
+        }
+    }
+
+    // MARK: - Thumbnail Section
+
+    private var thumbnailSection: some View {
+        ZStack {
+            if let thumbnail = controller.thumbnail {
+                Image(nsImage: thumbnail)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: 320, maxHeight: 180)
+                    .clipShape(RoundedRectangle(cornerRadius: DSRadius.lg))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DSRadius.lg)
+                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.3), radius: 16, x: 0, y: 8)
+            } else {
+                RoundedRectangle(cornerRadius: DSRadius.lg)
+                    .fill(Color.dsBackgroundSecondary)
+                    .frame(height: 180)
+                    .overlay(
+                        VStack(spacing: DSSpacing.sm) {
+                            Image(systemName: controller.capture.type.icon)
+                                .font(.system(size: 40, weight: .light))
+                                .foregroundColor(.dsTextTertiary)
+                            Text("Loading...")
+                                .font(DSTypography.caption)
+                                .foregroundColor(.dsTextTertiary)
+                        }
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DSRadius.lg)
+                            .strokeBorder(Color.dsBorder, lineWidth: 1)
+                    )
+            }
+
+            // Type badge
+            VStack {
+                HStack {
+                    Spacer()
+                    DSBadge(
+                        text: controller.capture.type.rawValue.uppercased(),
+                        style: .accent
+                    )
+                    .padding(DSSpacing.sm)
+                }
+                Spacer()
+            }
+        }
+    }
+
+    // MARK: - Primary Actions
+
+    private var primaryActionsSection: some View {
+        HStack(spacing: DSSpacing.sm) {
+            QuickAccessActionCard(
+                icon: "doc.on.clipboard",
+                title: "Copy",
+                shortcut: "C",
+                action: controller.copyToClipboard
+            )
+
+            QuickAccessActionCard(
+                icon: "square.and.arrow.down",
+                title: "Save",
+                shortcut: "S",
+                action: controller.saveToConfiguredLocation
+            )
+
+            QuickAccessActionCard(
+                icon: "pencil.tip.crop.circle",
+                title: "Edit",
+                shortcut: "E",
+                action: controller.openAnnotationEditor
+            )
+
+            QuickAccessActionCard(
+                icon: "pin.fill",
+                title: "Pin",
+                shortcut: "P",
+                action: controller.pinScreenshot
+            )
+        }
+    }
+
+    // MARK: - Secondary Actions
+
+    private var secondaryActionsSection: some View {
+        HStack(spacing: DSSpacing.lg) {
+            QuickAccessSecondaryAction(
+                icon: "text.viewfinder",
+                title: "OCR",
+                action: controller.performOCR
+            )
+
+            QuickAccessSecondaryAction(
+                icon: "folder",
+                title: "Reveal",
+                action: controller.openInFinder
+            )
+
+            QuickAccessSecondaryAction(
+                icon: "trash",
+                title: "Delete",
+                isDestructive: true,
+                action: controller.deleteCapture
+            )
+
+            Spacer()
+
+            // Dismiss hint
+            HStack(spacing: DSSpacing.xxs) {
+                Text("esc")
+                    .font(DSTypography.monoSmall)
+                    .foregroundColor(.dsTextTertiary)
+                    .padding(.horizontal, DSSpacing.xs)
+                    .padding(.vertical, DSSpacing.xxxs)
+                    .background(
+                        RoundedRectangle(cornerRadius: DSRadius.xs)
+                            .fill(Color.white.opacity(0.05))
+                    )
+                Text("to close")
+                    .font(DSTypography.caption)
+                    .foregroundColor(.dsTextTertiary)
+            }
+        }
+    }
 }
 
-// Keyboard event handling wrapper
-// Based on: https://cindori.com/developer/floating-panel
-// And: https://github.com/onmyway133/blog/issues/764
+// MARK: - Quick Access Action Card
+
+struct QuickAccessActionCard: View {
+    let icon: String
+    let title: String
+    let shortcut: String
+    let action: () -> Void
+
+    @State private var isHovered = false
+    @State private var isPressed = false
+
+    var body: some View {
+        Button(action: {
+            withAnimation(DSAnimation.springQuick) {
+                isPressed = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isPressed = false
+                action()
+            }
+        }) {
+            VStack(spacing: DSSpacing.sm) {
+                // Icon with glow effect
+                ZStack {
+                    // Glow background
+                    if isHovered {
+                        Circle()
+                            .fill(Color.dsAccent.opacity(0.2))
+                            .frame(width: 48, height: 48)
+                            .blur(radius: 8)
+                    }
+
+                    // Icon circle
+                    Circle()
+                        .fill(
+                            isHovered ?
+                            Color.dsAccent.opacity(0.2) :
+                            Color.white.opacity(0.06)
+                        )
+                        .frame(width: 44, height: 44)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(
+                                    isHovered ? Color.dsAccent.opacity(0.5) : Color.white.opacity(0.08),
+                                    lineWidth: 1
+                                )
+                        )
+
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(isHovered ? .dsAccent : .dsTextPrimary)
+                }
+
+                // Title
+                Text(title)
+                    .font(DSTypography.labelSmall)
+                    .foregroundColor(isHovered ? .dsTextPrimary : .dsTextSecondary)
+
+                // Shortcut hint
+                Text("⌘\(shortcut)")
+                    .font(DSTypography.monoSmall)
+                    .foregroundColor(.dsTextTertiary)
+                    .padding(.horizontal, DSSpacing.xs)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: DSRadius.xs)
+                            .fill(Color.white.opacity(0.04))
+                    )
+                    .opacity(isHovered ? 1 : 0.6)
+            }
+            .frame(width: 76, height: 100)
+            .background(
+                RoundedRectangle(cornerRadius: DSRadius.lg)
+                    .fill(isHovered ? Color.white.opacity(0.04) : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DSRadius.lg)
+                    .strokeBorder(
+                        isHovered ? Color.white.opacity(0.1) : Color.clear,
+                        lineWidth: 1
+                    )
+            )
+            .scaleEffect(isPressed ? 0.95 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(DSAnimation.quick) {
+                isHovered = hovering
+            }
+        }
+        .help("\(title) (⌘\(shortcut))")
+    }
+}
+
+// MARK: - Quick Access Secondary Action
+
+struct QuickAccessSecondaryAction: View {
+    let icon: String
+    let title: String
+    var isDestructive: Bool = false
+    let action: () -> Void
+
+    @State private var isHovered = false
+    @State private var isPressed = false
+
+    var body: some View {
+        Button(action: {
+            withAnimation(DSAnimation.springQuick) {
+                isPressed = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isPressed = false
+                action()
+            }
+        }) {
+            HStack(spacing: DSSpacing.xs) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .medium))
+                Text(title)
+                    .font(DSTypography.labelSmall)
+            }
+            .foregroundColor(
+                isDestructive ?
+                (isHovered ? .dsDanger : .dsDanger.opacity(0.7)) :
+                (isHovered ? .dsTextPrimary : .dsTextTertiary)
+            )
+            .padding(.horizontal, DSSpacing.sm)
+            .padding(.vertical, DSSpacing.xs)
+            .background(
+                RoundedRectangle(cornerRadius: DSRadius.sm)
+                    .fill(isHovered ? Color.white.opacity(0.06) : Color.clear)
+            )
+            .scaleEffect(isPressed ? 0.95 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(DSAnimation.quick) {
+                isHovered = hovering
+            }
+        }
+    }
+}
+
+// MARK: - Keyboard Shortcut Handler
+
 struct KeyboardShortcutHandler: NSViewRepresentable {
     let controller: QuickAccessOverlayController
 
@@ -389,103 +621,5 @@ struct KeyboardShortcutHandler: NSViewRepresentable {
 
             super.keyDown(with: event)
         }
-    }
-}
-
-struct QuickActionButton: View {
-    let icon: String
-    let title: String
-    let shortcut: String
-    let tooltipText: String
-    let action: () -> Void
-    var iconSize: CGFloat = 18
-
-    @State private var isHovered = false
-    @State private var isPressed = false
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Fixed size container for icon to ensure alignment
-            Image(systemName: icon)
-                .font(.system(size: iconSize, weight: .regular))
-                .frame(width: 28, height: 28)
-                .foregroundColor(isHovered ? .accentColor : .primary)
-
-            Spacer()
-                .frame(height: 6)
-
-            // Text anchored at bottom
-            Text(title)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(isHovered ? .accentColor : .primary)
-        }
-        .frame(width: 64, height: 52)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isHovered ? Color.accentColor.opacity(0.1) : Color.clear)
-        )
-        .contentShape(Rectangle())
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isHovered = hovering
-            }
-        }
-        .onTapGesture {
-            debugLog("QuickActionButton: \(title) tapped")
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isPressed = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isPressed = false
-                action()
-            }
-        }
-        .help("\(title) (\(shortcut)) - \(tooltipText)")
-    }
-}
-
-struct SecondaryActionButton: View {
-    let icon: String
-    let title: String
-    let shortcut: String
-    let tooltipText: String
-    let action: () -> Void
-
-    @State private var isHovered = false
-    @State private var isPressed = false
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 12))
-            Text(title)
-                .font(.system(size: 12))
-        }
-        .foregroundColor(isHovered ? .primary : .secondary)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isHovered ? Color.primary.opacity(0.1) : Color.clear)
-        )
-        .contentShape(Rectangle())
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isHovered = hovering
-            }
-        }
-        .onTapGesture {
-            debugLog("SecondaryActionButton: \(title) tapped")
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isPressed = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isPressed = false
-                action()
-            }
-        }
-        .help("\(title) (\(shortcut)) - \(tooltipText)")
     }
 }

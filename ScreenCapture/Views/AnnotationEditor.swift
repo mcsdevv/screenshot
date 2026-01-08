@@ -12,17 +12,18 @@ struct AnnotationEditor: View {
 
     var body: some View {
         ZStack {
-            Color(nsColor: .windowBackgroundColor)
+            // Background with subtle gradient
+            Color.dsBackground
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // CleanShot X style toolbar - inline with traffic lights
+                // Modern toolbar - inline with traffic lights
                 AnnotationToolbar(
                     viewModel: viewModel,
                     onDone: finishEditing,
                     onCancel: { dismiss() }
                 )
-                .padding(.top, 4) // Small top padding to vertically center with traffic lights
+                .padding(.top, DSSpacing.xxs)
 
                 // Main canvas area
                 ZStack {
@@ -35,16 +36,25 @@ struct AnnotationEditor: View {
                             viewModel: viewModel
                         )
                     } else {
-                        ProgressView("Loading...")
+                        // Loading state
+                        VStack(spacing: DSSpacing.md) {
+                            ProgressView()
+                                .scaleEffect(1.2)
+                                .progressViewStyle(CircularProgressViewStyle(tint: .dsAccent))
+                            Text("Loading image...")
+                                .font(DSTypography.bodyMedium)
+                                .foregroundColor(.dsTextSecondary)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.dsBackground)
 
                 // Bottom status bar
                 AnnotationStatusBar(viewModel: viewModel)
             }
         }
-        .ignoresSafeArea(edges: .top) // Extend content into title bar area
+        .ignoresSafeArea(edges: .top)
         .onAppear {
             loadImage()
         }
@@ -419,7 +429,7 @@ class AnnotationEditorViewModel: ObservableObject {
     }
 }
 
-// MARK: - CleanShot X Style Toolbar
+// MARK: - Modern Annotation Toolbar
 
 struct AnnotationToolbar: View {
     @ObservedObject var viewModel: AnnotationEditorViewModel
@@ -438,7 +448,7 @@ struct AnnotationToolbar: View {
                 .frame(width: 78)
 
             // Tool buttons
-            HStack(spacing: 2) {
+            HStack(spacing: DSSpacing.xxxs) {
                 ForEach(primaryTools, id: \.self) { tool in
                     AnnotationToolbarButton(
                         tool: tool,
@@ -447,23 +457,32 @@ struct AnnotationToolbar: View {
                     )
                 }
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, DSSpacing.sm)
+            .padding(.vertical, DSSpacing.xs)
+            .background(
+                RoundedRectangle(cornerRadius: DSRadius.md)
+                    .fill(Color.dsBackgroundSecondary)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DSRadius.md)
+                            .strokeBorder(Color.dsBorder, lineWidth: 1)
+                    )
+            )
 
-            Divider()
-                .frame(height: 24)
-                .padding(.horizontal, 8)
+            DSDivider(.vertical)
+                .frame(height: 28)
+                .padding(.horizontal, DSSpacing.md)
 
             // Text options (shown when text tool is selected)
             if viewModel.state.currentTool == .text {
                 TextOptionsBar(viewModel: viewModel)
 
-                Divider()
-                    .frame(height: 24)
-                    .padding(.horizontal, 8)
+                DSDivider(.vertical)
+                    .frame(height: 28)
+                    .padding(.horizontal, DSSpacing.md)
             }
 
             // Color and stroke
-            HStack(spacing: 8) {
+            HStack(spacing: DSSpacing.sm) {
                 ColorPickerButton(selectedColor: $viewModel.state.currentColor)
                 StrokeWidthButton(strokeWidth: $viewModel.state.currentStrokeWidth)
             }
@@ -471,59 +490,56 @@ struct AnnotationToolbar: View {
             Spacer()
 
             // Undo/Redo
-            HStack(spacing: 4) {
-                Button(action: { viewModel.state.undo() }) {
-                    Image(systemName: "arrow.uturn.backward")
-                        .font(.system(size: 13))
+            HStack(spacing: DSSpacing.xxs) {
+                DSIconButton(icon: "arrow.uturn.backward", size: 28) {
+                    viewModel.state.undo()
                 }
-                .buttonStyle(.plain)
                 .disabled(viewModel.state.undoStack.isEmpty)
+                .opacity(viewModel.state.undoStack.isEmpty ? 0.4 : 1)
                 .help("Undo (⌘Z)")
 
-                Button(action: { viewModel.state.redo() }) {
-                    Image(systemName: "arrow.uturn.forward")
-                        .font(.system(size: 13))
+                DSIconButton(icon: "arrow.uturn.forward", size: 28) {
+                    viewModel.state.redo()
                 }
-                .buttonStyle(.plain)
                 .disabled(viewModel.state.redoStack.isEmpty)
+                .opacity(viewModel.state.redoStack.isEmpty ? 0.4 : 1)
                 .help("Redo (⌘⇧Z)")
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, DSSpacing.sm)
 
             // Delete selected
             if viewModel.state.selectedAnnotationId != nil {
-                Button(action: { viewModel.state.deleteSelectedAnnotation() }) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 13))
-                        .foregroundColor(.red)
+                DSIconButton(icon: "trash", size: 28) {
+                    viewModel.state.deleteSelectedAnnotation()
                 }
-                .buttonStyle(.plain)
                 .help("Delete selected (⌫)")
-                .padding(.trailing, 8)
+                .padding(.trailing, DSSpacing.sm)
             }
 
-            Divider()
-                .frame(height: 24)
-                .padding(.horizontal, 8)
+            DSDivider(.vertical)
+                .frame(height: 28)
+                .padding(.horizontal, DSSpacing.sm)
 
             // Done button - accent colored
-            Button(action: onDone) {
-                Text("Done")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 6)
-                    .background(Color.accentColor)
-                    .cornerRadius(6)
+            DSPrimaryButton("Done", icon: "checkmark") {
+                onDone()
             }
-            .buttonStyle(.plain)
             .help("Save and copy to clipboard (⌘↵)")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .padding(.horizontal, DSSpacing.md)
+        .padding(.vertical, DSSpacing.sm)
+        .background(
+            ZStack {
+                Color.dsBackgroundElevated
+                LinearGradient(
+                    colors: [Color.white.opacity(0.03), Color.clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+        )
         .overlay(
-            Divider(), alignment: .bottom
+            DSDivider(), alignment: .bottom
         )
     }
 }
@@ -535,22 +551,38 @@ struct AnnotationToolbarButton: View {
     let isSelected: Bool
     let action: () -> Void
 
+    @State private var isHovered = false
+
     var body: some View {
         Button(action: action) {
             Image(systemName: tool.icon)
-                .font(.system(size: 14))
+                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                .foregroundColor(
+                    isSelected ? .dsAccent :
+                    (isHovered ? .dsTextPrimary : .dsTextSecondary)
+                )
                 .frame(width: 32, height: 28)
                 .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
+                    RoundedRectangle(cornerRadius: DSRadius.sm)
+                        .fill(
+                            isSelected ? Color.dsAccent.opacity(0.15) :
+                            (isHovered ? Color.white.opacity(0.06) : Color.clear)
+                        )
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: DSRadius.sm)
+                        .strokeBorder(
+                            isSelected ? Color.dsAccent.opacity(0.4) : Color.clear,
+                            lineWidth: 1
+                        )
                 )
         }
         .buttonStyle(.plain)
-        .foregroundColor(isSelected ? .accentColor : .primary)
+        .onHover { hovering in
+            withAnimation(DSAnimation.quick) {
+                isHovered = hovering
+            }
+        }
         .help(tool.tooltip)
     }
 }
@@ -563,76 +595,109 @@ struct TextOptionsBar: View {
     @State private var showSizePicker = false
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DSSpacing.sm) {
             // Font picker
             Button(action: { showFontPicker.toggle() }) {
-                HStack(spacing: 4) {
+                HStack(spacing: DSSpacing.xxs) {
                     Text(currentFontDisplayName)
-                        .font(.system(size: 12))
+                        .font(DSTypography.labelSmall)
+                        .foregroundColor(.dsTextSecondary)
                         .lineLimit(1)
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 8))
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundColor(.dsTextTertiary)
                 }
                 .frame(width: 80)
+                .padding(.horizontal, DSSpacing.sm)
+                .padding(.vertical, DSSpacing.xs)
+                .background(
+                    RoundedRectangle(cornerRadius: DSRadius.sm)
+                        .fill(Color.dsBackgroundSecondary)
+                )
             }
             .buttonStyle(.plain)
             .popover(isPresented: $showFontPicker) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: DSSpacing.xxs) {
                     ForEach(FontOption.systemFonts) { font in
                         Button(action: {
                             viewModel.state.currentFontName = font.name
                             showFontPicker = false
                         }) {
-                            Text(font.displayName)
-                                .font(.system(size: 13))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.vertical, 4)
-                                .padding(.horizontal, 8)
-                                .background(
-                                    viewModel.state.currentFontName == font.name ?
-                                    Color.accentColor.opacity(0.2) : Color.clear
-                                )
-                                .cornerRadius(4)
+                            HStack {
+                                Text(font.displayName)
+                                    .font(DSTypography.bodySmall)
+                                    .foregroundColor(.dsTextPrimary)
+                                Spacer()
+                                if viewModel.state.currentFontName == font.name {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(.dsAccent)
+                                }
+                            }
+                            .padding(.vertical, DSSpacing.xs)
+                            .padding(.horizontal, DSSpacing.sm)
+                            .background(
+                                RoundedRectangle(cornerRadius: DSRadius.xs)
+                                    .fill(viewModel.state.currentFontName == font.name ? Color.dsAccent.opacity(0.1) : Color.clear)
+                            )
                         }
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(8)
-                .frame(width: 120)
+                .padding(DSSpacing.sm)
+                .frame(width: 140)
+                .background(Color.dsBackgroundElevated)
             }
 
             // Font size
             Button(action: { showSizePicker.toggle() }) {
-                HStack(spacing: 4) {
+                HStack(spacing: DSSpacing.xxs) {
                     Text("\(Int(viewModel.state.currentFontSize))pt")
-                        .font(.system(size: 12, design: .monospaced))
+                        .font(DSTypography.monoSmall)
+                        .foregroundColor(.dsTextSecondary)
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 8))
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundColor(.dsTextTertiary)
                 }
+                .padding(.horizontal, DSSpacing.sm)
+                .padding(.vertical, DSSpacing.xs)
+                .background(
+                    RoundedRectangle(cornerRadius: DSRadius.sm)
+                        .fill(Color.dsBackgroundSecondary)
+                )
             }
             .buttonStyle(.plain)
             .popover(isPresented: $showSizePicker) {
-                VStack(spacing: 4) {
+                VStack(spacing: DSSpacing.xxs) {
                     ForEach([12, 14, 16, 18, 24, 32, 48, 64], id: \.self) { size in
                         Button(action: {
                             viewModel.state.currentFontSize = CGFloat(size)
                             showSizePicker = false
                         }) {
-                            Text("\(size)pt")
-                                .font(.system(size: 13, design: .monospaced))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 4)
-                                .background(
-                                    Int(viewModel.state.currentFontSize) == size ?
-                                    Color.accentColor.opacity(0.2) : Color.clear
-                                )
-                                .cornerRadius(4)
+                            HStack {
+                                Text("\(size)pt")
+                                    .font(DSTypography.monoSmall)
+                                    .foregroundColor(.dsTextPrimary)
+                                Spacer()
+                                if Int(viewModel.state.currentFontSize) == size {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(.dsAccent)
+                                }
+                            }
+                            .padding(.vertical, DSSpacing.xs)
+                            .padding(.horizontal, DSSpacing.sm)
+                            .background(
+                                RoundedRectangle(cornerRadius: DSRadius.xs)
+                                    .fill(Int(viewModel.state.currentFontSize) == size ? Color.dsAccent.opacity(0.1) : Color.clear)
+                            )
                         }
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(8)
-                .frame(width: 80)
+                .padding(DSSpacing.sm)
+                .frame(width: 100)
+                .background(Color.dsBackgroundElevated)
             }
         }
     }
@@ -647,15 +712,32 @@ struct TextOptionsBar: View {
 struct ColorPickerButton: View {
     @Binding var selectedColor: Color
     @State private var showPicker = false
+    @State private var isHovered = false
 
     var body: some View {
         Button(action: { showPicker.toggle() }) {
-            Circle()
-                .fill(selectedColor)
-                .frame(width: 22, height: 22)
-                .overlay(Circle().stroke(Color.primary.opacity(0.3), lineWidth: 1))
+            ZStack {
+                Circle()
+                    .fill(selectedColor)
+                    .frame(width: 24, height: 24)
+
+                Circle()
+                    .strokeBorder(Color.white.opacity(0.3), lineWidth: 1)
+                    .frame(width: 24, height: 24)
+
+                if isHovered {
+                    Circle()
+                        .strokeBorder(Color.white.opacity(0.5), lineWidth: 2)
+                        .frame(width: 28, height: 28)
+                }
+            }
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(DSAnimation.quick) {
+                isHovered = hovering
+            }
+        }
         .help("Color")
         .popover(isPresented: $showPicker) {
             ColorPickerGrid(selectedColor: $selectedColor, showPicker: $showPicker)
@@ -670,31 +752,27 @@ struct ColorPickerGrid: View {
     private let colors = Color.annotationColors
 
     var body: some View {
-        VStack(spacing: 8) {
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(28)), count: 5), spacing: 8) {
+        VStack(spacing: DSSpacing.md) {
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(32)), count: 5), spacing: DSSpacing.sm) {
                 ForEach(colors, id: \.self) { color in
-                    Button(action: {
+                    DSColorSwatch(
+                        color: color,
+                        isSelected: selectedColor == color,
+                        size: 28
+                    ) {
                         selectedColor = color
                         showPicker = false
-                    }) {
-                        Circle()
-                            .fill(color)
-                            .frame(width: 24, height: 24)
-                            .overlay(
-                                Circle()
-                                    .stroke(selectedColor == color ? Color.accentColor : Color.primary.opacity(0.2), lineWidth: selectedColor == color ? 2 : 1)
-                            )
                     }
-                    .buttonStyle(.plain)
                 }
             }
 
-            Divider()
+            DSDivider()
 
             ColorPicker("Custom", selection: $selectedColor)
                 .labelsHidden()
         }
-        .padding(12)
+        .padding(DSSpacing.md)
+        .background(Color.dsBackgroundElevated)
     }
 }
 
@@ -703,17 +781,28 @@ struct ColorPickerGrid: View {
 struct StrokeWidthButton: View {
     @Binding var strokeWidth: CGFloat
     @State private var showPicker = false
+    @State private var isHovered = false
 
     var body: some View {
         Button(action: { showPicker.toggle() }) {
             Image(systemName: "pencil.tip")
-                .font(.system(size: 14))
+                .font(.system(size: 13))
+                .foregroundColor(isHovered ? .dsTextPrimary : .dsTextSecondary)
                 .frame(width: 28, height: 28)
+                .background(
+                    RoundedRectangle(cornerRadius: DSRadius.sm)
+                        .fill(isHovered ? Color.white.opacity(0.06) : Color.clear)
+                )
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(DSAnimation.quick) {
+                isHovered = hovering
+            }
+        }
         .help("Stroke width")
         .popover(isPresented: $showPicker) {
-            VStack(spacing: 8) {
+            VStack(spacing: DSSpacing.xs) {
                 ForEach([1, 2, 3, 5, 8, 12], id: \.self) { width in
                     Button(action: {
                         strokeWidth = CGFloat(width)
@@ -721,22 +810,28 @@ struct StrokeWidthButton: View {
                     }) {
                         HStack {
                             RoundedRectangle(cornerRadius: 1)
-                                .fill(Color.primary)
+                                .fill(Color.dsTextPrimary)
                                 .frame(width: 40, height: CGFloat(width))
                             Spacer()
                             if Int(strokeWidth) == width {
                                 Image(systemName: "checkmark")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.accentColor)
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundColor(.dsAccent)
                             }
                         }
-                        .frame(width: 70)
-                        .padding(.vertical, 4)
+                        .padding(.vertical, DSSpacing.xs)
+                        .padding(.horizontal, DSSpacing.sm)
+                        .background(
+                            RoundedRectangle(cornerRadius: DSRadius.xs)
+                                .fill(Int(strokeWidth) == width ? Color.dsAccent.opacity(0.1) : Color.clear)
+                        )
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(12)
+            .padding(DSSpacing.sm)
+            .frame(width: 100)
+            .background(Color.dsBackgroundElevated)
         }
     }
 }
@@ -745,46 +840,78 @@ struct StrokeWidthButton: View {
 
 struct AnnotationStatusBar: View {
     @ObservedObject var viewModel: AnnotationEditorViewModel
+    @State private var isHoveredZoomOut = false
+    @State private var isHoveredZoomIn = false
+    @State private var isHoveredReset = false
 
     var body: some View {
         HStack {
+            // Image dimensions
             if let image = viewModel.image {
-                Text("\(Int(image.size.width)) × \(Int(image.size.height))")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.secondary)
+                HStack(spacing: DSSpacing.xs) {
+                    Image(systemName: "aspectratio")
+                        .font(.system(size: 10))
+                        .foregroundColor(.dsTextTertiary)
+                    Text("\(Int(image.size.width)) × \(Int(image.size.height))")
+                        .font(DSTypography.monoSmall)
+                        .foregroundColor(.dsTextSecondary)
+                }
             }
 
             Spacer()
 
-            HStack(spacing: 8) {
+            // Zoom controls
+            HStack(spacing: DSSpacing.xs) {
                 Button(action: { viewModel.zoom = max(0.1, viewModel.zoom - 0.25) }) {
                     Image(systemName: "minus.magnifyingglass")
-                        .font(.system(size: 12))
+                        .font(.system(size: 11))
+                        .foregroundColor(isHoveredZoomOut ? .dsTextPrimary : .dsTextTertiary)
+                        .frame(width: 24, height: 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: DSRadius.xs)
+                                .fill(isHoveredZoomOut ? Color.white.opacity(0.06) : Color.clear)
+                        )
                 }
                 .buttonStyle(.plain)
+                .onHover { isHoveredZoomOut = $0 }
 
                 Text("\(Int(viewModel.zoom * 100))%")
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(DSTypography.monoSmall)
+                    .foregroundColor(.dsTextSecondary)
                     .frame(width: 44)
 
                 Button(action: { viewModel.zoom = min(4.0, viewModel.zoom + 0.25) }) {
                     Image(systemName: "plus.magnifyingglass")
-                        .font(.system(size: 12))
+                        .font(.system(size: 11))
+                        .foregroundColor(isHoveredZoomIn ? .dsTextPrimary : .dsTextTertiary)
+                        .frame(width: 24, height: 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: DSRadius.xs)
+                                .fill(isHoveredZoomIn ? Color.white.opacity(0.06) : Color.clear)
+                        )
                 }
                 .buttonStyle(.plain)
+                .onHover { isHoveredZoomIn = $0 }
 
                 Button(action: { viewModel.zoom = 1.0; viewModel.offset = .zero }) {
                     Image(systemName: "1.magnifyingglass")
-                        .font(.system(size: 12))
+                        .font(.system(size: 11))
+                        .foregroundColor(isHoveredReset ? .dsTextPrimary : .dsTextTertiary)
+                        .frame(width: 24, height: 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: DSRadius.xs)
+                                .fill(isHoveredReset ? Color.white.opacity(0.06) : Color.clear)
+                        )
                 }
                 .buttonStyle(.plain)
+                .onHover { isHoveredReset = $0 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 6)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .padding(.horizontal, DSSpacing.lg)
+        .padding(.vertical, DSSpacing.sm)
+        .background(Color.dsBackgroundElevated)
         .overlay(
-            Divider(), alignment: .top
+            DSDivider(), alignment: .top
         )
     }
 }

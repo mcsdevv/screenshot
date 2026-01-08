@@ -15,6 +15,15 @@ struct CaptureHistoryView: View {
         case dateAscending = "Oldest First"
         case nameAscending = "Name A-Z"
         case nameDescending = "Name Z-A"
+
+        var icon: String {
+            switch self {
+            case .dateDescending: return "arrow.down"
+            case .dateAscending: return "arrow.up"
+            case .nameAscending: return "textformat.abc"
+            case .nameDescending: return "textformat.abc"
+            }
+        }
     }
 
     enum ViewMode: String, CaseIterable {
@@ -57,9 +66,9 @@ struct CaptureHistoryView: View {
     var body: some View {
         VStack(spacing: 0) {
             historyToolbar
-            Divider()
+            DSDivider()
             filterBar
-            Divider()
+            DSDivider()
 
             if filteredCaptures.isEmpty {
                 emptyStateView
@@ -72,75 +81,146 @@ struct CaptureHistoryView: View {
             }
         }
         .frame(minWidth: 700, minHeight: 500)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Color.dsBackground)
     }
 
+    // MARK: - Toolbar
+
     private var historyToolbar: some View {
-        HStack(spacing: 16) {
-            Text("Capture History")
-                .font(.title2.bold())
+        HStack(spacing: DSSpacing.lg) {
+            // Title
+            VStack(alignment: .leading, spacing: DSSpacing.xxxs) {
+                Text("Capture History")
+                    .font(DSTypography.displaySmall)
+                    .foregroundColor(.dsTextPrimary)
+                Text("\(filteredCaptures.count) items")
+                    .font(DSTypography.caption)
+                    .foregroundColor(.dsTextTertiary)
+            }
 
             Spacer()
 
-            HStack(spacing: 8) {
-                TextField("Search...", text: $searchText)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 200)
+            // Search field
+            HStack(spacing: DSSpacing.sm) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 12))
+                    .foregroundColor(.dsTextTertiary)
 
-                Picker("Sort", selection: $sortOrder) {
-                    ForEach(SortOrder.allCases, id: \.self) { order in
-                        Text(order.rawValue).tag(order)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(width: 140)
+                TextField("Search captures...", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(DSTypography.bodyMedium)
+                    .foregroundColor(.dsTextPrimary)
 
-                Picker("View", selection: $viewMode) {
-                    ForEach(ViewMode.allCases, id: \.self) { mode in
-                        Image(systemName: mode.icon).tag(mode)
+                if !searchText.isEmpty {
+                    Button(action: { searchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.dsTextTertiary)
                     }
+                    .buttonStyle(.plain)
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 80)
             }
+            .padding(.horizontal, DSSpacing.md)
+            .padding(.vertical, DSSpacing.sm)
+            .frame(width: 220)
+            .background(
+                RoundedRectangle(cornerRadius: DSRadius.md)
+                    .fill(Color.dsBackgroundSecondary)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DSRadius.md)
+                    .strokeBorder(Color.dsBorder, lineWidth: 1)
+            )
+
+            // Sort picker
+            Menu {
+                ForEach(SortOrder.allCases, id: \.self) { order in
+                    Button(action: { sortOrder = order }) {
+                        HStack {
+                            Text(order.rawValue)
+                            if sortOrder == order {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: DSSpacing.xs) {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 11))
+                    Text("Sort")
+                        .font(DSTypography.labelSmall)
+                }
+                .foregroundColor(.dsTextSecondary)
+                .padding(.horizontal, DSSpacing.md)
+                .padding(.vertical, DSSpacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: DSRadius.md)
+                        .fill(Color.dsBackgroundSecondary)
+                )
+            }
+            .menuStyle(.borderlessButton)
+
+            // View mode toggle
+            HStack(spacing: 0) {
+                ForEach(ViewMode.allCases, id: \.self) { mode in
+                    Button(action: { viewMode = mode }) {
+                        Image(systemName: mode.icon)
+                            .font(.system(size: 12))
+                            .foregroundColor(viewMode == mode ? .dsAccent : .dsTextTertiary)
+                            .frame(width: 32, height: 28)
+                            .background(
+                                RoundedRectangle(cornerRadius: DSRadius.sm)
+                                    .fill(viewMode == mode ? Color.dsAccent.opacity(0.15) : Color.clear)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(DSSpacing.xxxs)
+            .background(
+                RoundedRectangle(cornerRadius: DSRadius.md)
+                    .fill(Color.dsBackgroundSecondary)
+            )
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.horizontal, DSSpacing.xl)
+        .padding(.vertical, DSSpacing.lg)
+        .background(Color.dsBackgroundElevated)
     }
+
+    // MARK: - Filter Bar
 
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                FilterChip(title: "All", isSelected: selectedType == nil) {
+            HStack(spacing: DSSpacing.sm) {
+                DSChip("All", isSelected: selectedType == nil) {
                     selectedType = nil
                 }
 
                 ForEach(CaptureType.allCases, id: \.self) { type in
-                    FilterChip(
-                        title: type.rawValue,
-                        icon: type.icon,
-                        isSelected: selectedType == type
-                    ) {
+                    DSChip(type.rawValue, icon: type.icon, isSelected: selectedType == type) {
                         selectedType = type
                     }
                 }
 
                 Spacer()
-
-                Text("\(filteredCaptures.count) items")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
+            .padding(.horizontal, DSSpacing.xl)
+            .padding(.vertical, DSSpacing.md)
         }
+        .background(Color.dsBackgroundElevated)
     }
+
+    // MARK: - Grid View
 
     private var gridView: some View {
         ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 250), spacing: 16)], spacing: 16) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 220, maximum: 280), spacing: DSSpacing.lg)],
+                spacing: DSSpacing.lg
+            ) {
                 ForEach(filteredCaptures) { capture in
-                    CaptureGridItem(
+                    CaptureGridCard(
                         capture: capture,
                         storageManager: storageManager,
                         isSelected: selectedCaptures.contains(capture.id),
@@ -152,66 +232,115 @@ struct CaptureHistoryView: View {
                     }
                 }
             }
-            .padding(20)
+            .padding(DSSpacing.xl)
         }
     }
 
+    // MARK: - List View
+
     private var listView: some View {
-        List(selection: $selectedCaptures) {
-            ForEach(filteredCaptures) { capture in
-                CaptureListItem(capture: capture, storageManager: storageManager)
-                    .tag(capture.id)
+        ScrollView {
+            LazyVStack(spacing: DSSpacing.sm) {
+                ForEach(filteredCaptures) { capture in
+                    CaptureListRow(
+                        capture: capture,
+                        storageManager: storageManager,
+                        isSelected: selectedCaptures.contains(capture.id),
+                        onSelect: { toggleSelection(capture.id) },
+                        onDoubleClick: { openCapture(capture) }
+                    )
                     .contextMenu {
                         captureContextMenu(for: capture)
                     }
+                }
             }
+            .padding(DSSpacing.xl)
         }
-        .listStyle(.inset)
     }
 
+    // MARK: - Empty State
+
     private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "camera.viewfinder")
-                .font(.system(size: 60))
-                .foregroundColor(.secondary)
+        VStack(spacing: DSSpacing.lg) {
+            ZStack {
+                Circle()
+                    .fill(Color.dsAccent.opacity(0.1))
+                    .frame(width: 100, height: 100)
 
-            Text("No Captures Yet")
-                .font(.title2.bold())
+                Image(systemName: "camera.viewfinder")
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundColor(.dsAccent)
+            }
 
-            Text("Your screenshots and recordings will appear here.")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+            VStack(spacing: DSSpacing.sm) {
+                Text("No Captures Yet")
+                    .font(DSTypography.headlineLarge)
+                    .foregroundColor(.dsTextPrimary)
 
-            Button("Take a Screenshot") {
+                Text("Your screenshots and recordings will appear here.")
+                    .font(DSTypography.bodyMedium)
+                    .foregroundColor(.dsTextSecondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            DSPrimaryButton("Take a Screenshot", icon: "camera") {
                 Task { @MainActor in
                     if let appDelegate = NSApp.delegate as? AppDelegate {
                         appDelegate.screenshotManager.captureArea()
                     }
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .padding(.top, 8)
+            .padding(.top, DSSpacing.sm)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.dsBackground)
     }
+
+    // MARK: - Context Menu
 
     @ViewBuilder
     private func captureContextMenu(for capture: CaptureItem) -> some View {
-        Button("Open") { openCapture(capture) }
-        Button("Open in Annotation Editor") { openInEditor(capture) }
-        Divider()
-        Button("Copy") { copyCapture(capture) }
-        Button("Save As...") { saveCapture(capture) }
-        Divider()
-        Button("Show in Finder") { showInFinder(capture) }
-        Divider()
-        Button(capture.isFavorite ? "Remove from Favorites" : "Add to Favorites") {
-            storageManager.toggleFavorite(capture)
+        Button { openCapture(capture) } label: {
+            Label("Open", systemImage: "arrow.up.right")
         }
+
+        Button { openInEditor(capture) } label: {
+            Label("Open in Editor", systemImage: "pencil")
+        }
+
         Divider()
-        Button("Delete", role: .destructive) { deleteCapture(capture) }
+
+        Button { copyCapture(capture) } label: {
+            Label("Copy", systemImage: "doc.on.clipboard")
+        }
+
+        Button { saveCapture(capture) } label: {
+            Label("Save As...", systemImage: "square.and.arrow.down")
+        }
+
+        Divider()
+
+        Button { showInFinder(capture) } label: {
+            Label("Show in Finder", systemImage: "folder")
+        }
+
+        Divider()
+
+        Button { storageManager.toggleFavorite(capture) } label: {
+            Label(
+                capture.isFavorite ? "Remove from Favorites" : "Add to Favorites",
+                systemImage: capture.isFavorite ? "star.slash" : "star"
+            )
+        }
+
+        Divider()
+
+        Button(role: .destructive) { deleteCapture(capture) } label: {
+            Label("Delete", systemImage: "trash")
+        }
     }
+
+    // MARK: - Actions
 
     private func toggleSelection(_ id: UUID) {
         if selectedCaptures.contains(id) {
@@ -227,7 +356,7 @@ struct CaptureHistoryView: View {
     }
 
     private func openInEditor(_ capture: CaptureItem) {
-        // Would open the annotation editor
+        NotificationCenter.default.post(name: .openAnnotationEditor, object: capture)
     }
 
     private func copyCapture(_ capture: CaptureItem) {
@@ -235,6 +364,7 @@ struct CaptureHistoryView: View {
         if let image = NSImage(contentsOf: url) {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.writeObjects([image])
+            NSSound(named: "Pop")?.play()
         }
     }
 
@@ -258,33 +388,9 @@ struct CaptureHistoryView: View {
     }
 }
 
-struct FilterChip: View {
-    let title: String
-    var icon: String?
-    let isSelected: Bool
-    let action: () -> Void
+// MARK: - Capture Grid Card
 
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                if let icon = icon {
-                    Image(systemName: icon)
-                        .font(.system(size: 11))
-                }
-                Text(title)
-                    .font(.system(size: 12, weight: .medium))
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(isSelected ? Color.accentColor : Color.secondary.opacity(0.1))
-            .foregroundColor(isSelected ? .white : .primary)
-            .cornerRadius(16)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-struct CaptureGridItem: View {
+struct CaptureGridCard: View {
     let capture: CaptureItem
     let storageManager: StorageManager
     let isSelected: Bool
@@ -295,74 +401,108 @@ struct CaptureGridItem: View {
     @State private var isHovered = false
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: DSSpacing.sm) {
+            // Thumbnail
             ZStack {
                 if let thumbnail = thumbnail {
                     Image(nsImage: thumbnail)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 200, height: 140)
+                        .frame(width: 220, height: 150)
                         .clipped()
                 } else {
                     Rectangle()
-                        .fill(Color.secondary.opacity(0.1))
-                        .frame(width: 200, height: 140)
+                        .fill(Color.dsBackgroundSecondary)
+                        .frame(width: 220, height: 150)
                         .overlay(
                             Image(systemName: capture.type.icon)
-                                .font(.system(size: 30))
-                                .foregroundColor(.secondary)
+                                .font(.system(size: 32, weight: .light))
+                                .foregroundColor(.dsTextTertiary)
                         )
                 }
 
+                // Favorite badge
                 if capture.isFavorite {
                     VStack {
                         HStack {
                             Spacer()
                             Image(systemName: "star.fill")
-                                .foregroundColor(.yellow)
-                                .padding(8)
+                                .font(.system(size: 12))
+                                .foregroundColor(.dsWarmAccent)
+                                .padding(DSSpacing.sm)
+                                .background(
+                                    Circle()
+                                        .fill(Color.black.opacity(0.5))
+                                )
                         }
                         Spacer()
                     }
+                    .padding(DSSpacing.sm)
                 }
 
+                // Hover overlay
                 if isHovered {
-                    Color.black.opacity(0.3)
-                        .overlay(
-                            HStack(spacing: 12) {
-                                GridActionButton(icon: "doc.on.clipboard") {
-                                    copyToClipboard()
-                                }
-                                GridActionButton(icon: "square.and.arrow.up") {
-                                    share()
-                                }
-                                GridActionButton(icon: "pencil") {
-                                    // Open editor
-                                }
-                            }
-                        )
+                    Color.black.opacity(0.5)
+
+                    HStack(spacing: DSSpacing.md) {
+                        GridHoverButton(icon: "doc.on.clipboard") {
+                            copyToClipboard()
+                        }
+                        GridHoverButton(icon: "pencil") {
+                            NotificationCenter.default.post(name: .openAnnotationEditor, object: capture)
+                        }
+                        GridHoverButton(icon: "square.and.arrow.up") {
+                            // Share
+                        }
+                    }
+                }
+
+                // Type badge
+                VStack {
+                    Spacer()
+                    HStack {
+                        DSBadge(text: capture.type.rawValue, style: .neutral)
+                        Spacer()
+                    }
+                    .padding(DSSpacing.sm)
                 }
             }
-            .frame(width: 200, height: 140)
-            .cornerRadius(8)
+            .frame(width: 220, height: 150)
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.lg))
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
+                RoundedRectangle(cornerRadius: DSRadius.lg)
+                    .strokeBorder(
+                        isSelected ? Color.dsAccent :
+                        (isHovered ? Color.dsBorderActive : Color.dsBorder),
+                        lineWidth: isSelected ? 2 : 1
+                    )
+            )
+            .shadow(
+                color: isSelected ? Color.dsAccent.opacity(0.25) : .black.opacity(0.15),
+                radius: isSelected ? 12 : 8,
+                x: 0,
+                y: 4
             )
 
-            VStack(alignment: .leading, spacing: 2) {
+            // Info
+            VStack(alignment: .leading, spacing: DSSpacing.xxxs) {
                 Text(capture.displayName)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(DSTypography.labelMedium)
+                    .foregroundColor(.dsTextPrimary)
                     .lineLimit(1)
 
                 Text(formatDate(capture.createdAt))
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
+                    .font(DSTypography.caption)
+                    .foregroundColor(.dsTextTertiary)
             }
-            .frame(width: 200, alignment: .leading)
+            .frame(width: 220, alignment: .leading)
         }
         .onAppear { loadThumbnail() }
-        .onHover { hovering in isHovered = hovering }
+        .onHover { hovering in
+            withAnimation(DSAnimation.quick) {
+                isHovered = hovering
+            }
+        }
         .onTapGesture(count: 2) { onDoubleClick() }
         .onTapGesture { onSelect() }
     }
@@ -378,13 +518,8 @@ struct CaptureGridItem: View {
         if let image = thumbnail {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.writeObjects([image])
+            NSSound(named: "Pop")?.play()
         }
-    }
-
-    private func share() {
-        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        _ = NSSharingServicePicker(items: [url])
-        // TODO: Show picker with proper view reference
     }
 
     private func formatDate(_ date: Date) -> String {
@@ -394,72 +529,137 @@ struct CaptureGridItem: View {
     }
 }
 
-struct GridActionButton: View {
+// MARK: - Grid Hover Button
+
+struct GridHoverButton: View {
     let icon: String
     let action: () -> Void
+
+    @State private var isHovered = false
 
     var body: some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 16))
+                .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.white)
                 .frame(width: 36, height: 36)
-                .background(Circle().fill(Color.black.opacity(0.5)))
+                .background(
+                    Circle()
+                        .fill(isHovered ? Color.dsAccent : Color.white.opacity(0.2))
+                )
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(DSAnimation.quick) {
+                isHovered = hovering
+            }
+        }
     }
 }
 
-struct CaptureListItem: View {
+// MARK: - Capture List Row
+
+struct CaptureListRow: View {
     let capture: CaptureItem
     let storageManager: StorageManager
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onDoubleClick: () -> Void
 
     @State private var thumbnail: NSImage?
+    @State private var isHovered = false
 
     var body: some View {
-        HStack(spacing: 12) {
-            if let thumbnail = thumbnail {
-                Image(nsImage: thumbnail)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 60, height: 45)
-                    .clipped()
-                    .cornerRadius(4)
-            } else {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.secondary.opacity(0.1))
-                    .frame(width: 60, height: 45)
-                    .overlay(
-                        Image(systemName: capture.type.icon)
-                            .foregroundColor(.secondary)
-                    )
+        HStack(spacing: DSSpacing.md) {
+            // Thumbnail
+            ZStack {
+                if let thumbnail = thumbnail {
+                    Image(nsImage: thumbnail)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 80, height: 56)
+                        .clipped()
+                } else {
+                    Rectangle()
+                        .fill(Color.dsBackgroundSecondary)
+                        .frame(width: 80, height: 56)
+                        .overlay(
+                            Image(systemName: capture.type.icon)
+                                .font(.system(size: 20))
+                                .foregroundColor(.dsTextTertiary)
+                        )
+                }
             }
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.sm))
+            .overlay(
+                RoundedRectangle(cornerRadius: DSRadius.sm)
+                    .strokeBorder(Color.dsBorder, lineWidth: 1)
+            )
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack {
+            // Info
+            VStack(alignment: .leading, spacing: DSSpacing.xxxs) {
+                HStack(spacing: DSSpacing.sm) {
                     Text(capture.displayName)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(DSTypography.labelMedium)
+                        .foregroundColor(.dsTextPrimary)
 
                     if capture.isFavorite {
                         Image(systemName: "star.fill")
                             .font(.system(size: 10))
-                            .foregroundColor(.yellow)
+                            .foregroundColor(.dsWarmAccent)
                     }
                 }
 
-                Text(capture.type.rawValue)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                HStack(spacing: DSSpacing.sm) {
+                    DSBadge(text: capture.type.rawValue, style: .neutral)
+
+                    Text(formatDate(capture.createdAt))
+                        .font(DSTypography.caption)
+                        .foregroundColor(.dsTextTertiary)
+                }
             }
 
             Spacer()
 
-            Text(formatDate(capture.createdAt))
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
+            // Quick actions (on hover)
+            if isHovered {
+                HStack(spacing: DSSpacing.xs) {
+                    DSIconButton(icon: "doc.on.clipboard", size: 28) {
+                        copyToClipboard()
+                    }
+                    DSIconButton(icon: "pencil", size: 28) {
+                        NotificationCenter.default.post(name: .openAnnotationEditor, object: capture)
+                    }
+                    DSIconButton(icon: "folder", size: 28) {
+                        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                    }
+                }
+            }
         }
-        .padding(.vertical, 4)
+        .padding(DSSpacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DSRadius.lg)
+                .fill(
+                    isSelected ? Color.dsAccent.opacity(0.1) :
+                    (isHovered ? Color.dsBackgroundSecondary : Color.clear)
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.lg)
+                .strokeBorder(
+                    isSelected ? Color.dsAccent.opacity(0.4) : Color.clear,
+                    lineWidth: 1
+                )
+        )
         .onAppear { loadThumbnail() }
+        .onHover { hovering in
+            withAnimation(DSAnimation.quick) {
+                isHovered = hovering
+            }
+        }
+        .onTapGesture(count: 2) { onDoubleClick() }
+        .onTapGesture { onSelect() }
     }
 
     private func loadThumbnail() {
@@ -469,10 +669,73 @@ struct CaptureListItem: View {
         }
     }
 
+    private func copyToClipboard() {
+        if let image = thumbnail {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.writeObjects([image])
+            NSSound(named: "Pop")?.play()
+        }
+    }
+
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - Legacy Components (for backwards compatibility)
+
+struct FilterChip: View {
+    let title: String
+    var icon: String?
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        DSChip(title, icon: icon, isSelected: isSelected, action: action)
+    }
+}
+
+struct CaptureGridItem: View {
+    let capture: CaptureItem
+    let storageManager: StorageManager
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onDoubleClick: () -> Void
+
+    var body: some View {
+        CaptureGridCard(
+            capture: capture,
+            storageManager: storageManager,
+            isSelected: isSelected,
+            onSelect: onSelect,
+            onDoubleClick: onDoubleClick
+        )
+    }
+}
+
+struct GridActionButton: View {
+    let icon: String
+    let action: () -> Void
+
+    var body: some View {
+        GridHoverButton(icon: icon, action: action)
+    }
+}
+
+struct CaptureListItem: View {
+    let capture: CaptureItem
+    let storageManager: StorageManager
+
+    var body: some View {
+        CaptureListRow(
+            capture: capture,
+            storageManager: storageManager,
+            isSelected: false,
+            onSelect: {},
+            onDoubleClick: {}
+        )
     }
 }

@@ -48,87 +48,111 @@ struct MenuBarMenuView: View {
 
     var body: some View {
         Group {
-            Text("Capture")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            // Capture section
+            Section {
+                Button {
+                    debugLog("MenuBar: Capture Area clicked")
+                    appDelegate.screenshotManager.captureArea()
+                } label: {
+                    Label("Capture Area", systemImage: "rectangle.dashed")
+                }
+                .keyboardShortcut("4", modifiers: [.control, .shift])
 
-            Button("Capture Area") {
-                debugLog("MenuBar: Capture Area clicked")
-                appDelegate.screenshotManager.captureArea()
-            }
-            .keyboardShortcut("4", modifiers: [.control, .shift])
+                Button {
+                    debugLog("MenuBar: Capture Window clicked")
+                    appDelegate.screenshotManager.captureWindow()
+                } label: {
+                    Label("Capture Window", systemImage: "macwindow")
+                }
+                .keyboardShortcut("5", modifiers: [.control, .shift])
 
-            Button("Capture Window") {
-                debugLog("MenuBar: Capture Window clicked")
-                appDelegate.screenshotManager.captureWindow()
-            }
-            .keyboardShortcut("5", modifiers: [.control, .shift])
+                Button {
+                    debugLog("MenuBar: Capture Fullscreen clicked")
+                    appDelegate.screenshotManager.captureFullscreen()
+                } label: {
+                    Label("Capture Fullscreen", systemImage: "rectangle.inset.filled")
+                }
+                .keyboardShortcut("3", modifiers: [.control, .shift])
 
-            Button("Capture Fullscreen") {
-                debugLog("MenuBar: Capture Fullscreen clicked")
-                appDelegate.screenshotManager.captureFullscreen()
+                Button {
+                    debugLog("MenuBar: Scrolling Capture clicked")
+                    appDelegate.screenshotManager.captureScrolling()
+                } label: {
+                    Label("Scrolling Capture", systemImage: "scroll")
+                }
+                .keyboardShortcut("6", modifiers: [.control, .shift])
+            } header: {
+                Label("Capture", systemImage: "camera.fill")
             }
-            .keyboardShortcut("3", modifiers: [.control, .shift])
-
-            Button("Scrolling Capture") {
-                debugLog("MenuBar: Scrolling Capture clicked")
-                appDelegate.screenshotManager.captureScrolling()
-            }
-            .keyboardShortcut("6", modifiers: [.control, .shift])
 
             Divider()
 
-            Text("Record")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            // Record section
+            Section {
+                Button {
+                    debugLog("MenuBar: Record Screen clicked")
+                    appDelegate.screenRecordingManager.toggleRecording()
+                } label: {
+                    Label("Record Screen", systemImage: "record.circle")
+                }
+                .keyboardShortcut("7", modifiers: [.control, .shift])
 
-            Button("Record Screen") {
-                debugLog("MenuBar: Record Screen clicked")
-                appDelegate.screenRecordingManager.toggleRecording()
+                Button {
+                    debugLog("MenuBar: Record GIF clicked")
+                    appDelegate.screenRecordingManager.toggleGIFRecording()
+                } label: {
+                    Label("Record GIF", systemImage: "gift")
+                }
+                .keyboardShortcut("8", modifiers: [.control, .shift])
+            } header: {
+                Label("Record", systemImage: "video.fill")
             }
-            .keyboardShortcut("7", modifiers: [.control, .shift])
-
-            Button("Record GIF") {
-                debugLog("MenuBar: Record GIF clicked")
-                appDelegate.screenRecordingManager.toggleGIFRecording()
-            }
-            .keyboardShortcut("8", modifiers: [.control, .shift])
 
             Divider()
 
-            Text("Tools")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            // Tools section
+            Section {
+                Button {
+                    debugLog("MenuBar: Capture Text (OCR) clicked")
+                    appDelegate.screenshotManager.captureForOCR()
+                } label: {
+                    Label("Capture Text (OCR)", systemImage: "text.viewfinder")
+                }
+                .keyboardShortcut("o", modifiers: [.control, .shift])
 
-            Button("Capture Text (OCR)") {
-                debugLog("MenuBar: Capture Text (OCR) clicked")
-                appDelegate.screenshotManager.captureForOCR()
+                Button {
+                    debugLog("MenuBar: Pin Screenshot clicked")
+                    appDelegate.screenshotManager.captureForPinning()
+                } label: {
+                    Label("Pin Screenshot", systemImage: "pin.fill")
+                }
+                .keyboardShortcut("p", modifiers: [.control, .shift])
+            } header: {
+                Label("Tools", systemImage: "wrench.and.screwdriver")
             }
-            .keyboardShortcut("o", modifiers: [.control, .shift])
-
-            Button("Pin Screenshot") {
-                debugLog("MenuBar: Pin Screenshot clicked")
-                appDelegate.screenshotManager.captureForPinning()
-            }
-            .keyboardShortcut("p", modifiers: [.control, .shift])
 
             Divider()
 
-            Button("Open Screenshots Folder") {
+            // Other actions
+            Button {
                 debugLog("MenuBar: Open Screenshots Folder clicked")
                 NSWorkspace.shared.open(appDelegate.storageManager.screenshotsDirectory)
+            } label: {
+                Label("Open Screenshots Folder", systemImage: "folder")
             }
 
             SettingsLink {
-                Text("Preferences...")
+                Label("Preferences...", systemImage: "gearshape")
             }
             .keyboardShortcut(",", modifiers: .command)
 
             Divider()
 
-            Button("Quit ScreenCapture") {
+            Button {
                 debugLog("MenuBar: Quit clicked")
                 NSApplication.shared.terminate(nil)
+            } label: {
+                Label("Quit ScreenCapture", systemImage: "power")
             }
             .keyboardShortcut("q", modifiers: .command)
         }
