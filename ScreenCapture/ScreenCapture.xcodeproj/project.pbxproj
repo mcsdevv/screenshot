@@ -31,6 +31,7 @@
 		A10000000000000000000022 /* StorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* StorageManager.swift */; };
 		A10000000000000000000023 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* Assets.xcassets */; };
 		A10000000000000000000024 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* MainMenu.xib */; };
+		A10000000000000000000025 /* DebugLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* DebugLogger.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +61,7 @@
 		A20000000000000000000024 /* MainMenu.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = MainMenu.xib; sourceTree = "<group>"; };
 		A20000000000000000000025 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A20000000000000000000026 /* ScreenCapture.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScreenCapture.entitlements; sourceTree = "<group>"; };
+		A20000000000000000000027 /* DebugLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogger.swift; sourceTree = "<group>"; };
 		A30000000000000000000001 /* ScreenCapture.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScreenCapture.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -105,6 +107,7 @@
 				A20000000000000000000006 /* KeyboardShortcuts.swift */,
 				A20000000000000000000007 /* ScrollingCapture.swift */,
 				A20000000000000000000008 /* GIFEncoder.swift */,
+				A20000000000000000000027 /* DebugLogger.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -255,6 +258,7 @@
 				A10000000000000000000020 /* BackgroundTool.swift in Sources */,
 				A10000000000000000000021 /* OCRService.swift in Sources */,
 				A10000000000000000000022 /* StorageManager.swift in Sources */,
+				A10000000000000000000025 /* DebugLogger.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
