@@ -49,6 +49,8 @@ class ScreenshotManager: NSObject, ObservableObject {
     private let storageManager: StorageManager
     private var pendingAction: PendingAction = .save
     private let picker = SCContentSharingPicker.shared
+    private var activeStream: SCStream?
+    private var activeStreamOutput: SingleFrameCaptureOutput?
 
     enum PendingAction {
         case save, ocr, pin
@@ -149,26 +151,46 @@ class ScreenshotManager: NSObject, ObservableObject {
 
                 // Use SCStream to capture a single frame (works with picker without extra permissions)
                 let stream = SCStream(filter: filter, configuration: config, delegate: nil)
+                self.activeStream = stream  // Keep strong reference
 
-                // Use the stream output to get a frame
-                let streamOutput = SingleFrameCaptureOutput { [weak self] image in
-                    debugLog("Frame captured: \(image.width)x\(image.height)")
-                    Task { @MainActor in
-                        self?.handleCapturedImage(image)
+                // Use continuation to wait for capture
+                let capturedImage: CGImage = try await withCheckedThrowingContinuation { continuation in
+                    let streamOutput = SingleFrameCaptureOutput { image in
+                        debugLog("Frame captured: \(image.width)x\(image.height)")
+                        continuation.resume(returning: image)
+                    }
+                    self.activeStreamOutput = streamOutput  // Keep strong reference
+
+                    do {
+                        try stream.addStreamOutput(streamOutput, type: .screen, sampleHandlerQueue: .global())
+                        Task {
+                            do {
+                                try await stream.startCapture()
+                                debugLog("Stream started")
+                            } catch {
+                                continuation.resume(throwing: error)
+                            }
+                        }
+                    } catch {
+                        continuation.resume(throwing: error)
                     }
                 }
 
-                try stream.addStreamOutput(streamOutput, type: .screen, sampleHandlerQueue: .main)
-                try await stream.startCapture()
-
-                // Wait a moment for the frame to be captured
-                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-
-                try await stream.stopCapture()
+                // Stop the stream
+                try await activeStream?.stopCapture()
                 debugLog("Stream stopped")
+
+                // Clear references
+                self.activeStream = nil
+                self.activeStreamOutput = nil
+
+                // Handle the captured image on main thread
+                handleCapturedImage(capturedImage)
 
             } catch {
                 errorLog("Screenshot capture failed", error: error)
+                self.activeStream = nil
+                self.activeStreamOutput = nil
             }
         }
     }
