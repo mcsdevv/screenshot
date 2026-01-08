@@ -155,7 +155,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     func closeQuickAccessOverlay() {
         guard let windowToClose = quickAccessWindow else { return }
         quickAccessWindow = nil
-        DispatchQueue.main.async {
+        windowToClose.orderOut(nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             windowToClose.close()
         }
     }

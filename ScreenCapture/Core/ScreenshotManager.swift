@@ -43,7 +43,6 @@ class ScreenshotManager: NSObject, ObservableObject {
 
     func captureArea() {
         debugLog("captureArea() called")
-        guard checkScreenCapturePermission() else { return }
         captureMode = .area
         pendingAction = .save
         showSelectionOverlay()
@@ -51,7 +50,6 @@ class ScreenshotManager: NSObject, ObservableObject {
 
     func captureWindow() {
         debugLog("captureWindow() called")
-        guard checkScreenCapturePermission() else { return }
         captureMode = .window
         pendingAction = .save
         captureWindowUnderCursor()
@@ -59,7 +57,6 @@ class ScreenshotManager: NSObject, ObservableObject {
 
     func captureFullscreen() {
         debugLog("captureFullscreen() called")
-        guard checkScreenCapturePermission() else { return }
         captureMode = .fullscreen
         pendingAction = .save
         performFullscreenCapture()
@@ -67,7 +64,6 @@ class ScreenshotManager: NSObject, ObservableObject {
 
     func captureScrolling() {
         debugLog("captureScrolling() called")
-        guard checkScreenCapturePermission() else { return }
         captureMode = .scrolling
         pendingAction = .save
         showScrollingCaptureUI()
@@ -75,7 +71,6 @@ class ScreenshotManager: NSObject, ObservableObject {
 
     func captureForOCR() {
         debugLog("captureForOCR() called")
-        guard checkScreenCapturePermission() else { return }
         captureMode = .ocr
         pendingAction = .ocr
         showSelectionOverlay()
@@ -83,19 +78,9 @@ class ScreenshotManager: NSObject, ObservableObject {
 
     func captureForPinning() {
         debugLog("captureForPinning() called")
-        guard checkScreenCapturePermission() else { return }
         captureMode = .pin
         pendingAction = .pin
         showSelectionOverlay()
-    }
-
-    private func checkScreenCapturePermission() -> Bool {
-        if CGPreflightScreenCaptureAccess() {
-            return true
-        }
-        debugLog("Screen capture permission not granted, requesting...")
-        CGRequestScreenCaptureAccess()
-        return false
     }
 
     private func showSelectionOverlay() {
@@ -162,17 +147,17 @@ class ScreenshotManager: NSObject, ObservableObject {
         }
         debugLog("Dismissing selection overlay")
 
-        // Clear the escape handler to break retain cycle before closing
+        // Clear references first
         window.onEscapePressed = nil
-
         selectionWindow = nil
         NSCursor.pop()
 
-        // Defer window closing to next run loop to avoid crash when called from within SwiftUI event handler
-        DispatchQueue.main.async {
-            debugLog("Closing selection window (deferred)")
-            window.orderOut(nil) // Hide first
-            window.contentView = nil // Release SwiftUI view
+        // Hide window immediately, then close after a delay to let SwiftUI cleanup
+        window.orderOut(nil)
+        debugLog("Window hidden")
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            debugLog("Closing selection window (delayed)")
             window.close()
             debugLog("Selection window closed successfully")
         }
@@ -289,9 +274,8 @@ class ScreenshotManager: NSObject, ObservableObject {
             debugLog("Closing existing overlay window")
             existingWindow.onEscapePressed = nil
             overlayWindow = nil
-            DispatchQueue.main.async {
-                existingWindow.orderOut(nil)
-                existingWindow.contentView = nil
+            existingWindow.orderOut(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 existingWindow.close()
             }
         }
@@ -338,9 +322,8 @@ class ScreenshotManager: NSObject, ObservableObject {
         if let windowToClose = overlayWindow as? KeyableWindow {
             windowToClose.onEscapePressed = nil
             overlayWindow = nil
-            DispatchQueue.main.async {
-                windowToClose.orderOut(nil)
-                windowToClose.contentView = nil
+            windowToClose.orderOut(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 windowToClose.close()
             }
         }
