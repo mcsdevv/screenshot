@@ -310,7 +310,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
     private func startRecordingTimer() {
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard let self = self, let startTime = self.recordingStartTime else { return }
                 self.recordingDuration = Date().timeIntervalSince(startTime)
             }

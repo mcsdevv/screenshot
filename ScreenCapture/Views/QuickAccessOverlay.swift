@@ -132,7 +132,7 @@ struct QuickAccessOverlay: View {
     private func openAnnotationEditor() {
         onDismiss()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            if let appDelegate = NSApp.delegate as? AppDelegate {
+            if NSApp.delegate is AppDelegate {
                 NSApp.activate(ignoringOtherApps: true)
             }
         }

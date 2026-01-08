@@ -383,8 +383,8 @@ struct CaptureGridItem: View {
 
     private func share() {
         let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        let picker = NSSharingServicePicker(items: [url])
-        // Would show picker
+        _ = NSSharingServicePicker(items: [url])
+        // TODO: Show picker with proper view reference
     }
 
     private func formatDate(_ date: Date) -> String {

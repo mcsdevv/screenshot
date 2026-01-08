@@ -137,12 +137,6 @@ struct AnnotationCanvas: View {
             )
 
         case .arrow:
-            let rect = CGRect(
-                x: min(startLocation.x, currentLocation.x),
-                y: min(startLocation.y, currentLocation.y),
-                width: abs(currentLocation.x - startLocation.x),
-                height: abs(currentLocation.y - startLocation.y)
-            )
             currentDrawing = Annotation(
                 type: .arrow(state.arrowStyle),
                 rect: CGRect(origin: startLocation, size: CGSize(width: currentLocation.x - startLocation.x, height: currentLocation.y - startLocation.y)),
