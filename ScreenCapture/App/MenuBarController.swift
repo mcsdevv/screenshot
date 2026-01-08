@@ -1,0 +1,208 @@
+import AppKit
+import SwiftUI
+
+class MenuBarController: NSObject {
+    private var statusItem: NSStatusItem!
+    private var menu: NSMenu!
+    private let screenshotManager: ScreenshotManager
+    private let screenRecordingManager: ScreenRecordingManager
+    private let storageManager: StorageManager
+
+    private var recordingMenuItem: NSMenuItem?
+    private var isRecording = false
+
+    init(screenshotManager: ScreenshotManager, screenRecordingManager: ScreenRecordingManager, storageManager: StorageManager) {
+        self.screenshotManager = screenshotManager
+        self.screenRecordingManager = screenRecordingManager
+        self.storageManager = storageManager
+        super.init()
+        setupStatusItem()
+        setupMenu()
+        setupNotifications()
+    }
+
+    private func setupStatusItem() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+
+        if let button = statusItem.button {
+            let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+            let image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: "ScreenCapture")?.withSymbolConfiguration(config)
+            button.image = image
+            button.action = #selector(statusItemClicked(_:))
+            button.target = self
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        }
+    }
+
+    private func setupMenu() {
+        menu = NSMenu()
+
+        let captureHeader = NSMenuItem(title: "Capture", action: nil, keyEquivalent: "")
+        captureHeader.isEnabled = false
+        menu.addItem(captureHeader)
+
+        addMenuItem(title: "Capture Area", icon: "rectangle.dashed", action: #selector(captureArea), keyEquivalent: "4", modifiers: [.command, .shift])
+        addMenuItem(title: "Capture Window", icon: "macwindow", action: #selector(captureWindow), keyEquivalent: "5", modifiers: [.command, .shift])
+        addMenuItem(title: "Capture Fullscreen", icon: "rectangle.fill.on.rectangle.fill", action: #selector(captureFullscreen), keyEquivalent: "3", modifiers: [.command, .shift])
+        addMenuItem(title: "Scrolling Capture", icon: "scroll", action: #selector(captureScrolling), keyEquivalent: "6", modifiers: [.command, .shift])
+
+        menu.addItem(NSMenuItem.separator())
+
+        let recordHeader = NSMenuItem(title: "Record", action: nil, keyEquivalent: "")
+        recordHeader.isEnabled = false
+        menu.addItem(recordHeader)
+
+        recordingMenuItem = addMenuItem(title: "Record Screen", icon: "video.fill", action: #selector(toggleRecording), keyEquivalent: "7", modifiers: [.command, .shift])
+        addMenuItem(title: "Record GIF", icon: "photo.on.rectangle.angled", action: #selector(recordGIF), keyEquivalent: "8", modifiers: [.command, .shift])
+
+        menu.addItem(NSMenuItem.separator())
+
+        let toolsHeader = NSMenuItem(title: "Tools", action: nil, keyEquivalent: "")
+        toolsHeader.isEnabled = false
+        menu.addItem(toolsHeader)
+
+        addMenuItem(title: "Capture Text (OCR)", icon: "text.viewfinder", action: #selector(captureOCR), keyEquivalent: "o", modifiers: [.command, .shift])
+        addMenuItem(title: "Pin Screenshot", icon: "pin.fill", action: #selector(pinScreenshot), keyEquivalent: "p", modifiers: [.command, .shift])
+
+        menu.addItem(NSMenuItem.separator())
+
+        addMenuItem(title: "Capture History", icon: "clock.arrow.circlepath", action: #selector(showHistory), keyEquivalent: "h", modifiers: [.command, .shift])
+
+        menu.addItem(NSMenuItem.separator())
+
+        addMenuItem(title: "Preferences...", icon: "gear", action: #selector(showPreferences), keyEquivalent: ",", modifiers: [.command])
+        addMenuItem(title: "Open Screenshots Folder", icon: "folder", action: #selector(openScreenshotsFolder), keyEquivalent: "", modifiers: [])
+
+        menu.addItem(NSMenuItem.separator())
+
+        addMenuItem(title: "Quit ScreenCapture", icon: "power", action: #selector(quitApp), keyEquivalent: "q", modifiers: [.command])
+    }
+
+    @discardableResult
+    private func addMenuItem(title: String, icon: String, action: Selector, keyEquivalent: String, modifiers: NSEvent.ModifierFlags) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: keyEquivalent)
+        item.keyEquivalentModifierMask = modifiers
+        item.target = self
+
+        let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular)
+        item.image = NSImage(systemSymbolName: icon, accessibilityDescription: title)?.withSymbolConfiguration(config)
+
+        menu.addItem(item)
+        return item
+    }
+
+    private func setupNotifications() {
+        NotificationCenter.default.addObserver(self, selector: #selector(recordingDidStart), name: .recordingStarted, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(recordingDidStop), name: .recordingStopped, object: nil)
+    }
+
+    @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
+        guard let event = NSApp.currentEvent else { return }
+
+        if event.type == .rightMouseUp {
+            statusItem.menu = menu
+            statusItem.button?.performClick(nil)
+            statusItem.menu = nil
+        } else {
+            statusItem.menu = menu
+            statusItem.button?.performClick(nil)
+            statusItem.menu = nil
+        }
+    }
+
+    @objc private func captureArea() {
+        Task { @MainActor in
+            screenshotManager.captureArea()
+        }
+    }
+
+    @objc private func captureWindow() {
+        Task { @MainActor in
+            screenshotManager.captureWindow()
+        }
+    }
+
+    @objc private func captureFullscreen() {
+        Task { @MainActor in
+            screenshotManager.captureFullscreen()
+        }
+    }
+
+    @objc private func captureScrolling() {
+        Task { @MainActor in
+            screenshotManager.captureScrolling()
+        }
+    }
+
+    @objc private func toggleRecording() {
+        Task { @MainActor in
+            screenRecordingManager.toggleRecording()
+        }
+    }
+
+    @objc private func recordGIF() {
+        Task { @MainActor in
+            screenRecordingManager.toggleGIFRecording()
+        }
+    }
+
+    @objc private func captureOCR() {
+        Task { @MainActor in
+            screenshotManager.captureForOCR()
+        }
+    }
+
+    @objc private func pinScreenshot() {
+        Task { @MainActor in
+            screenshotManager.captureForPinning()
+        }
+    }
+
+    @objc private func showHistory() {
+        if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "history" }) {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        } else {
+            if let url = URL(string: "screencapture://history") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+    }
+
+    @objc private func showPreferences() {
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func openScreenshotsFolder() {
+        NSWorkspace.shared.open(storageManager.screenshotsDirectory)
+    }
+
+    @objc private func quitApp() {
+        NSApp.terminate(nil)
+    }
+
+    @objc private func recordingDidStart() {
+        isRecording = true
+        recordingMenuItem?.title = "Stop Recording"
+
+        if let button = statusItem.button {
+            let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+            let image = NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: "Recording")?.withSymbolConfiguration(config)
+            button.image = image
+            button.contentTintColor = .systemRed
+        }
+    }
+
+    @objc private func recordingDidStop() {
+        isRecording = false
+        recordingMenuItem?.title = "Record Screen"
+
+        if let button = statusItem.button {
+            let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+            let image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: "ScreenCapture")?.withSymbolConfiguration(config)
+            button.image = image
+            button.contentTintColor = nil
+        }
+    }
+}
