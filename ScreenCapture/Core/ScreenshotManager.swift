@@ -3,6 +3,13 @@ import ScreenCaptureKit
 import SwiftUI
 import Vision
 
+// Custom window class that accepts key events (required for borderless windows)
+// Used by ScreenRecordingManager and other components
+class KeyableWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
 @MainActor
 class ScreenshotManager: NSObject, ObservableObject {
     private let storageManager: StorageManager
