@@ -30,7 +30,8 @@ class ScreenshotManager: NSObject, ObservableObject {
         // Configure picker for single selection
         var config = SCContentSharingPickerConfiguration()
         config.allowedPickerModes = [.singleWindow, .singleDisplay]
-        picker.setConfiguration(config, for: nil)
+        let stream: SCStream? = nil
+        picker.setConfiguration(config, for: stream)
 
         debugLog("Picker configured")
     }
@@ -85,7 +86,8 @@ class ScreenshotManager: NSObject, ObservableObject {
 
         var config = SCContentSharingPickerConfiguration()
         config.allowedPickerModes = [mode]
-        picker.setConfiguration(config, for: nil)
+        let stream: SCStream? = nil
+        picker.setConfiguration(config, for: stream)
 
         picker.isActive = true
         picker.present()
