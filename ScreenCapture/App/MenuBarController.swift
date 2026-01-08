@@ -79,10 +79,10 @@ class MenuBarController: NSObject {
         captureHeader.isEnabled = false
         menu.addItem(captureHeader)
 
-        addMenuItem(title: "Capture Area", icon: "rectangle.dashed", action: #selector(captureArea), keyEquivalent: "4", modifiers: [.command, .shift])
-        addMenuItem(title: "Capture Window", icon: "macwindow", action: #selector(captureWindow), keyEquivalent: "5", modifiers: [.command, .shift])
-        addMenuItem(title: "Capture Fullscreen", icon: "rectangle.fill.on.rectangle.fill", action: #selector(captureFullscreen), keyEquivalent: "3", modifiers: [.command, .shift])
-        addMenuItem(title: "Scrolling Capture", icon: "scroll", action: #selector(captureScrolling), keyEquivalent: "6", modifiers: [.command, .shift])
+        addMenuItem(title: "Capture Area", icon: "rectangle.dashed", action: #selector(captureArea), keyEquivalent: "4", modifiers: [.control, .shift])
+        addMenuItem(title: "Capture Window", icon: "macwindow", action: #selector(captureWindow), keyEquivalent: "5", modifiers: [.control, .shift])
+        addMenuItem(title: "Capture Fullscreen", icon: "rectangle.fill.on.rectangle.fill", action: #selector(captureFullscreen), keyEquivalent: "3", modifiers: [.control, .shift])
+        addMenuItem(title: "Scrolling Capture", icon: "scroll", action: #selector(captureScrolling), keyEquivalent: "6", modifiers: [.control, .shift])
 
         menu.addItem(NSMenuItem.separator())
 
@@ -90,8 +90,8 @@ class MenuBarController: NSObject {
         recordHeader.isEnabled = false
         menu.addItem(recordHeader)
 
-        recordingMenuItem = addMenuItem(title: "Record Screen", icon: "video.fill", action: #selector(toggleRecording), keyEquivalent: "7", modifiers: [.command, .shift])
-        addMenuItem(title: "Record GIF", icon: "photo.on.rectangle.angled", action: #selector(recordGIF), keyEquivalent: "8", modifiers: [.command, .shift])
+        recordingMenuItem = addMenuItem(title: "Record Screen", icon: "video.fill", action: #selector(toggleRecording), keyEquivalent: "7", modifiers: [.control, .shift])
+        addMenuItem(title: "Record GIF", icon: "photo.on.rectangle.angled", action: #selector(recordGIF), keyEquivalent: "8", modifiers: [.control, .shift])
 
         menu.addItem(NSMenuItem.separator())
 
@@ -99,8 +99,8 @@ class MenuBarController: NSObject {
         toolsHeader.isEnabled = false
         menu.addItem(toolsHeader)
 
-        addMenuItem(title: "Capture Text (OCR)", icon: "text.viewfinder", action: #selector(captureOCR), keyEquivalent: "o", modifiers: [.command, .shift])
-        addMenuItem(title: "Pin Screenshot", icon: "pin.fill", action: #selector(pinScreenshot), keyEquivalent: "p", modifiers: [.command, .shift])
+        addMenuItem(title: "Capture Text (OCR)", icon: "text.viewfinder", action: #selector(captureOCR), keyEquivalent: "o", modifiers: [.control, .shift])
+        addMenuItem(title: "Pin Screenshot", icon: "pin.fill", action: #selector(pinScreenshot), keyEquivalent: "p", modifiers: [.control, .shift])
 
         menu.addItem(NSMenuItem.separator())
 

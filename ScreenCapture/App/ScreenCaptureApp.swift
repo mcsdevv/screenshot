@@ -54,35 +54,27 @@ struct MenuBarMenuView: View {
 
             Button("Capture Area") {
                 debugLog("MenuBar: Capture Area clicked")
-                Task { @MainActor in
-                    appDelegate.screenshotManager.captureArea()
-                }
+                appDelegate.screenshotManager.captureArea()
             }
-            .keyboardShortcut("4", modifiers: [.command, .shift])
+            .keyboardShortcut("4", modifiers: [.control, .shift])
 
             Button("Capture Window") {
                 debugLog("MenuBar: Capture Window clicked")
-                Task { @MainActor in
-                    appDelegate.screenshotManager.captureWindow()
-                }
+                appDelegate.screenshotManager.captureWindow()
             }
-            .keyboardShortcut("5", modifiers: [.command, .shift])
+            .keyboardShortcut("5", modifiers: [.control, .shift])
 
             Button("Capture Fullscreen") {
                 debugLog("MenuBar: Capture Fullscreen clicked")
-                Task { @MainActor in
-                    appDelegate.screenshotManager.captureFullscreen()
-                }
+                appDelegate.screenshotManager.captureFullscreen()
             }
-            .keyboardShortcut("3", modifiers: [.command, .shift])
+            .keyboardShortcut("3", modifiers: [.control, .shift])
 
             Button("Scrolling Capture") {
                 debugLog("MenuBar: Scrolling Capture clicked")
-                Task { @MainActor in
-                    appDelegate.screenshotManager.captureScrolling()
-                }
+                appDelegate.screenshotManager.captureScrolling()
             }
-            .keyboardShortcut("6", modifiers: [.command, .shift])
+            .keyboardShortcut("6", modifiers: [.control, .shift])
 
             Divider()
 
@@ -92,19 +84,15 @@ struct MenuBarMenuView: View {
 
             Button("Record Screen") {
                 debugLog("MenuBar: Record Screen clicked")
-                Task { @MainActor in
-                    appDelegate.screenRecordingManager.toggleRecording()
-                }
+                appDelegate.screenRecordingManager.toggleRecording()
             }
-            .keyboardShortcut("7", modifiers: [.command, .shift])
+            .keyboardShortcut("7", modifiers: [.control, .shift])
 
             Button("Record GIF") {
                 debugLog("MenuBar: Record GIF clicked")
-                Task { @MainActor in
-                    appDelegate.screenRecordingManager.toggleGIFRecording()
-                }
+                appDelegate.screenRecordingManager.toggleGIFRecording()
             }
-            .keyboardShortcut("8", modifiers: [.command, .shift])
+            .keyboardShortcut("8", modifiers: [.control, .shift])
 
             Divider()
 
@@ -114,19 +102,15 @@ struct MenuBarMenuView: View {
 
             Button("Capture Text (OCR)") {
                 debugLog("MenuBar: Capture Text (OCR) clicked")
-                Task { @MainActor in
-                    appDelegate.screenshotManager.captureForOCR()
-                }
+                appDelegate.screenshotManager.captureForOCR()
             }
-            .keyboardShortcut("o", modifiers: [.command, .shift])
+            .keyboardShortcut("o", modifiers: [.control, .shift])
 
             Button("Pin Screenshot") {
                 debugLog("MenuBar: Pin Screenshot clicked")
-                Task { @MainActor in
-                    appDelegate.screenshotManager.captureForPinning()
-                }
+                appDelegate.screenshotManager.captureForPinning()
             }
-            .keyboardShortcut("p", modifiers: [.command, .shift])
+            .keyboardShortcut("p", modifiers: [.control, .shift])
 
             Divider()
 

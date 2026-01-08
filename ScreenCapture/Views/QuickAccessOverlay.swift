@@ -2,6 +2,13 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
+// Custom NSView that accepts first mouse to allow clicks without activation
+class FirstMouseView: NSView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        return true
+    }
+}
+
 // Use a class to safely manage the overlay's actions and lifecycle
 class QuickAccessOverlayController: ObservableObject {
     let capture: CaptureItem
@@ -268,9 +275,94 @@ struct QuickAccessOverlay: View {
         }
         .frame(width: 340)
         .background(.ultraThinMaterial)
+        .background(KeyboardShortcutHandler(controller: controller))
         .onAppear {
             // Load thumbnail when view appears, not during init
             controller.loadThumbnailIfNeeded()
+        }
+        // Handle keyboard shortcuts for the overlay
+        .onExitCommand {
+            controller.dismiss()
+        }
+    }
+}
+
+// Keyboard event handling wrapper
+struct KeyboardShortcutHandler: NSViewRepresentable {
+    let controller: QuickAccessOverlayController
+
+    func makeNSView(context: Context) -> NSView {
+        let view = KeyboardView()
+        view.controller = controller
+        DispatchQueue.main.async {
+            view.window?.makeFirstResponder(view)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    class KeyboardView: NSView {
+        weak var controller: QuickAccessOverlayController?
+
+        override var acceptsFirstResponder: Bool { true }
+
+        override func keyDown(with event: NSEvent) {
+            guard let controller = controller else {
+                super.keyDown(with: event)
+                return
+            }
+
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+
+            // Handle Cmd+key shortcuts
+            if modifiers.contains(.command) {
+                switch key {
+                case "c":
+                    debugLog("KeyboardShortcutHandler: Cmd+C pressed")
+                    controller.copyToClipboard()
+                    return
+                case "s":
+                    debugLog("KeyboardShortcutHandler: Cmd+S pressed")
+                    controller.saveToConfiguredLocation()
+                    return
+                case "e":
+                    debugLog("KeyboardShortcutHandler: Cmd+E pressed")
+                    controller.openAnnotationEditor()
+                    return
+                case "p":
+                    debugLog("KeyboardShortcutHandler: Cmd+P pressed")
+                    controller.pinScreenshot()
+                    return
+                case "t":
+                    debugLog("KeyboardShortcutHandler: Cmd+T pressed")
+                    controller.performOCR()
+                    return
+                case "o":
+                    debugLog("KeyboardShortcutHandler: Cmd+O pressed")
+                    controller.openInFinder()
+                    return
+                default:
+                    break
+                }
+
+                // Handle Cmd+Delete
+                if event.keyCode == 51 { // Delete key
+                    debugLog("KeyboardShortcutHandler: Cmd+Delete pressed")
+                    controller.deleteCapture()
+                    return
+                }
+            }
+
+            // Handle Escape
+            if event.keyCode == 53 {
+                debugLog("KeyboardShortcutHandler: Escape pressed")
+                controller.dismiss()
+                return
+            }
+
+            super.keyDown(with: event)
         }
     }
 }
@@ -284,64 +376,47 @@ struct QuickActionButton: View {
     var iconSize: CGFloat = 18
 
     @State private var isHovered = false
-    @State private var showTooltip = false
+    @State private var isPressed = false
 
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: 0) {
-                // Fixed size container for icon to ensure alignment
-                Image(systemName: icon)
-                    .font(.system(size: iconSize, weight: .regular))
-                    .frame(width: 28, height: 28)
-                    .foregroundColor(isHovered ? .accentColor : .primary)
+        VStack(spacing: 0) {
+            // Fixed size container for icon to ensure alignment
+            Image(systemName: icon)
+                .font(.system(size: iconSize, weight: .regular))
+                .frame(width: 28, height: 28)
+                .foregroundColor(isHovered ? .accentColor : .primary)
 
-                Spacer()
-                    .frame(height: 6)
+            Spacer()
+                .frame(height: 6)
 
-                // Text anchored at bottom
-                Text(title)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(isHovered ? .accentColor : .primary)
-            }
-            .frame(width: 64, height: 52)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isHovered ? Color.accentColor.opacity(0.1) : Color.clear)
-            )
-            .contentShape(Rectangle())
+            // Text anchored at bottom
+            Text(title)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(isHovered ? .accentColor : .primary)
         }
-        .buttonStyle(.plain)
+        .frame(width: 64, height: 52)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isHovered ? Color.accentColor.opacity(0.1) : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .scaleEffect(isPressed ? 0.95 : 1.0)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
             }
-            // Show tooltip after a short delay
-            if hovering {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    if isHovered {
-                        showTooltip = true
-                    }
-                }
-            } else {
-                showTooltip = false
+        }
+        .onTapGesture {
+            debugLog("QuickActionButton: \(title) tapped")
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isPressed = false
+                action()
             }
         }
-        .popover(isPresented: $showTooltip, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(title)
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(shortcut)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.secondary)
-                }
-                Text(tooltipText)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-            }
-            .padding(10)
-            .frame(width: 200, alignment: .leading)
-        }
+        .help("\(title) (\(shortcut)) - \(tooltipText)")
     }
 }
 
@@ -353,55 +428,39 @@ struct SecondaryActionButton: View {
     let action: () -> Void
 
     @State private var isHovered = false
-    @State private var showTooltip = false
+    @State private var isPressed = false
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 12))
-                Text(title)
-                    .font(.system(size: 12))
-            }
-            .foregroundColor(isHovered ? .primary : .secondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isHovered ? Color.primary.opacity(0.1) : Color.clear)
-            )
-            .contentShape(Rectangle())
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 12))
+            Text(title)
+                .font(.system(size: 12))
         }
-        .buttonStyle(.plain)
+        .foregroundColor(isHovered ? .primary : .secondary)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(isHovered ? Color.primary.opacity(0.1) : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .scaleEffect(isPressed ? 0.95 : 1.0)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
             }
-            if hovering {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    if isHovered {
-                        showTooltip = true
-                    }
-                }
-            } else {
-                showTooltip = false
+        }
+        .onTapGesture {
+            debugLog("SecondaryActionButton: \(title) tapped")
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isPressed = false
+                action()
             }
         }
-        .popover(isPresented: $showTooltip, arrowEdge: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(title)
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(shortcut)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.secondary)
-                }
-                Text(tooltipText)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-            }
-            .padding(10)
-            .frame(width: 200, alignment: .leading)
-        }
+        .help("\(title) (\(shortcut)) - \(tooltipText)")
     }
 }

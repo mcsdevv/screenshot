@@ -29,11 +29,13 @@ class KeyboardShortcuts {
 
         var defaultModifiers: UInt32 {
             switch self {
-            case .captureArea, .captureWindow, .captureFullscreen, .captureScrolling,
-                 .recordScreen, .recordGIF, .ocr, .pinScreenshot:
-                return UInt32(cmdKey | shiftKey)
+            // Use Control+Shift for capture shortcuts to avoid conflicts with macOS built-in ⌘⇧3/4/5
+            case .captureArea, .captureWindow, .captureFullscreen, .captureScrolling:
+                return UInt32(controlKey | shiftKey)
+            case .recordScreen, .recordGIF, .ocr, .pinScreenshot:
+                return UInt32(controlKey | shiftKey)
             case .allInOne:
-                return UInt32(cmdKey | shiftKey | optionKey)
+                return UInt32(controlKey | shiftKey | optionKey)
             }
         }
 
@@ -53,15 +55,15 @@ class KeyboardShortcuts {
 
         var displayShortcut: String {
             switch self {
-            case .captureArea: return "Cmd+Shift+4"
-            case .captureWindow: return "Cmd+Shift+5"
-            case .captureFullscreen: return "Cmd+Shift+3"
-            case .captureScrolling: return "Cmd+Shift+6"
-            case .recordScreen: return "Cmd+Shift+7"
-            case .recordGIF: return "Cmd+Shift+8"
-            case .allInOne: return "Cmd+Shift+Opt+A"
-            case .ocr: return "Cmd+Shift+O"
-            case .pinScreenshot: return "Cmd+Shift+P"
+            case .captureArea: return "⌃⇧4"
+            case .captureWindow: return "⌃⇧5"
+            case .captureFullscreen: return "⌃⇧3"
+            case .captureScrolling: return "⌃⇧6"
+            case .recordScreen: return "⌃⇧7"
+            case .recordGIF: return "⌃⇧8"
+            case .allInOne: return "⌃⇧⌥A"
+            case .ocr: return "⌃⇧O"
+            case .pinScreenshot: return "⌃⇧P"
             }
         }
 
@@ -106,6 +108,9 @@ class KeyboardShortcuts {
 
         if status == noErr, let ref = hotKeyRef {
             hotKeyRefs[shortcut] = ref
+            debugLog("KeyboardShortcuts: Registered \(shortcut.displayName) (\(shortcut.displayShortcut))")
+        } else {
+            errorLog("KeyboardShortcuts: Failed to register \(shortcut.displayName), status: \(status)")
         }
     }
 
@@ -128,7 +133,7 @@ class KeyboardShortcuts {
 
         let handler: EventHandlerUPP = { (_, event, _) -> OSStatus in
             var hotKeyID = EventHotKeyID()
-            GetEventParameter(
+            let status = GetEventParameter(
                 event,
                 EventParamName(kEventParamDirectObject),
                 EventParamType(typeEventHotKeyID),
@@ -138,21 +143,31 @@ class KeyboardShortcuts {
                 &hotKeyID
             )
 
+            debugLog("KeyboardShortcuts: Hot key event received, id: \(hotKeyID.id), status: \(status)")
+
             if let shortcuts = KeyboardShortcuts.sharedInstance {
                 for shortcut in Shortcut.allCases {
                     if shortcut.hotKeyID == hotKeyID.id {
+                        debugLog("KeyboardShortcuts: Triggering \(shortcut.displayName)")
                         DispatchQueue.main.async {
                             shortcuts.callbacks[shortcut]?()
                         }
                         break
                     }
                 }
+            } else {
+                errorLog("KeyboardShortcuts: sharedInstance is nil!")
             }
 
             return noErr
         }
 
-        InstallEventHandler(GetApplicationEventTarget(), handler, 1, &eventType, nil, &eventHandlerRef)
+        let installStatus = InstallEventHandler(GetApplicationEventTarget(), handler, 1, &eventType, nil, &eventHandlerRef)
+        if installStatus == noErr {
+            debugLog("KeyboardShortcuts: Event handler installed successfully")
+        } else {
+            errorLog("KeyboardShortcuts: Failed to install event handler, status: \(installStatus)")
+        }
     }
 
     deinit {

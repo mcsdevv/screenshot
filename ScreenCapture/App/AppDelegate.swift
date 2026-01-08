@@ -151,6 +151,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
                 self?.screenshotManager.captureForOCR()
             }
         }
+
+        keyboardShortcuts.register(shortcut: .pinScreenshot) { [weak self] in
+            Task { @MainActor in
+                self?.screenshotManager.captureForPinning()
+            }
+        }
+
+        debugLog("AppDelegate: All keyboard shortcuts registered")
     }
 
     private func setupNotifications() {
@@ -447,22 +455,22 @@ struct AllInOneMenuView: View {
                 .padding(.horizontal, 16)
 
             VStack(spacing: 4) {
-                MenuButton(icon: "rectangle.dashed", title: "Capture Area", shortcut: "⌘⇧4") {
+                MenuButton(icon: "rectangle.dashed", title: "Capture Area", shortcut: "⌃⇧4") {
                     onDismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onCaptureArea() }
                 }
 
-                MenuButton(icon: "macwindow", title: "Capture Window", shortcut: "⌘⇧5") {
+                MenuButton(icon: "macwindow", title: "Capture Window", shortcut: "⌃⇧5") {
                     onDismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onCaptureWindow() }
                 }
 
-                MenuButton(icon: "rectangle.fill.on.rectangle.fill", title: "Capture Fullscreen", shortcut: "⌘⇧3") {
+                MenuButton(icon: "rectangle.fill.on.rectangle.fill", title: "Capture Fullscreen", shortcut: "⌃⇧3") {
                     onDismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onCaptureFullscreen() }
                 }
 
-                MenuButton(icon: "scroll", title: "Scrolling Capture", shortcut: "⌘⇧6") {
+                MenuButton(icon: "scroll", title: "Scrolling Capture", shortcut: "⌃⇧6") {
                     onDismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onCaptureScrolling() }
                 }
@@ -471,12 +479,12 @@ struct AllInOneMenuView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
 
-                MenuButton(icon: "video.fill", title: "Record Video", shortcut: "⌘⇧7") {
+                MenuButton(icon: "video.fill", title: "Record Video", shortcut: "⌃⇧7") {
                     onDismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onRecordVideo() }
                 }
 
-                MenuButton(icon: "photo.on.rectangle.angled", title: "Record GIF", shortcut: "⌘⇧8") {
+                MenuButton(icon: "photo.on.rectangle.angled", title: "Record GIF", shortcut: "⌃⇧8") {
                     onDismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onRecordGIF() }
                 }
@@ -485,7 +493,7 @@ struct AllInOneMenuView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
 
-                MenuButton(icon: "text.viewfinder", title: "Capture Text (OCR)", shortcut: "⌘⇧O") {
+                MenuButton(icon: "text.viewfinder", title: "Capture Text (OCR)", shortcut: "⌃⇧O") {
                     onDismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onOCR() }
                 }
