@@ -20,6 +20,40 @@ struct AnnotationCanvas: View {
     // For blur preview
     @State private var blurPreviewImage: NSImage?
 
+    // Track container size for coordinate conversion
+    @State private var containerSize: CGSize = .zero
+
+    // Calculate the offset of the image within the container (image is centered when container is larger)
+    private var imageOffset: CGPoint {
+        let scaledImageWidth = image.size.width * zoom
+        let scaledImageHeight = image.size.height * zoom
+        let containerWidth = max(containerSize.width, scaledImageWidth)
+        let containerHeight = max(containerSize.height, scaledImageHeight)
+
+        return CGPoint(
+            x: (containerWidth - scaledImageWidth) / 2,
+            y: (containerHeight - scaledImageHeight) / 2
+        )
+    }
+
+    // Convert gesture location to image coordinates (accounting for centering offset and zoom)
+    private func gestureLocationToImageCoords(_ location: CGPoint) -> CGPoint {
+        let adjustedX = location.x - imageOffset.x
+        let adjustedY = location.y - imageOffset.y
+        return CGPoint(
+            x: adjustedX / zoom,
+            y: adjustedY / zoom
+        )
+    }
+
+    // Clamp a point to stay within image bounds
+    private func clampToImageBounds(_ point: CGPoint) -> CGPoint {
+        CGPoint(
+            x: max(0, min(point.x, image.size.width)),
+            y: max(0, min(point.y, image.size.height))
+        )
+    }
+
     var body: some View {
         GeometryReader { geometry in
             ScrollView([.horizontal, .vertical], showsIndicators: true) {
@@ -93,6 +127,12 @@ struct AnnotationCanvas: View {
                 .onTapGesture { location in
                     handleTap(at: location)
                 }
+            }
+            .onAppear {
+                containerSize = geometry.size
+            }
+            .onChange(of: geometry.size) { _, newSize in
+                containerSize = newSize
             }
         }
         .background(Color(nsColor: .controlBackgroundColor))
@@ -209,7 +249,7 @@ struct AnnotationCanvas: View {
     }
 
     private func handleTap(at location: CGPoint) {
-        let unscaledLocation = CGPoint(x: location.x / zoom, y: location.y / zoom)
+        let unscaledLocation = clampToImageBounds(gestureLocationToImageCoords(location))
 
         switch state.currentTool {
         case .select:
@@ -223,7 +263,11 @@ struct AnnotationCanvas: View {
             }
 
         case .text:
-            textPosition = location
+            // Store position in image coordinates (will be converted for display)
+            textPosition = CGPoint(
+                x: unscaledLocation.x * zoom + imageOffset.x,
+                y: unscaledLocation.y * zoom + imageOffset.y
+            )
             textInput = ""
             showTextInput = true
 
@@ -288,8 +332,9 @@ struct AnnotationCanvas: View {
             return
         }
 
-        let startLocation = CGPoint(x: value.startLocation.x / zoom, y: value.startLocation.y / zoom)
-        let currentLocation = CGPoint(x: value.location.x / zoom, y: value.location.y / zoom)
+        // Convert gesture coordinates to image coordinates (accounting for centering offset)
+        let startLocation = clampToImageBounds(gestureLocationToImageCoords(value.startLocation))
+        let currentLocation = clampToImageBounds(gestureLocationToImageCoords(value.location))
 
         switch state.currentTool {
         case .pencil, .highlighter:
@@ -383,7 +428,11 @@ struct AnnotationCanvas: View {
             return
         }
 
-        let unscaledPosition = CGPoint(x: textPosition.x / zoom, y: textPosition.y / zoom)
+        // Convert from display position back to image coordinates
+        let unscaledPosition = clampToImageBounds(CGPoint(
+            x: (textPosition.x - imageOffset.x) / zoom,
+            y: (textPosition.y - imageOffset.y) / zoom
+        ))
         let annotation = Annotation(
             type: .text,
             rect: CGRect(origin: unscaledPosition, size: .zero),
