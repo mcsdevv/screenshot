@@ -20,30 +20,14 @@ struct AnnotationCanvas: View {
     // For blur preview
     @State private var blurPreviewImage: NSImage?
 
-    // Track container size for coordinate conversion
-    @State private var containerSize: CGSize = .zero
-
-    // Calculate the offset of the image within the container (image is centered when container is larger)
-    private var imageOffset: CGPoint {
-        let scaledImageWidth = image.size.width * zoom
-        let scaledImageHeight = image.size.height * zoom
-        let containerWidth = max(containerSize.width, scaledImageWidth)
-        let containerHeight = max(containerSize.height, scaledImageHeight)
-
-        return CGPoint(
-            x: (containerWidth - scaledImageWidth) / 2,
-            y: (containerHeight - scaledImageHeight) / 2
-        )
+    // Scaled image dimensions for convenience
+    private var scaledImageSize: CGSize {
+        CGSize(width: image.size.width * zoom, height: image.size.height * zoom)
     }
 
-    // Convert gesture location to image coordinates (accounting for centering offset and zoom)
+    // Convert gesture location to image coordinates (just divide by zoom since we use topLeading alignment)
     private func gestureLocationToImageCoords(_ location: CGPoint) -> CGPoint {
-        let adjustedX = location.x - imageOffset.x
-        let adjustedY = location.y - imageOffset.y
-        return CGPoint(
-            x: adjustedX / zoom,
-            y: adjustedY / zoom
-        )
+        CGPoint(x: location.x / zoom, y: location.y / zoom)
     }
 
     // Clamp a point to stay within image bounds
@@ -57,11 +41,12 @@ struct AnnotationCanvas: View {
     var body: some View {
         GeometryReader { geometry in
             ScrollView([.horizontal, .vertical], showsIndicators: true) {
-                ZStack {
+                // Use topLeading alignment so image is at (0,0) and gestures map directly
+                ZStack(alignment: .topLeading) {
                     // Background image (with blur regions applied)
                     imageLayer
 
-                    // Annotation canvas
+                    // Annotation canvas - same size as image, aligned top-left
                     Canvas { context, size in
                         // Draw all annotations
                         for annotation in state.annotations {
@@ -73,10 +58,7 @@ struct AnnotationCanvas: View {
                             drawAnnotation(current, in: context, size: size)
                         }
                     }
-                    .frame(
-                        width: image.size.width * zoom,
-                        height: image.size.height * zoom
-                    )
+                    .frame(width: scaledImageSize.width, height: scaledImageSize.height)
 
                     // Selection handles for selected annotation
                     ForEach(state.annotations) { annotation in
@@ -110,6 +92,7 @@ struct AnnotationCanvas: View {
                         TextInputOverlay(
                             text: $textInput,
                             position: textPosition,
+                            imageSize: scaledImageSize,
                             color: state.currentColor,
                             fontSize: state.currentFontSize,
                             fontName: state.currentFontName,
@@ -118,21 +101,12 @@ struct AnnotationCanvas: View {
                         )
                     }
                 }
-                .frame(
-                    width: max(geometry.size.width, image.size.width * zoom),
-                    height: max(geometry.size.height, image.size.height * zoom)
-                )
+                .frame(width: scaledImageSize.width, height: scaledImageSize.height)
                 .contentShape(Rectangle())
                 .gesture(drawingGesture)
                 .onTapGesture { location in
                     handleTap(at: location)
                 }
-            }
-            .onAppear {
-                containerSize = geometry.size
-            }
-            .onChange(of: geometry.size) { _, newSize in
-                containerSize = newSize
             }
         }
         .background(Color(nsColor: .controlBackgroundColor))
@@ -263,11 +237,8 @@ struct AnnotationCanvas: View {
             }
 
         case .text:
-            // Store position in image coordinates (will be converted for display)
-            textPosition = CGPoint(
-                x: unscaledLocation.x * zoom + imageOffset.x,
-                y: unscaledLocation.y * zoom + imageOffset.y
-            )
+            // Store position in scaled coordinates (where user clicked)
+            textPosition = location
             textInput = ""
             showTextInput = true
 
@@ -428,11 +399,8 @@ struct AnnotationCanvas: View {
             return
         }
 
-        // Convert from display position back to image coordinates
-        let unscaledPosition = clampToImageBounds(CGPoint(
-            x: (textPosition.x - imageOffset.x) / zoom,
-            y: (textPosition.y - imageOffset.y) / zoom
-        ))
+        // Convert from scaled position to image coordinates
+        let unscaledPosition = clampToImageBounds(gestureLocationToImageCoords(textPosition))
         let annotation = Annotation(
             type: .text,
             rect: CGRect(origin: unscaledPosition, size: .zero),
@@ -1000,6 +968,7 @@ struct CropOverlay: View {
 struct TextInputOverlay: View {
     @Binding var text: String
     let position: CGPoint
+    let imageSize: CGSize
     let color: Color
     let fontSize: CGFloat
     let fontName: String
@@ -1007,35 +976,84 @@ struct TextInputOverlay: View {
     let onCancel: () -> Void
 
     @FocusState private var isFocused: Bool
+    @State private var size: CGSize = .zero
+
+    // Default to 25% of image width, min 120, max 300
+    private var defaultWidth: CGFloat {
+        min(max(imageSize.width * 0.25, 120), 300)
+    }
+
+    // Constrain position to keep text box within image bounds
+    private var constrainedPosition: CGPoint {
+        let boxWidth = size.width > 0 ? size.width : defaultWidth
+        let boxHeight = size.height > 0 ? size.height : 60
+
+        let x = min(max(position.x, boxWidth / 2 + 8), imageSize.width - boxWidth / 2 - 8)
+        let y = min(max(position.y, boxHeight / 2 + 8), imageSize.height - boxHeight / 2 - 8)
+
+        return CGPoint(x: x, y: y)
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            TextField("Enter text...", text: $text)
-                .textFieldStyle(.plain)
+        VStack(alignment: .leading, spacing: 4) {
+            // Text input area with transparent background
+            TextEditor(text: $text)
                 .font(fontName == ".AppleSystemUIFont" ? .system(size: fontSize) : .custom(fontName, size: fontSize))
                 .foregroundColor(color)
+                .scrollContentBackground(.hidden)
+                .background(Color.clear)
                 .focused($isFocused)
-                .onSubmit { onCommit() }
+                .frame(minHeight: 24, maxHeight: 120)
 
-            HStack(spacing: 8) {
-                Button("Cancel") { onCancel() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+            // Minimal action buttons
+            HStack(spacing: 6) {
+                Button(action: onCancel) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .frame(width: 20, height: 20)
+                .background(Color(nsColor: .windowBackgroundColor).opacity(0.8))
+                .clipShape(Circle())
 
-                Button("Add") { onCommit() }
-                    .buttonStyle(.borderedProminent)
-                    .font(.system(size: 11))
-                    .controlSize(.small)
+                Button(action: onCommit) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                }
+                .buttonStyle(.plain)
+                .frame(width: 20, height: 20)
+                .background(Color.accentColor)
+                .clipShape(Circle())
+
+                Spacer()
+
+                // Keyboard hint
+                Text("⏎ to add")
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary.opacity(0.6))
             }
         }
-        .padding(12)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .cornerRadius(8)
-        .shadow(color: .black.opacity(0.2), radius: 8)
-        .frame(minWidth: 200)
-        .position(position)
+        .padding(8)
+        .frame(width: defaultWidth)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.85))
+                .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(color.opacity(0.3), lineWidth: 1)
+        )
+        .background(
+            GeometryReader { geo in
+                Color.clear.onAppear { size = geo.size }
+            }
+        )
+        .position(constrainedPosition)
         .onAppear { isFocused = true }
         .onExitCommand { onCancel() }
+        .onSubmit { onCommit() }
     }
 }
