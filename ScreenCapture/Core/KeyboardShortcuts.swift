@@ -27,16 +27,36 @@ class KeyboardShortcuts {
             }
         }
 
-        var defaultModifiers: UInt32 {
-            switch self {
-            // Use Control+Shift for capture shortcuts to avoid conflicts with macOS built-in ⌘⇧3/4/5
-            case .captureArea, .captureWindow, .captureFullscreen, .captureScrolling:
-                return UInt32(controlKey | shiftKey)
-            case .recordScreen, .recordGIF, .ocr, .pinScreenshot:
-                return UInt32(controlKey | shiftKey)
-            case .allInOne:
-                return UInt32(controlKey | shiftKey | optionKey)
+        /// Returns the modifiers based on whether native shortcuts are remapped
+        func modifiers(useNativeShortcuts: Bool) -> UInt32 {
+            if useNativeShortcuts {
+                // Use Cmd+Shift when native macOS shortcuts are disabled
+                switch self {
+                case .captureArea, .captureWindow, .captureFullscreen:
+                    return UInt32(cmdKey | shiftKey)
+                case .captureScrolling:
+                    return UInt32(cmdKey | shiftKey)
+                case .recordScreen, .recordGIF, .ocr, .pinScreenshot:
+                    return UInt32(cmdKey | shiftKey)
+                case .allInOne:
+                    return UInt32(cmdKey | shiftKey | optionKey)
+                }
+            } else {
+                // Use Control+Shift to avoid conflicts with macOS built-in ⌘⇧3/4/5
+                switch self {
+                case .captureArea, .captureWindow, .captureFullscreen, .captureScrolling:
+                    return UInt32(controlKey | shiftKey)
+                case .recordScreen, .recordGIF, .ocr, .pinScreenshot:
+                    return UInt32(controlKey | shiftKey)
+                case .allInOne:
+                    return UInt32(controlKey | shiftKey | optionKey)
+                }
             }
+        }
+
+        var defaultModifiers: UInt32 {
+            // Default to Control+Shift (safe mode)
+            return modifiers(useNativeShortcuts: false)
         }
 
         var displayName: String {
@@ -53,17 +73,32 @@ class KeyboardShortcuts {
             }
         }
 
-        var displayShortcut: String {
-            switch self {
-            case .captureArea: return "⌃⇧4"
-            case .captureWindow: return "⌃⇧5"
-            case .captureFullscreen: return "⌃⇧3"
-            case .captureScrolling: return "⌃⇧6"
-            case .recordScreen: return "⌃⇧7"
-            case .recordGIF: return "⌃⇧8"
-            case .allInOne: return "⌃⇧⌥A"
-            case .ocr: return "⌃⇧O"
-            case .pinScreenshot: return "⌃⇧P"
+        /// Returns the display shortcut string based on whether native shortcuts are remapped
+        func displayShortcut(useNativeShortcuts: Bool) -> String {
+            if useNativeShortcuts {
+                switch self {
+                case .captureArea: return "⌘⇧4"
+                case .captureWindow: return "⌘⇧5"
+                case .captureFullscreen: return "⌘⇧3"
+                case .captureScrolling: return "⌘⇧6"
+                case .recordScreen: return "⌘⇧7"
+                case .recordGIF: return "⌘⇧8"
+                case .allInOne: return "⌘⇧⌥A"
+                case .ocr: return "⌘⇧O"
+                case .pinScreenshot: return "⌘⇧P"
+                }
+            } else {
+                switch self {
+                case .captureArea: return "⌃⇧4"
+                case .captureWindow: return "⌃⇧5"
+                case .captureFullscreen: return "⌃⇧3"
+                case .captureScrolling: return "⌃⇧6"
+                case .recordScreen: return "⌃⇧7"
+                case .recordGIF: return "⌃⇧8"
+                case .allInOne: return "⌃⇧⌥A"
+                case .ocr: return "⌃⇧O"
+                case .pinScreenshot: return "⌃⇧P"
+                }
             }
         }
 
@@ -82,24 +117,43 @@ class KeyboardShortcuts {
     private var hotKeyRefs: [Shortcut: EventHotKeyRef] = [:]
     private var callbacks: [Shortcut: () -> Void] = [:]
 
+    /// Whether we're using native macOS shortcut keys (Cmd+Shift) or fallback (Ctrl+Shift)
+    private(set) var useNativeShortcuts: Bool = false
+
     private static var sharedInstance: KeyboardShortcuts?
 
     init() {
         KeyboardShortcuts.sharedInstance = self
+        // Check if native shortcuts have been remapped
+        useNativeShortcuts = SystemShortcutManager.shared.shortcutsRemapped
         setupEventHandler()
     }
 
+    /// Register a shortcut with appropriate modifiers based on native shortcut state
     func register(shortcut: Shortcut, callback: @escaping () -> Void) {
         callbacks[shortcut] = callback
+        registerHotKey(shortcut: shortcut)
+    }
+
+    /// Internal method to register hotkey with current modifier settings
+    private func registerHotKey(shortcut: Shortcut) {
+        // Unregister first if already registered
+        if let ref = hotKeyRefs[shortcut] {
+            UnregisterEventHotKey(ref)
+            hotKeyRefs.removeValue(forKey: shortcut)
+        }
 
         var hotKeyRef: EventHotKeyRef?
         var hotKeyID = EventHotKeyID()
         hotKeyID.signature = KeyboardShortcuts.hotKeySignature
         hotKeyID.id = shortcut.hotKeyID
 
+        let modifiers = shortcut.modifiers(useNativeShortcuts: useNativeShortcuts)
+        let displayStr = shortcut.displayShortcut(useNativeShortcuts: useNativeShortcuts)
+
         let status = RegisterEventHotKey(
             shortcut.defaultKeyCode,
-            shortcut.defaultModifiers,
+            modifiers,
             hotKeyID,
             GetApplicationEventTarget(),
             0,
@@ -108,9 +162,20 @@ class KeyboardShortcuts {
 
         if status == noErr, let ref = hotKeyRef {
             hotKeyRefs[shortcut] = ref
-            debugLog("KeyboardShortcuts: Registered \(shortcut.displayName) (\(shortcut.displayShortcut))")
+            debugLog("KeyboardShortcuts: Registered \(shortcut.displayName) (\(displayStr))")
         } else {
             errorLog("KeyboardShortcuts: Failed to register \(shortcut.displayName), status: \(status)")
+        }
+    }
+
+    /// Re-register all shortcuts with updated modifiers (called when native shortcuts are remapped)
+    func reregisterAllShortcuts(useNativeShortcuts: Bool) {
+        debugLog("KeyboardShortcuts: Re-registering shortcuts with useNativeShortcuts=\(useNativeShortcuts)")
+        self.useNativeShortcuts = useNativeShortcuts
+
+        // Re-register all shortcuts with callbacks
+        for shortcut in Shortcut.allCases where callbacks[shortcut] != nil {
+            registerHotKey(shortcut: shortcut)
         }
     }
 

@@ -45,6 +45,12 @@ struct ScreenCaptureApp: App {
 
 struct MenuBarMenuView: View {
     let appDelegate: AppDelegate
+    @StateObject private var shortcutManager = SystemShortcutManager.shared
+
+    /// Returns the appropriate modifier keys based on shortcut mode
+    private var captureModifiers: EventModifiers {
+        shortcutManager.shortcutsRemapped ? [.command, .shift] : [.control, .shift]
+    }
 
     var body: some View {
         Group {
@@ -56,7 +62,7 @@ struct MenuBarMenuView: View {
                 } label: {
                     Label("Capture Area", systemImage: "rectangle.dashed")
                 }
-                .keyboardShortcut("4", modifiers: [.control, .shift])
+                .keyboardShortcut("4", modifiers: captureModifiers)
 
                 Button {
                     debugLog("MenuBar: Capture Window clicked")
@@ -64,7 +70,7 @@ struct MenuBarMenuView: View {
                 } label: {
                     Label("Capture Window", systemImage: "macwindow")
                 }
-                .keyboardShortcut("5", modifiers: [.control, .shift])
+                .keyboardShortcut("5", modifiers: captureModifiers)
 
                 Button {
                     debugLog("MenuBar: Capture Fullscreen clicked")
@@ -72,7 +78,7 @@ struct MenuBarMenuView: View {
                 } label: {
                     Label("Capture Fullscreen", systemImage: "rectangle.inset.filled")
                 }
-                .keyboardShortcut("3", modifiers: [.control, .shift])
+                .keyboardShortcut("3", modifiers: captureModifiers)
 
                 Button {
                     debugLog("MenuBar: Scrolling Capture clicked")
@@ -80,7 +86,7 @@ struct MenuBarMenuView: View {
                 } label: {
                     Label("Scrolling Capture", systemImage: "scroll")
                 }
-                .keyboardShortcut("6", modifiers: [.control, .shift])
+                .keyboardShortcut("6", modifiers: captureModifiers)
             } header: {
                 Label("Capture", systemImage: "camera.fill")
             }
@@ -95,7 +101,7 @@ struct MenuBarMenuView: View {
                 } label: {
                     Label("Record Screen", systemImage: "record.circle")
                 }
-                .keyboardShortcut("7", modifiers: [.control, .shift])
+                .keyboardShortcut("7", modifiers: captureModifiers)
 
                 Button {
                     debugLog("MenuBar: Record GIF clicked")
@@ -103,7 +109,7 @@ struct MenuBarMenuView: View {
                 } label: {
                     Label("Record GIF", systemImage: "gift")
                 }
-                .keyboardShortcut("8", modifiers: [.control, .shift])
+                .keyboardShortcut("8", modifiers: captureModifiers)
             } header: {
                 Label("Record", systemImage: "video.fill")
             }
@@ -118,7 +124,7 @@ struct MenuBarMenuView: View {
                 } label: {
                     Label("Capture Text (OCR)", systemImage: "text.viewfinder")
                 }
-                .keyboardShortcut("o", modifiers: [.control, .shift])
+                .keyboardShortcut("o", modifiers: captureModifiers)
 
                 Button {
                     debugLog("MenuBar: Pin Screenshot clicked")
@@ -126,7 +132,7 @@ struct MenuBarMenuView: View {
                 } label: {
                     Label("Pin Screenshot", systemImage: "pin.fill")
                 }
-                .keyboardShortcut("p", modifiers: [.control, .shift])
+                .keyboardShortcut("p", modifiers: captureModifiers)
             } header: {
                 Label("Tools", systemImage: "wrench.and.screwdriver")
             }

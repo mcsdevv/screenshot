@@ -33,6 +33,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
         requestPermissions()
 
+        // Show shortcut remapping prompt on first launch
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            SystemShortcutManager.shared.showRemapPromptIfNeeded()
+        }
+
         debugLog("Application finished launching")
     }
 
@@ -183,6 +188,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             .receive(on: DispatchQueue.main)
             .sink { [weak self] capture in
                 self?.showAnnotationEditor(for: capture)
+            }
+            .store(in: &cancellables)
+
+        // Listen for shortcut remap changes
+        NotificationCenter.default.publisher(for: .shortcutsRemapped)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                let useNative = SystemShortcutManager.shared.shortcutsRemapped
+                self?.keyboardShortcuts.reregisterAllShortcuts(useNativeShortcuts: useNative)
+                debugLog("AppDelegate: Re-registered shortcuts after remap, useNative=\(useNative)")
             }
             .store(in: &cancellables)
     }
