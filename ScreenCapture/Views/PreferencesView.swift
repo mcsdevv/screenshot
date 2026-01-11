@@ -371,30 +371,143 @@ struct GeneralPreferencesView: View {
 // MARK: - Shortcuts Preferences
 
 struct ShortcutsPreferencesView: View {
+    @StateObject private var shortcutManager = SystemShortcutManager.shared
+    @State private var isRemapping = false
+
+    private var useNativeShortcuts: Bool {
+        shortcutManager.shortcutsRemapped
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xl) {
+            // Shortcut Mode Section
+            PreferenceSection("Shortcut Mode") {
+                VStack(alignment: .leading, spacing: DSSpacing.md) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: DSSpacing.xxxs) {
+                            Text("Use Standard macOS Screenshot Shortcuts")
+                                .font(DSTypography.bodyMedium)
+                                .foregroundColor(.dsTextPrimary)
+
+                            Text(useNativeShortcuts
+                                 ? "ScreenCapture is using ⌘⇧3, ⌘⇧4, ⌘⇧5 shortcuts."
+                                 : "Native macOS shortcuts are active. ScreenCapture uses ⌃⇧ shortcuts.")
+                                .font(DSTypography.caption)
+                                .foregroundColor(.dsTextTertiary)
+                        }
+
+                        Spacer()
+
+                        // Status indicator
+                        HStack(spacing: DSSpacing.xs) {
+                            Circle()
+                                .fill(useNativeShortcuts ? Color.dsSuccess : Color.dsTextTertiary)
+                                .frame(width: 8, height: 8)
+                            Text(useNativeShortcuts ? "Enabled" : "Disabled")
+                                .font(DSTypography.caption)
+                                .foregroundColor(useNativeShortcuts ? .dsSuccess : .dsTextTertiary)
+                        }
+                    }
+
+                    DSDivider()
+
+                    HStack {
+                        if useNativeShortcuts {
+                            Text("The native macOS screenshot shortcuts have been disabled. ScreenCapture handles all screenshot shortcuts.")
+                                .font(DSTypography.caption)
+                                .foregroundColor(.dsTextTertiary)
+                        } else {
+                            Text("Enable this to use familiar shortcuts like ⌘⇧3 and ⌘⇧4 with ScreenCapture instead of the built-in Screenshot app.")
+                                .font(DSTypography.caption)
+                                .foregroundColor(.dsTextTertiary)
+                        }
+
+                        Spacer()
+
+                        Button(action: toggleShortcutMode) {
+                            HStack(spacing: DSSpacing.xs) {
+                                if isRemapping {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                        .frame(width: 12, height: 12)
+                                } else {
+                                    Image(systemName: useNativeShortcuts ? "keyboard.badge.ellipsis" : "keyboard")
+                                        .font(.system(size: 12))
+                                }
+                                Text(useNativeShortcuts ? "Restore Native Shortcuts" : "Use Standard Shortcuts")
+                                    .font(DSTypography.labelSmall)
+                            }
+                            .foregroundColor(useNativeShortcuts ? .dsWarmAccent : .dsAccent)
+                            .padding(.horizontal, DSSpacing.md)
+                            .padding(.vertical, DSSpacing.xs)
+                            .background(
+                                RoundedRectangle(cornerRadius: DSRadius.sm)
+                                    .fill(useNativeShortcuts ? Color.dsWarmAccent.opacity(0.1) : Color.dsAccent.opacity(0.1))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isRemapping)
+                    }
+                }
+            }
+
             PreferenceSection("Screenshot Shortcuts") {
-                ShortcutRow(name: "Capture Area", shortcut: "⌘⇧4")
+                ShortcutRow(name: "Capture Area", shortcut: shortcut(for: .captureArea))
                 DSDivider()
-                ShortcutRow(name: "Capture Window", shortcut: "⌘⇧5")
+                ShortcutRow(name: "Capture Window", shortcut: shortcut(for: .captureWindow))
                 DSDivider()
-                ShortcutRow(name: "Capture Fullscreen", shortcut: "⌘⇧3")
+                ShortcutRow(name: "Capture Fullscreen", shortcut: shortcut(for: .captureFullscreen))
                 DSDivider()
-                ShortcutRow(name: "Scrolling Capture", shortcut: "⌘⇧6")
+                ShortcutRow(name: "Scrolling Capture", shortcut: shortcut(for: .captureScrolling))
             }
 
             PreferenceSection("Recording Shortcuts") {
-                ShortcutRow(name: "Record Screen", shortcut: "⌘⇧7")
+                ShortcutRow(name: "Record Screen", shortcut: shortcut(for: .recordScreen))
                 DSDivider()
-                ShortcutRow(name: "Record GIF", shortcut: "⌘⇧8")
+                ShortcutRow(name: "Record GIF", shortcut: shortcut(for: .recordGIF))
             }
 
             PreferenceSection("Tool Shortcuts") {
-                ShortcutRow(name: "Capture Text (OCR)", shortcut: "⌘⇧O")
+                ShortcutRow(name: "Capture Text (OCR)", shortcut: shortcut(for: .ocr))
                 DSDivider()
-                ShortcutRow(name: "Pin Screenshot", shortcut: "⌘⇧P")
+                ShortcutRow(name: "Pin Screenshot", shortcut: shortcut(for: .pinScreenshot))
                 DSDivider()
-                ShortcutRow(name: "All-in-One Menu", shortcut: "⌘⇧⌥A")
+                ShortcutRow(name: "All-in-One Menu", shortcut: shortcut(for: .allInOne))
+            }
+        }
+    }
+
+    private func shortcut(for shortcut: KeyboardShortcuts.Shortcut) -> String {
+        shortcut.displayShortcut(useNativeShortcuts: useNativeShortcuts)
+    }
+
+    private func toggleShortcutMode() {
+        isRemapping = true
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let success: Bool
+            if useNativeShortcuts {
+                // Restore native shortcuts
+                success = shortcutManager.enableNativeShortcuts()
+            } else {
+                // Disable native shortcuts
+                success = shortcutManager.disableNativeShortcuts()
+            }
+
+            DispatchQueue.main.async {
+                isRemapping = false
+
+                if success {
+                    // Notify that shortcuts need to be re-registered
+                    NotificationCenter.default.post(name: .shortcutsRemapped, object: nil)
+                } else {
+                    // Show error alert
+                    let alert = NSAlert()
+                    alert.messageText = "Could Not Update Shortcuts"
+                    alert.informativeText = "There was an error modifying the system shortcuts. You may need to change them manually in System Settings → Keyboard → Keyboard Shortcuts → Screenshots."
+                    alert.alertStyle = .warning
+                    alert.runModal()
+                }
             }
         }
     }
@@ -566,7 +679,6 @@ struct StoragePreferencesView: View {
     @AppStorage("cleanupDays") private var cleanupDays = 30
 
     @State private var storageLocation: String = "default"
-    @State private var customLocationPath: String = "Not set"
     @State private var storageUsed: String = "Calculating..."
     @State private var currentPath: String = ""
 
@@ -580,7 +692,19 @@ struct StoragePreferencesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xl) {
             PreferenceSection("Storage Location") {
-                PreferenceRow("Save screenshots to") {
+                HStack {
+                    Text("Save screenshots to")
+                        .font(DSTypography.bodyMedium)
+                        .foregroundColor(.dsTextPrimary)
+
+                    Spacer()
+
+                    if storageLocation == "custom" {
+                        DSSecondaryButton("Choose...", icon: "folder") {
+                            chooseCustomLocation()
+                        }
+                    }
+
                     Picker("", selection: $storageLocation) {
                         Text("Default (App Support)").tag("default")
                         Text("Desktop").tag("desktop")
@@ -593,24 +717,6 @@ struct StoragePreferencesView: View {
                         if newValue != "custom" {
                             storageManager.setStorageLocation(newValue)
                             updateCurrentPath()
-                        }
-                    }
-                }
-
-                if storageLocation == "custom" {
-                    DSDivider()
-
-                    HStack {
-                        Text(customLocationPath)
-                            .font(DSTypography.bodySmall)
-                            .foregroundColor(.dsTextTertiary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-
-                        Spacer()
-
-                        DSSecondaryButton("Choose...", icon: "folder") {
-                            chooseCustomLocation()
                         }
                     }
                 }
@@ -718,10 +824,6 @@ struct StoragePreferencesView: View {
     private func loadCurrentSettings() {
         storageLocation = storageManager.getStorageLocation()
         updateCurrentPath()
-
-        if let customURL = storageManager.getCustomFolderURL() {
-            customLocationPath = customURL.path
-        }
     }
 
     private func updateCurrentPath() {
@@ -738,7 +840,6 @@ struct StoragePreferencesView: View {
 
         if panel.runModal() == .OK, let url = panel.url {
             if storageManager.setCustomFolder(url) {
-                customLocationPath = url.path
                 storageLocation = "custom"
                 updateCurrentPath()
                 debugLog("StoragePreferences: Custom folder set to \(url.path)")
