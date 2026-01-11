@@ -31,7 +31,7 @@ struct PreferencesView: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Spacer for traffic light buttons
                 Spacer()
-                    .frame(height: 52)
+                    .frame(height: 28)
 
                 // App icon and name
                 VStack(spacing: DSSpacing.sm) {
@@ -107,8 +107,8 @@ struct PreferencesView: View {
                     Spacer()
                 }
                 .padding(.horizontal, DSSpacing.xl)
-                .padding(.top, DSSpacing.huge)
-                .padding(.bottom, DSSpacing.lg)
+                .padding(.top, DSSpacing.lg)
+                .padding(.bottom, DSSpacing.md)
 
                 DSDivider()
                     .padding(.horizontal, DSSpacing.xl)
@@ -279,12 +279,17 @@ struct DSToggle: View {
     let label: String
 
     var body: some View {
-        Toggle(isOn: $isOn) {
+        HStack(alignment: .center) {
             Text(label)
                 .font(DSTypography.bodyMedium)
                 .foregroundColor(.dsTextPrimary)
+
+            Spacer()
+
+            Toggle("", isOn: $isOn)
+                .toggleStyle(SwitchToggleStyle(tint: .dsAccent))
+                .labelsHidden()
         }
-        .toggleStyle(SwitchToggleStyle(tint: .dsAccent))
     }
 }
 
@@ -300,22 +305,22 @@ struct GeneralPreferencesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xl) {
             PreferenceSection("Startup") {
-                DSToggle(isOn: $launchAtLogin, label: "Launch ScreenCapture at login")
+                DSToggle(isOn: $launchAtLogin, label: "Launch ScreenCapture at login.")
                     .onChange(of: launchAtLogin) { _, newValue in
                         updateLaunchAtLogin(newValue)
                     }
 
                 DSDivider()
 
-                DSToggle(isOn: $showMenuBarIcon, label: "Show icon in menu bar")
+                DSToggle(isOn: $showMenuBarIcon, label: "Show icon in menu bar.")
             }
 
             PreferenceSection("Feedback") {
-                DSToggle(isOn: $playSound, label: "Play sound after capture")
+                DSToggle(isOn: $playSound, label: "Play sound after capture.")
 
                 DSDivider()
 
-                DSToggle(isOn: $showQuickAccess, label: "Show Quick Access overlay after capture")
+                DSToggle(isOn: $showQuickAccess, label: "Show Quick Access overlay after capture.")
 
                 if showQuickAccess {
                     DSDivider()
@@ -437,13 +442,13 @@ struct CapturePreferencesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xl) {
             PreferenceSection("Capture Options") {
-                DSToggle(isOn: $hideDesktopIcons, label: "Hide desktop icons during capture")
+                DSToggle(isOn: $hideDesktopIcons, label: "Hide desktop icons during capture.")
                 DSDivider()
-                DSToggle(isOn: $showCursor, label: "Include cursor in screenshots")
+                DSToggle(isOn: $showCursor, label: "Include cursor in screenshots.")
                 DSDivider()
-                DSToggle(isOn: $showDimensions, label: "Show selection dimensions")
+                DSToggle(isOn: $showDimensions, label: "Show selection dimensions.")
                 DSDivider()
-                DSToggle(isOn: $showMagnifier, label: "Show magnifier when selecting")
+                DSToggle(isOn: $showMagnifier, label: "Show magnifier when selecting.")
             }
 
             PreferenceSection("Image Format") {
@@ -469,9 +474,9 @@ struct CapturePreferencesView: View {
             }
 
             PreferenceSection("Window Capture") {
-                DSToggle(isOn: .constant(true), label: "Capture window shadow")
+                DSToggle(isOn: .constant(true), label: "Capture window shadow.")
                 DSDivider()
-                DSToggle(isOn: .constant(true), label: "Capture rounded corners")
+                DSToggle(isOn: .constant(true), label: "Capture rounded corners.")
             }
         }
     }
@@ -516,15 +521,15 @@ struct RecordingPreferencesView: View {
             }
 
             PreferenceSection("Audio") {
-                DSToggle(isOn: $recordMicrophone, label: "Record microphone")
+                DSToggle(isOn: $recordMicrophone, label: "Record microphone.")
                 DSDivider()
-                DSToggle(isOn: $recordSystemAudio, label: "Record system audio")
+                DSToggle(isOn: $recordSystemAudio, label: "Record system audio.")
             }
 
             PreferenceSection("Visual Feedback") {
-                DSToggle(isOn: $showMouseClicks, label: "Highlight mouse clicks")
+                DSToggle(isOn: $showMouseClicks, label: "Highlight mouse clicks.")
                 DSDivider()
-                DSToggle(isOn: $showKeystrokes, label: "Show keystrokes")
+                DSToggle(isOn: $showKeystrokes, label: "Show keystrokes.")
             }
 
             PreferenceSection("GIF Recording") {
@@ -653,7 +658,7 @@ struct StoragePreferencesView: View {
 
                 DSDivider()
 
-                DSToggle(isOn: $autoCleanup, label: "Automatically delete old captures")
+                DSToggle(isOn: $autoCleanup, label: "Automatically delete old captures.")
 
                 if autoCleanup {
                     DSDivider()
@@ -674,7 +679,7 @@ struct StoragePreferencesView: View {
                         Image(systemName: "star.fill")
                             .font(.system(size: 10))
                             .foregroundColor(.dsWarmAccent)
-                        Text("Favorites are never automatically deleted")
+                        Text("Favorites are never automatically deleted.")
                             .font(DSTypography.caption)
                             .foregroundColor(.dsTextTertiary)
                     }
@@ -799,13 +804,13 @@ struct AdvancedPreferencesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xl) {
             PreferenceSection("Performance") {
-                DSToggle(isOn: $enableHardwareAcceleration, label: "Enable hardware acceleration")
+                DSToggle(isOn: $enableHardwareAcceleration, label: "Enable hardware acceleration.")
                 DSDivider()
-                DSToggle(isOn: $reducedMotion, label: "Reduce motion effects")
+                DSToggle(isOn: $reducedMotion, label: "Reduce motion effects.")
             }
 
             PreferenceSection("Developer") {
-                DSToggle(isOn: $debugMode, label: "Enable debug mode")
+                DSToggle(isOn: $debugMode, label: "Enable debug mode.")
 
                 DSDivider()
 
