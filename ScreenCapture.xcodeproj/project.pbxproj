@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DACD5AD92F140FF500B8D83F /* SystemShortcutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DACD5AD72F140FF500B8D83F /* SystemShortcutManager.swift */; };
+		DACD5ADA2F140FF500B8D83F /* WebcamManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DACD5AD82F140FF500B8D83F /* WebcamManager.swift */; };
 		SC001 /* ScreenCaptureApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC101 /* ScreenCaptureApp.swift */; };
 		SC002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC102 /* AppDelegate.swift */; };
 		SC003 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC103 /* MenuBarController.swift */; };
@@ -36,6 +38,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		DACD5AD72F140FF500B8D83F /* SystemShortcutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemShortcutManager.swift; sourceTree = "<group>"; };
+		DACD5AD82F140FF500B8D83F /* WebcamManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamManager.swift; sourceTree = "<group>"; };
 		SC100 /* ScreenCapture.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScreenCapture.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		SC101 /* ScreenCaptureApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureApp.swift; sourceTree = "<group>"; };
 		SC102 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -120,6 +124,8 @@
 		SC304 /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				DACD5AD72F140FF500B8D83F /* SystemShortcutManager.swift */,
+				DACD5AD82F140FF500B8D83F /* WebcamManager.swift */,
 				SC104 /* ScreenshotManager.swift */,
 				SC105 /* ScreenRecordingManager.swift */,
 				SC115 /* KeyboardShortcuts.swift */,
@@ -252,6 +258,8 @@
 				SC013 /* CaptureModel.swift in Sources */,
 				SC016 /* AnnotationTypes.swift in Sources */,
 				SC014 /* StorageManager.swift in Sources */,
+				DACD5AD92F140FF500B8D83F /* SystemShortcutManager.swift in Sources */,
+				DACD5ADA2F140FF500B8D83F /* WebcamManager.swift in Sources */,
 				SC001 /* ScreenCaptureApp.swift in Sources */,
 				SC002 /* AppDelegate.swift in Sources */,
 				SC003 /* MenuBarController.swift in Sources */,
@@ -277,6 +285,62 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		SC501 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ScreenCapture/Resources/ScreenCapture.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ScreenCapture/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ScreenCapture;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		SC502 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ScreenCapture/Resources/ScreenCapture.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ScreenCapture/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ScreenCapture;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		SC701 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -390,62 +454,6 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
-			};
-			name = Release;
-		};
-		SC501 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = ScreenCapture/Resources/ScreenCapture.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = ScreenCapture/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = ScreenCapture;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		SC502 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = ScreenCapture/Resources/ScreenCapture.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = ScreenCapture/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = ScreenCapture;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};

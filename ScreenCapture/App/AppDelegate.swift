@@ -7,6 +7,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     var screenshotManager: ScreenshotManager!
     var screenRecordingManager: ScreenRecordingManager!
     var storageManager: StorageManager!
+    var webcamManager: WebcamManager?
     var keyboardShortcuts: KeyboardShortcuts!
     var quickAccessWindow: NSWindow?
     var quickAccessController: QuickAccessOverlayController?
@@ -25,6 +26,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         storageManager = StorageManager()
         screenshotManager = ScreenshotManager(storageManager: storageManager)
         screenRecordingManager = ScreenRecordingManager(storageManager: storageManager)
+        webcamManager = WebcamManager()
         keyboardShortcuts = KeyboardShortcuts()
 
         setupKeyboardShortcuts()
@@ -210,16 +212,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     }
 
     func showQuickAccessOverlay(for capture: CaptureItem) {
-        // Close any existing overlay first
         closeQuickAccessOverlay()
 
-        // Create a controller that manages the overlay's lifecycle safely
         let controller = QuickAccessOverlayController(capture: capture, storageManager: storageManager)
         quickAccessController = controller
 
-        // Set up the dismiss action - use weak self to prevent retain cycles
         controller.setDismissAction { [weak self] in
-            // Defer to next run loop to ensure button action completes
             DispatchQueue.main.async {
                 self?.closeQuickAccessOverlay()
             }
@@ -235,7 +233,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             let screenFrame = screen.visibleFrame
             let padding: CGFloat = 20
 
-            // Position in bottom-left corner with consistent padding on all sides
             let windowFrame = NSRect(
                 x: screenFrame.minX + padding,
                 y: screenFrame.minY + padding,
@@ -243,7 +240,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
                 height: windowSize.height
             )
 
-            // Use standard window with traffic light buttons
             let window = NSWindow(
                 contentRect: windowFrame,
                 styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
@@ -257,7 +253,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             // automatic release, this causes EXC_BAD_ACCESS in objc_release.
             window.isReleasedWhenClosed = false
 
-            // Configure title bar appearance
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
             window.title = "Screenshot Preview"
@@ -269,7 +264,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             window.hasShadow = true
             window.collectionBehavior = [.canJoinAllSpaces, .stationary]
 
-            // Set delegate to handle window close
             window.delegate = self
 
             quickAccessWindow = window
@@ -280,13 +274,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             // See: https://steipete.me/posts/2025/showing-settings-from-macos-menu-bar-items
             // See: https://ar.al/2018/09/17/workaround-for-unclickable-app-menu-bug-with-window.makekeyandorderfront-and-nsapp.activate-on-macos/
 
-            // Activate the app first to bring it to foreground
             NSApp.activate(ignoringOtherApps: true)
-
-            // Then make the window key and bring to front
             window.makeKeyAndOrderFront(nil)
-
-            // Force window to front regardless of app state
             window.orderFrontRegardless()
 
             debugLog("QuickAccessOverlay: Window shown and app activated for keyboard focus")
@@ -354,7 +343,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
                 }
             },
             onDismiss: { [weak self] in
-                // Defer close to avoid deallocating view during callback
                 DispatchQueue.main.async {
                     self?.closeSelectionOverlay()
                 }
@@ -368,7 +356,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         let centerX = screen.frame.midX - menuSize.width / 2
         let centerY = screen.frame.midY - menuSize.height / 2
 
-        // Use KeyableWindow for proper event handling in borderless windows
         let window = KeyableWindow(
             contentRect: NSRect(x: centerX, y: centerY, width: menuSize.width, height: menuSize.height),
             styleMask: [.borderless],
@@ -392,7 +379,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         guard let windowToClose = selectionOverlayWindow else { return }
         selectionOverlayWindow = nil
 
-        // Hide window immediately but defer all cleanup to next run loop
         windowToClose.orderOut(nil)
 
         DispatchQueue.main.async {
@@ -435,7 +421,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     // MARK: - Settings
 
     @objc func openSettings() {
-        // If settings window already exists, just bring it to front
         if let existingWindow = settingsWindow {
             existingWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -475,7 +460,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     func showAnnotationEditor(for capture: CaptureItem) {
         debugLog("AppDelegate: Opening annotation editor for \(capture.filename)")
 
-        // Close any existing annotation window
         if let existingWindow = annotationWindow {
             existingWindow.close()
             annotationWindow = nil
@@ -486,7 +470,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
         let hostingView = NSHostingView(rootView: annotationView)
 
-        // Get screen size to make window appropriately sized
         let screenSize = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1200, height: 800)
         let windowSize = NSSize(
             width: min(screenSize.width * 0.85, 1400),
