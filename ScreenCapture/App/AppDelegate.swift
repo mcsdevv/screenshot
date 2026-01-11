@@ -4,7 +4,6 @@ import ScreenCaptureKit
 import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, ObservableObject {
-    var menuBarController: MenuBarController!
     var screenshotManager: ScreenshotManager!
     var screenRecordingManager: ScreenRecordingManager!
     var storageManager: StorageManager!
@@ -27,12 +26,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         screenshotManager = ScreenshotManager(storageManager: storageManager)
         screenRecordingManager = ScreenRecordingManager(storageManager: storageManager)
         keyboardShortcuts = KeyboardShortcuts()
-
-        menuBarController = MenuBarController(
-            screenshotManager: screenshotManager,
-            screenRecordingManager: screenRecordingManager,
-            storageManager: storageManager
-        )
 
         setupKeyboardShortcuts()
         setupNotifications()
