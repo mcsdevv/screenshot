@@ -27,7 +27,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>ScreenCapture needs camera access to include your webcam in recordings.</string>
+	<string>ScreenCapture needs camera access to show your webcam overlay during captures and recordings.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2024. All rights reserved.</string>
 	<key>NSMicrophoneUsageDescription</key>
