@@ -442,10 +442,10 @@ struct AnnotationToolbar: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 0) {
+        HStack(alignment: .center, spacing: DSSpacing.md) {
             // Left padding for traffic light buttons (close/minimize/fullscreen)
             Spacer()
-                .frame(width: 78)
+                .frame(width: 70)
 
             // Tool buttons
             HStack(spacing: 2) {
@@ -457,13 +457,13 @@ struct AnnotationToolbar: View {
                     )
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, DSSpacing.sm)
+            .padding(.vertical, DSSpacing.xs)
             .background(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: DSRadius.md)
                     .fill(Color.dsBackgroundSecondary)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: DSRadius.md)
                             .strokeBorder(Color.dsBorder, lineWidth: 1)
                     )
             )
@@ -472,7 +472,6 @@ struct AnnotationToolbar: View {
             Rectangle()
                 .fill(Color.white.opacity(0.1))
                 .frame(width: 1, height: 24)
-                .padding(.horizontal, 12)
 
             // Text options (shown when text tool is selected)
             if viewModel.state.currentTool == .text {
@@ -481,11 +480,10 @@ struct AnnotationToolbar: View {
                 Rectangle()
                     .fill(Color.white.opacity(0.1))
                     .frame(width: 1, height: 24)
-                    .padding(.horizontal, 12)
             }
 
             // Color and stroke
-            HStack(alignment: .center, spacing: 8) {
+            HStack(alignment: .center, spacing: DSSpacing.sm) {
                 ColorPickerButton(selectedColor: $viewModel.state.currentColor)
                 StrokeWidthButton(strokeWidth: $viewModel.state.currentStrokeWidth)
             }
@@ -493,7 +491,7 @@ struct AnnotationToolbar: View {
             Spacer()
 
             // Undo/Redo
-            HStack(alignment: .center, spacing: 4) {
+            HStack(alignment: .center, spacing: DSSpacing.xs) {
                 DSIconButton(icon: "arrow.uturn.backward", size: 28) {
                     viewModel.state.undo()
                 }
@@ -508,7 +506,6 @@ struct AnnotationToolbar: View {
                 .opacity(viewModel.state.redoStack.isEmpty ? 0.4 : 1)
                 .help("Redo (⌘⇧Z)")
             }
-            .padding(.horizontal, 8)
 
             // Delete selected
             if viewModel.state.selectedAnnotationId != nil {
@@ -516,14 +513,12 @@ struct AnnotationToolbar: View {
                     viewModel.state.deleteSelectedAnnotation()
                 }
                 .help("Delete selected (⌫)")
-                .padding(.trailing, 8)
             }
 
             // Vertical divider
             Rectangle()
                 .fill(Color.white.opacity(0.1))
                 .frame(width: 1, height: 24)
-                .padding(.horizontal, 8)
 
             // Done button - accent colored
             DSPrimaryButton("Done", icon: "checkmark") {
@@ -532,7 +527,7 @@ struct AnnotationToolbar: View {
             .help("Save and copy to clipboard (⌘↵)")
         }
         .frame(height: 44)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, DSSpacing.md)
         .background(
             ZStack {
                 Color.dsBackgroundElevated
