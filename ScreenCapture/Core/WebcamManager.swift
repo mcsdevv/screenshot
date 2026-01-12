@@ -1,5 +1,5 @@
 import AppKit
-import AVFoundation
+@preconcurrency import AVFoundation
 import SwiftUI
 
 @MainActor
@@ -81,12 +81,15 @@ class WebcamManager: NSObject, ObservableObject {
             let preview = AVCaptureVideoPreviewLayer(session: session)
             preview.videoGravity = .resizeAspectFill
             self.previewLayer = preview
-            
-            DispatchQueue.global(qos: .userInitiated).async {
-                session.startRunning()
-            }
-            
+
             self.captureSession = session
+
+            // Use nonisolated(unsafe) to allow capturing in background queue
+            // This is safe because AVCaptureSession.startRunning() is thread-safe
+            nonisolated(unsafe) let backgroundSession = session
+            DispatchQueue.global(qos: .userInitiated).async {
+                backgroundSession.startRunning()
+            }
         } catch {}
     }
     
