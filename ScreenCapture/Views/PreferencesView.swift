@@ -225,7 +225,8 @@ struct PreferenceSection<Content: View>: View {
             VStack(spacing: DSSpacing.sm) {
                 content()
             }
-            .padding(DSSpacing.lg)
+            .padding(.horizontal, DSSpacing.lg)
+            .padding(.vertical, DSSpacing.sm)
             .background(
                 RoundedRectangle(cornerRadius: DSRadius.lg)
                     .fill(Color.dsBackgroundSecondary)
