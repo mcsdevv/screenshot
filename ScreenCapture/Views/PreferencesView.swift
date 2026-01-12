@@ -912,12 +912,13 @@ struct AdvancedPreferencesView: View {
             }
 
             PreferenceSection("Developer") {
-                DSToggle(isOn: $debugMode, label: "Enable debug mode.")
+                HStack(alignment: .center) {
+                    Text("Enable debug mode.")
+                        .font(DSTypography.bodyMedium)
+                        .foregroundColor(.dsTextPrimary)
 
-                DSDivider()
-
-                HStack {
                     Spacer()
+
                     Button(action: resetPreferences) {
                         HStack(spacing: DSSpacing.xs) {
                             Image(systemName: "arrow.counterclockwise")
@@ -934,6 +935,10 @@ struct AdvancedPreferencesView: View {
                         )
                     }
                     .buttonStyle(.plain)
+
+                    Toggle("", isOn: $debugMode)
+                        .toggleStyle(SwitchToggleStyle(tint: .dsAccent))
+                        .labelsHidden()
                 }
             }
 
