@@ -5,7 +5,7 @@ import CoreImage.CIFilterBuiltins
 
 struct AnnotationCanvas: View {
     let image: NSImage
-    @Binding var state: AnnotationState
+    var state: AnnotationState  // @Observable - no binding needed
     @Binding var zoom: CGFloat
     @Binding var offset: CGSize
     @ObservedObject var viewModel: AnnotationEditorViewModel
