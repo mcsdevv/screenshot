@@ -237,16 +237,55 @@ struct AnnotationCanvas: View {
         blurFilter.mask = combinedMask
         blurFilter.radius = Float(avgRadius)
 
-            if let output = blurFilter.outputImage?.cropped(to: ciImage.extent) {
-                ciImage = output
-            }
-        }
-
-        guard let outputCGImage = viewModel.ciContext.createCGImage(ciImage, from: ciImage.extent) else {
+        guard let output = blurFilter.outputImage?.cropped(to: ciImage.extent),
+              let outputCGImage = viewModel.ciContext.createCGImage(output, from: output.extent) else {
             return nil
         }
 
         return NSImage(cgImage: outputCGImage, size: image.size)
+    }
+
+    /// Creates a combined mask for all blur regions - much more efficient than separate masks
+    private func createCombinedMaskCIImage(for blurAnnotations: [Annotation], in size: NSSize) -> CIImage {
+        let width = Int(size.width)
+        let height = Int(size.height)
+
+        guard width > 0, height > 0,
+              let context = CGContext(
+                  data: nil,
+                  width: width,
+                  height: height,
+                  bitsPerComponent: 8,
+                  bytesPerRow: width,
+                  space: CGColorSpaceCreateDeviceGray(),
+                  bitmapInfo: CGImageAlphaInfo.none.rawValue
+              ) else {
+            return CIImage()
+        }
+
+        // Black background (no blur)
+        context.setFillColor(gray: 0, alpha: 1)
+        context.fill(CGRect(origin: .zero, size: size))
+
+        // White rectangles for all blur regions (combined into single mask)
+        context.setFillColor(gray: 1, alpha: 1)
+        for blur in blurAnnotations {
+            let rect = blur.cgRect
+            // Flip Y coordinate for Core Image
+            let flippedRect = CGRect(
+                x: rect.origin.x,
+                y: size.height - rect.origin.y - rect.height,
+                width: rect.width,
+                height: rect.height
+            )
+            context.fill(flippedRect)
+        }
+
+        guard let cgImage = context.makeImage() else {
+            return CIImage()
+        }
+
+        return CIImage(cgImage: cgImage)
     }
 
     private func createMaskCIImage(for rect: CGRect, in size: NSSize) -> CIImage {
