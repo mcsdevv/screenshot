@@ -208,7 +208,9 @@ struct CodableColor: Codable, Equatable {
 
 // MARK: - Annotation State
 
-struct AnnotationState: Equatable {
+/// @Observable class for fine-grained SwiftUI updates - only views that read changed properties will re-render
+@Observable
+class AnnotationState {
     var annotations: [Annotation] = []
     var selectedAnnotationId: UUID?
     var currentTool: AnnotationTool = .select
@@ -217,8 +219,6 @@ struct AnnotationState: Equatable {
     var currentFontSize: CGFloat = 16
     var currentFontName: String = ".AppleSystemUIFont"
     var stepCounter: Int = 1
-    var undoStack: [[Annotation]] = []
-    var redoStack: [[Annotation]] = []
     var blurRadius: CGFloat = 10
 
     // Crop state
@@ -226,53 +226,81 @@ struct AnnotationState: Equatable {
     var isCropping: Bool = false
     var originalImageSize: CGSize = .zero
 
+    // Undo/redo stacks - not observed to avoid unnecessary updates
+    private var undoStack: [[Annotation]] = []
+    private var redoStack: [[Annotation]] = []
+
+    // Index for O(1) annotation lookup
+    private var annotationIndex: [UUID: Int] = [:]
+
     var selectedAnnotation: Annotation? {
         guard let id = selectedAnnotationId else { return nil }
+        // Use index for O(1) lookup when available
+        if let index = annotationIndex[id],
+           index < annotations.count,
+           annotations[index].id == id {
+            return annotations[index]
+        }
+        // Fallback to linear search if index is stale
         return annotations.first { $0.id == id }
     }
 
-    mutating func addAnnotation(_ annotation: Annotation) {
+    var canUndo: Bool { !undoStack.isEmpty }
+    var canRedo: Bool { !redoStack.isEmpty }
+
+    /// Rebuilds the annotation index for O(1) lookups
+    private func rebuildIndex() {
+        annotationIndex = Dictionary(
+            uniqueKeysWithValues: annotations.enumerated().map { ($1.id, $0) }
+        )
+    }
+
+    func addAnnotation(_ annotation: Annotation) {
         saveToUndoStack()
         annotations.append(annotation)
+        annotationIndex[annotation.id] = annotations.count - 1
         redoStack.removeAll()
     }
 
-    mutating func updateAnnotation(_ annotation: Annotation) {
-        if let index = annotations.firstIndex(where: { $0.id == annotation.id }) {
+    func updateAnnotation(_ annotation: Annotation) {
+        if let index = annotationIndex[annotation.id] ?? annotations.firstIndex(where: { $0.id == annotation.id }) {
             annotations[index] = annotation
         }
     }
 
-    mutating func deleteSelectedAnnotation() {
+    func deleteSelectedAnnotation() {
         guard let id = selectedAnnotationId else { return }
         saveToUndoStack()
         annotations.removeAll { $0.id == id }
         selectedAnnotationId = nil
+        rebuildIndex()
         redoStack.removeAll()
     }
 
-    mutating func undo() {
+    func undo() {
         guard !undoStack.isEmpty else { return }
         redoStack.append(annotations)
         annotations = undoStack.removeLast()
         selectedAnnotationId = nil
+        rebuildIndex()
     }
 
-    mutating func redo() {
+    func redo() {
         guard !redoStack.isEmpty else { return }
         undoStack.append(annotations)
         annotations = redoStack.removeLast()
         selectedAnnotationId = nil
+        rebuildIndex()
     }
 
-    private mutating func saveToUndoStack() {
+    private func saveToUndoStack() {
         undoStack.append(annotations)
         if undoStack.count > 50 {
             undoStack.removeFirst()
         }
     }
 
-    mutating func selectAnnotationAt(_ point: CGPoint) {
+    func selectAnnotationAt(_ point: CGPoint) {
         selectedAnnotationId = nil
         for annotation in annotations.reversed() {
             if annotation.cgRect.contains(point) {
