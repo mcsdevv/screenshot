@@ -446,7 +446,7 @@ struct AnnotationToolbar: View {
     var body: some View {
         HStack(alignment: .center, spacing: DSSpacing.md) {
             // Custom traffic light buttons (close/minimize/fullscreen)
-            TrafficLightButtons()
+            DSTrafficLightButtons()
 
             // Tool buttons
             HStack(spacing: 2) {
