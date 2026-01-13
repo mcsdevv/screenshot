@@ -465,9 +465,8 @@ class GIFCaptureOutput: NSObject, SCStreamOutput {
               let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
 
         let ciImage = CIImage(cvPixelBuffer: imageBuffer)
-        let context = CIContext()
 
-        if let cgImage = context.createCGImage(ciImage, from: ciImage.extent) {
+        if let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) {
             onFrame(cgImage)
         }
     }
