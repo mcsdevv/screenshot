@@ -17,8 +17,24 @@ struct AnnotationCanvas: View {
     @State private var textPosition: CGPoint = .zero
     @State private var dragStartLocation: CGPoint = .zero
 
-    // For blur preview
+    // For blur preview caching
     @State private var blurPreviewImage: NSImage?
+    @State private var blurCacheKey: String = ""
+
+    // Compute cache key based on current blur annotations
+    private var currentBlurCacheKey: String {
+        let blurAnnotations = state.annotations.filter { $0.type == .blur }
+        guard !blurAnnotations.isEmpty || (currentDrawing?.type == .blur) else {
+            return ""
+        }
+        var keyParts = blurAnnotations.map { blur in
+            "\(blur.id)|\(blur.cgRect.origin.x),\(blur.cgRect.origin.y),\(blur.cgRect.width),\(blur.cgRect.height)|\(blur.blurRadius)"
+        }
+        if let current = currentDrawing, current.type == .blur {
+            keyParts.append("preview|\(current.cgRect.origin.x),\(current.cgRect.origin.y),\(current.cgRect.width),\(current.cgRect.height)|\(current.blurRadius)")
+        }
+        return keyParts.joined(separator: ";")
+    }
 
     // Scaled image dimensions for convenience
     private var scaledImageSize: CGSize {
