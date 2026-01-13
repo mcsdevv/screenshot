@@ -14,12 +14,6 @@ class PermissionManager {
         return CGPreflightScreenCaptureAccess()
     }
 
-    /// Requests screen capture permission from the system
-    /// Note: This will trigger the system permission dialog if not yet determined
-    func requestScreenCapturePermission() {
-        CGRequestScreenCaptureAccess()
-    }
-
     /// Opens System Settings directly to the Screen Recording privacy pane
     func openScreenCaptureSettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
@@ -63,15 +57,12 @@ class PermissionManager {
     /// Handles a capture failure by checking if it's permission-related
     /// Shows the permission alert if permission is not granted
     /// - Parameter status: The termination status from screencapture command
-    /// - Returns: true if this was a permission issue (alert shown), false otherwise
     @MainActor
-    func handleCaptureFailure(status: Int32) -> Bool {
+    func handleCaptureFailure(status: Int32) {
         // Status 1 from screencapture can mean user cancelled OR permission denied
         // Check if we have permission to distinguish between the two
         if status != 0 && !checkScreenCapturePermission() {
             showPermissionAlert()
-            return true
         }
-        return false
     }
 }

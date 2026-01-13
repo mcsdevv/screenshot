@@ -97,7 +97,7 @@ class ScreenshotManager: NSObject, ObservableObject {
                 guard process.terminationStatus == 0 else {
                     debugLog("screencapture cancelled or failed with status: \(process.terminationStatus)")
                     // Check if this is a permission issue and show alert if so
-                    _ = PermissionManager.shared.handleCaptureFailure(status: process.terminationStatus)
+                    PermissionManager.shared.handleCaptureFailure(status: process.terminationStatus)
                     return
                 }
 

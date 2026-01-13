@@ -200,9 +200,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             } catch {
                 print("Recording error: \(error)")
                 // Check if this is a permission issue and show alert if so
-                if !PermissionManager.shared.checkScreenCapturePermission() {
-                    PermissionManager.shared.showPermissionAlert()
-                }
+                _ = PermissionManager.shared.ensureScreenCapturePermission()
             }
         }
     }
@@ -288,9 +286,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             } catch {
                 print("GIF recording error: \(error)")
                 // Check if this is a permission issue and show alert if so
-                if !PermissionManager.shared.checkScreenCapturePermission() {
-                    PermissionManager.shared.showPermissionAlert()
-                }
+                _ = PermissionManager.shared.ensureScreenCapturePermission()
             }
         }
     }
