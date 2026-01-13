@@ -514,13 +514,63 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         window.contentView = hostingView
         window.center()
         window.delegate = self
-        window.minSize = NSSize(width: 700, height: 500) // Ensure toolbar fits
+        window.minSize = NSSize(width: 800, height: 500) // Ensure toolbar fits
+
+        // Hide system traffic lights - we use custom SwiftUI buttons in the toolbar
+        window.standardWindowButton(.closeButton)?.isHidden = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
 
         annotationWindow = window
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
+        // Position traffic lights to align with toolbar center (26pt from top)
+        repositionTrafficLights(in: window)
+
         debugLog("AppDelegate: Annotation editor window shown, size: \(windowSize)")
+    }
+
+    // MARK: - Traffic Light Positioning
+
+    /// Repositions the traffic light buttons (close, minimize, zoom) to align with the 52pt toolbar
+    /// The toolbar content is vertically centered, so buttons should be centered at 26pt from top
+    private func repositionTrafficLights(in window: NSWindow) {
+        let toolbarHeight: CGFloat = 52
+        let buttonCenterY = toolbarHeight / 2  // 26pt from top of window
+        let buttonDiameter: CGFloat = 12
+
+        // Standard horizontal positions for traffic lights
+        let closeX: CGFloat = 14
+        let miniaturizeX: CGFloat = 34
+        let zoomX: CGFloat = 54
+
+        // Get the buttons and their container
+        guard let closeButton = window.standardWindowButton(.closeButton),
+              let miniaturizeButton = window.standardWindowButton(.miniaturizeButton),
+              let zoomButton = window.standardWindowButton(.zoomButton),
+              let containerView = closeButton.superview else {
+            return
+        }
+
+        // Calculate Y position in superview coordinates (origin at bottom-left)
+        // We want button center at 26pt from top of window
+        // In container coordinates: y = containerHeight - buttonCenterY - (buttonDiameter/2)
+        let containerHeight = containerView.frame.height
+        let buttonY = containerHeight - buttonCenterY - (buttonDiameter / 2)
+
+        closeButton.setFrameOrigin(NSPoint(x: closeX, y: buttonY))
+        miniaturizeButton.setFrameOrigin(NSPoint(x: miniaturizeX, y: buttonY))
+        zoomButton.setFrameOrigin(NSPoint(x: zoomX, y: buttonY))
+    }
+
+    // MARK: - NSWindowDelegate
+
+    func windowDidResize(_ notification: Notification) {
+        // Reposition traffic lights after resize (they tend to reset)
+        if let window = notification.object as? NSWindow, window == annotationWindow {
+            repositionTrafficLights(in: window)
+        }
     }
 }
 

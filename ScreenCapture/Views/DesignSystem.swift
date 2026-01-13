@@ -338,6 +338,7 @@ struct DSPrimaryButton: View {
                 }
                 Text(title)
                     .font(DSTypography.labelLarge)
+                    .fixedSize(horizontal: true, vertical: false)
             }
             .foregroundColor(.white)
             .padding(.horizontal, DSSpacing.lg)
