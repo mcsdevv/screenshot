@@ -17,23 +17,23 @@ struct AnnotationCanvas: View {
     @State private var textPosition: CGPoint = .zero
     @State private var dragStartLocation: CGPoint = .zero
 
-    // For blur preview caching
-    @State private var blurPreviewImage: NSImage?
+    // For blur caching - only cache committed blur annotations, not during drag
+    @State private var cachedBlurImage: NSImage?
     @State private var blurCacheKey: String = ""
 
-    // Compute cache key based on current blur annotations
-    private var currentBlurCacheKey: String {
+    // Cache key for COMMITTED blur annotations only (not current drawing)
+    // This prevents re-rendering during drag which was causing performance issues
+    private var committedBlurCacheKey: String {
         let blurAnnotations = state.annotations.filter { $0.type == .blur }
-        guard !blurAnnotations.isEmpty || (currentDrawing?.type == .blur) else {
-            return ""
-        }
-        var keyParts = blurAnnotations.map { blur in
-            "\(blur.id)|\(blur.cgRect.origin.x),\(blur.cgRect.origin.y),\(blur.cgRect.width),\(blur.cgRect.height)|\(blur.blurRadius)"
-        }
-        if let current = currentDrawing, current.type == .blur {
-            keyParts.append("preview|\(current.cgRect.origin.x),\(current.cgRect.origin.y),\(current.cgRect.width),\(current.cgRect.height)|\(current.blurRadius)")
-        }
-        return keyParts.joined(separator: ";")
+        guard !blurAnnotations.isEmpty else { return "" }
+        return blurAnnotations.map { blur in
+            "\(blur.id)|\(Int(blur.cgRect.origin.x)),\(Int(blur.cgRect.origin.y)),\(Int(blur.cgRect.width)),\(Int(blur.cgRect.height))|\(Int(blur.blurRadius))"
+        }.joined(separator: ";")
+    }
+
+    // Check if we're currently drawing a blur (for showing preview indicator)
+    private var isDrawingBlur: Bool {
+        currentDrawing?.type == .blur
     }
 
     // Scaled image dimensions for convenience
@@ -151,73 +151,91 @@ struct AnnotationCanvas: View {
 
     @ViewBuilder
     private var imageLayer: some View {
-        let cacheKey = currentBlurCacheKey
+        let cacheKey = committedBlurCacheKey
 
-        if cacheKey.isEmpty {
-            // No blur annotations - show original image
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(
-                    width: image.size.width * zoom,
-                    height: image.size.height * zoom
-                )
-        } else if let cached = blurPreviewImage, blurCacheKey == cacheKey {
-            // Use cached blur result
-            Image(nsImage: cached)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(
-                    width: image.size.width * zoom,
-                    height: image.size.height * zoom
-                )
-        } else {
-            // Render and cache blurs
-            let blurredImage = renderImageWithBlurs() ?? image
-            Image(nsImage: blurredImage)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(
-                    width: image.size.width * zoom,
-                    height: image.size.height * zoom
-                )
-                .onAppear {
-                    // Cache the result for future renders
-                    blurPreviewImage = blurredImage
-                    blurCacheKey = cacheKey
-                }
+        ZStack(alignment: .topLeading) {
+            // Base image layer - either original or with committed blurs applied
+            if cacheKey.isEmpty {
+                // No committed blur annotations - show original image
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: scaledImageSize.width, height: scaledImageSize.height)
+            } else if let cached = cachedBlurImage, blurCacheKey == cacheKey {
+                // Use cached blur result for committed blurs
+                Image(nsImage: cached)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: scaledImageSize.width, height: scaledImageSize.height)
+            } else {
+                // Render committed blurs and cache (this only runs when annotations change, not during drag)
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: scaledImageSize.width, height: scaledImageSize.height)
+                    .task(id: cacheKey) {
+                        // Render blurs asynchronously to avoid blocking UI
+                        if let blurredImage = renderCommittedBlurs() {
+                            cachedBlurImage = blurredImage
+                            blurCacheKey = cacheKey
+                        }
+                    }
+            }
+
+            // Blur preview overlay - shown during drag instead of real-time blur rendering
+            // This is MUCH faster than rendering actual blur on every mouse move
+            if isDrawingBlur, let current = currentDrawing {
+                blurPreviewOverlay(for: current)
+            }
         }
+    }
+
+    // Visual preview for blur during drag - semi-transparent overlay instead of expensive blur filter
+    @ViewBuilder
+    private func blurPreviewOverlay(for annotation: Annotation) -> some View {
+        let scaledRect = CGRect(
+            x: annotation.cgRect.origin.x * zoom,
+            y: annotation.cgRect.origin.y * zoom,
+            width: annotation.cgRect.size.width * zoom,
+            height: annotation.cgRect.size.height * zoom
+        )
+
+        Rectangle()
+            .fill(Color.white.opacity(0.3))
+            .background(.ultraThinMaterial)
+            .frame(width: abs(scaledRect.width), height: abs(scaledRect.height))
+            .position(
+                x: scaledRect.origin.x + scaledRect.width / 2,
+                y: scaledRect.origin.y + scaledRect.height / 2
+            )
     }
 
     // MARK: - Blur Rendering
 
-    private func renderImageWithBlurs() -> NSImage? {
+    /// Renders only COMMITTED blur annotations (not current drawing during drag)
+    /// This function is only called when blur annotations are added/removed, not during drag
+    private func renderCommittedBlurs() -> NSImage? {
         let blurAnnotations = state.annotations.filter { $0.type == .blur }
         guard !blurAnnotations.isEmpty else { return nil }
-
-        // Include current drawing if it's a blur
-        var allBlurs = blurAnnotations
-        if let current = currentDrawing, current.type == .blur {
-            allBlurs.append(current)
-        }
 
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             return nil
         }
 
-        var ciImage = CIImage(cgImage: cgImage)
+        // Combine all blur regions into a single mask for efficiency
+        // This avoids creating N separate filters for N blur regions
+        let combinedMask = createCombinedMaskCIImage(for: blurAnnotations, in: image.size)
 
-        for blur in allBlurs {
-            let rect = blur.cgRect
+        // Use average blur radius for combined blur (could be refined per-region with more complex approach)
+        let avgRadius = blurAnnotations.reduce(0.0) { $0 + $1.blurRadius } / CGFloat(blurAnnotations.count)
 
-            // Create mask for this blur region
-            let maskImage = createMaskCIImage(for: rect, in: image.size)
+        let ciImage = CIImage(cgImage: cgImage)
 
-            // Apply masked blur
-            let blurFilter = CIFilter.maskedVariableBlur()
-            blurFilter.inputImage = ciImage.clampedToExtent()
-            blurFilter.mask = maskImage
-            blurFilter.radius = Float(blur.blurRadius)
+        // Single blur filter pass with combined mask
+        let blurFilter = CIFilter.maskedVariableBlur()
+        blurFilter.inputImage = ciImage.clampedToExtent()
+        blurFilter.mask = combinedMask
+        blurFilter.radius = Float(avgRadius)
 
             if let output = blurFilter.outputImage?.cropped(to: ciImage.extent) {
                 ciImage = output
