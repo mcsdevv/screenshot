@@ -29,7 +29,7 @@ struct AnnotationEditor: View {
                     if let image = viewModel.image {
                         AnnotationCanvas(
                             image: image,
-                            state: $viewModel.state,
+                            state: viewModel.state,  // @Observable - no binding needed
                             zoom: $viewModel.zoom,
                             offset: $viewModel.offset,
                             viewModel: viewModel
@@ -567,15 +567,15 @@ struct AnnotationToolbar: View {
                 DSIconButton(icon: "arrow.uturn.backward", size: 28) {
                     viewModel.state.undo()
                 }
-                .disabled(viewModel.state.undoStack.isEmpty)
-                .opacity(viewModel.state.undoStack.isEmpty ? 0.4 : 1)
+                .disabled(!viewModel.state.canUndo)
+                .opacity(viewModel.state.canUndo ? 1 : 0.4)
                 .help("Undo (⌘Z)")
 
                 DSIconButton(icon: "arrow.uturn.forward", size: 28) {
                     viewModel.state.redo()
                 }
-                .disabled(viewModel.state.redoStack.isEmpty)
-                .opacity(viewModel.state.redoStack.isEmpty ? 0.4 : 1)
+                .disabled(!viewModel.state.canRedo)
+                .opacity(viewModel.state.canRedo ? 1 : 0.4)
                 .help("Redo (⌘⇧Z)")
             }
 
