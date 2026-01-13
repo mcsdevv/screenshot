@@ -284,6 +284,49 @@ struct AnnotationCanvas: View {
         return CIImage(cgImage: cgImage)
     }
 
+    /// Creates a combined mask for multiple blur annotations
+    private func createCombinedMaskCIImage(for annotations: [Annotation], in size: NSSize) -> CIImage {
+        let width = Int(size.width)
+        let height = Int(size.height)
+
+        guard width > 0, height > 0,
+              let context = CGContext(
+                  data: nil,
+                  width: width,
+                  height: height,
+                  bitsPerComponent: 8,
+                  bytesPerRow: width,
+                  space: CGColorSpaceCreateDeviceGray(),
+                  bitmapInfo: CGImageAlphaInfo.none.rawValue
+              ) else {
+            return CIImage()
+        }
+
+        // Black background (no blur)
+        context.setFillColor(gray: 0, alpha: 1)
+        context.fill(CGRect(origin: .zero, size: size))
+
+        // Draw all blur regions in white
+        context.setFillColor(gray: 1, alpha: 1)
+        for annotation in annotations {
+            let rect = annotation.cgRect
+            // Flip Y coordinate for Core Image
+            let flippedRect = CGRect(
+                x: rect.origin.x,
+                y: size.height - rect.origin.y - rect.height,
+                width: rect.width,
+                height: rect.height
+            )
+            context.fill(flippedRect)
+        }
+
+        guard let cgImage = context.makeImage() else {
+            return CIImage()
+        }
+
+        return CIImage(cgImage: cgImage)
+    }
+
     // MARK: - Gestures
 
     private var drawingGesture: some Gesture {
