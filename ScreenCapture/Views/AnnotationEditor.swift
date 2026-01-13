@@ -84,7 +84,7 @@ struct AnnotationEditor: View {
 class AnnotationEditorViewModel: ObservableObject {
     @Published var image: NSImage?
     @Published var imageURL: URL?
-    @Published var state = AnnotationState()
+    var state = AnnotationState()  // @Observable handles change tracking
     @Published var zoom: CGFloat = 1.0
     @Published var offset: CGSize = .zero
 
