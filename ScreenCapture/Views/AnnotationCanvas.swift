@@ -182,7 +182,7 @@ struct AnnotationCanvas: View {
             }
         }
 
-        guard let outputCGImage = context.createCGImage(ciImage, from: ciImage.extent) else {
+        guard let outputCGImage = viewModel.ciContext.createCGImage(ciImage, from: ciImage.extent) else {
             return nil
         }
 
