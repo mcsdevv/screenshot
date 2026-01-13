@@ -151,42 +151,63 @@ struct AnnotationCanvas: View {
 
     @ViewBuilder
     private var imageLayer: some View {
-        let cacheKey = currentBlurCacheKey
+        let cacheKey = committedBlurCacheKey
 
-        if cacheKey.isEmpty {
-            // No blur annotations - show original image
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(
-                    width: image.size.width * zoom,
-                    height: image.size.height * zoom
-                )
-        } else if let cached = blurPreviewImage, blurCacheKey == cacheKey {
-            // Use cached blur result
-            Image(nsImage: cached)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(
-                    width: image.size.width * zoom,
-                    height: image.size.height * zoom
-                )
-        } else {
-            // Render and cache blurs
-            let blurredImage = renderImageWithBlurs() ?? image
-            Image(nsImage: blurredImage)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(
-                    width: image.size.width * zoom,
-                    height: image.size.height * zoom
-                )
-                .onAppear {
-                    // Cache the result for future renders
-                    blurPreviewImage = blurredImage
-                    blurCacheKey = cacheKey
-                }
+        ZStack(alignment: .topLeading) {
+            // Base image layer - either original or with committed blurs applied
+            if cacheKey.isEmpty {
+                // No committed blur annotations - show original image
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: scaledImageSize.width, height: scaledImageSize.height)
+            } else if let cached = cachedBlurImage, blurCacheKey == cacheKey {
+                // Use cached blur result for committed blurs
+                Image(nsImage: cached)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: scaledImageSize.width, height: scaledImageSize.height)
+            } else {
+                // Render committed blurs and cache (this only runs when annotations change, not during drag)
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: scaledImageSize.width, height: scaledImageSize.height)
+                    .task(id: cacheKey) {
+                        // Render blurs asynchronously to avoid blocking UI
+                        if let blurredImage = renderCommittedBlurs() {
+                            cachedBlurImage = blurredImage
+                            blurCacheKey = cacheKey
+                        }
+                    }
+            }
+
+            // Blur preview overlay - shown during drag instead of real-time blur rendering
+            // This is MUCH faster than rendering actual blur on every mouse move
+            if isDrawingBlur, let current = currentDrawing {
+                blurPreviewOverlay(for: current)
+            }
         }
+    }
+
+    // Visual preview for blur during drag - semi-transparent overlay instead of expensive blur filter
+    @ViewBuilder
+    private func blurPreviewOverlay(for annotation: Annotation) -> some View {
+        let scaledRect = CGRect(
+            x: annotation.cgRect.origin.x * zoom,
+            y: annotation.cgRect.origin.y * zoom,
+            width: annotation.cgRect.size.width * zoom,
+            height: annotation.cgRect.size.height * zoom
+        )
+
+        Rectangle()
+            .fill(Color.white.opacity(0.3))
+            .background(.ultraThinMaterial)
+            .frame(width: abs(scaledRect.width), height: abs(scaledRect.height))
+            .position(
+                x: scaledRect.origin.x + scaledRect.width / 2,
+                y: scaledRect.origin.y + scaledRect.height / 2
+            )
     }
 
     // MARK: - Blur Rendering
