@@ -88,8 +88,11 @@ class AnnotationEditorViewModel: ObservableObject {
     @Published var zoom: CGFloat = 1.0
     @Published var offset: CGSize = .zero
 
-    // For blur rendering
-    private let ciContext = CIContext()
+    // For blur rendering - shared context for performance (CIContext is expensive to create)
+    let ciContext = CIContext(options: [
+        .cacheIntermediates: false,  // Better for dynamic content
+        .useSoftwareRenderer: false  // Force Metal/GPU rendering
+    ])
 
     func loadAnnotations() {
         guard let imageURL = imageURL else { return }
