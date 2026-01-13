@@ -288,45 +288,6 @@ struct AnnotationCanvas: View {
         return CIImage(cgImage: cgImage)
     }
 
-    private func createMaskCIImage(for rect: CGRect, in size: NSSize) -> CIImage {
-        // Use CGContext directly for better performance (avoids NSGraphicsContext overhead)
-        let width = Int(size.width)
-        let height = Int(size.height)
-
-        guard width > 0, height > 0,
-              let context = CGContext(
-                  data: nil,
-                  width: width,
-                  height: height,
-                  bitsPerComponent: 8,
-                  bytesPerRow: width,
-                  space: CGColorSpaceCreateDeviceGray(),
-                  bitmapInfo: CGImageAlphaInfo.none.rawValue
-              ) else {
-            return CIImage()
-        }
-
-        // Black background (no blur) - gray value 0
-        context.setFillColor(gray: 0, alpha: 1)
-        context.fill(CGRect(origin: .zero, size: size))
-
-        // White rectangle (blur region) - note: flip Y coordinate for Core Image
-        let flippedRect = CGRect(
-            x: rect.origin.x,
-            y: size.height - rect.origin.y - rect.height,
-            width: rect.width,
-            height: rect.height
-        )
-        context.setFillColor(gray: 1, alpha: 1)
-        context.fill(flippedRect)
-
-        guard let cgImage = context.makeImage() else {
-            return CIImage()
-        }
-
-        return CIImage(cgImage: cgImage)
-    }
-
     // MARK: - Gestures
 
     private var drawingGesture: some Gesture {
