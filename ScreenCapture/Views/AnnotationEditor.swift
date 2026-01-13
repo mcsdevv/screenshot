@@ -428,6 +428,77 @@ class AnnotationEditorViewModel: ObservableObject {
     }
 }
 
+// MARK: - Custom Traffic Light Buttons
+
+struct TrafficLightButtons: View {
+    @State private var hoveredButton: TrafficLightButton? = nil
+
+    enum TrafficLightButton {
+        case close, minimize, zoom
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // Close button (red)
+            trafficLightButton(
+                type: .close,
+                color: Color(red: 1, green: 0.38, blue: 0.36),
+                hoverIcon: "xmark"
+            ) {
+                NSApp.keyWindow?.close()
+            }
+
+            // Minimize button (yellow)
+            trafficLightButton(
+                type: .minimize,
+                color: Color(red: 1, green: 0.74, blue: 0.2),
+                hoverIcon: "minus"
+            ) {
+                NSApp.keyWindow?.miniaturize(nil)
+            }
+
+            // Zoom button (green) - toggles fullscreen
+            trafficLightButton(
+                type: .zoom,
+                color: Color(red: 0.15, green: 0.8, blue: 0.26),
+                hoverIcon: "arrow.up.left.and.arrow.down.right"
+            ) {
+                NSApp.keyWindow?.toggleFullScreen(nil)
+            }
+        }
+        .padding(.leading, 7)
+    }
+
+    private func trafficLightButton(
+        type: TrafficLightButton,
+        color: Color,
+        hoverIcon: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(color)
+                    .frame(width: 12, height: 12)
+
+                if hoveredButton != nil {
+                    Image(systemName: hoverIcon)
+                        .font(.system(size: 6, weight: .bold))
+                        .foregroundColor(Color(white: 0.2))
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            if hovering {
+                hoveredButton = type
+            } else if hoveredButton == type {
+                hoveredButton = nil
+            }
+        }
+    }
+}
+
 // MARK: - Modern Annotation Toolbar
 
 struct AnnotationToolbar: View {
@@ -442,10 +513,8 @@ struct AnnotationToolbar: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: DSSpacing.md) {
-            // Left padding for traffic light buttons (close/minimize/fullscreen)
-            // Standard macOS traffic light area is ~78px, add extra for breathing room
-            Spacer()
-                .frame(width: 78)
+            // Custom traffic light buttons (close/minimize/fullscreen)
+            TrafficLightButtons()
 
             // Tool buttons
             HStack(spacing: 2) {
