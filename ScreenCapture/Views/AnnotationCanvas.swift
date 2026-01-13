@@ -62,19 +62,27 @@ struct AnnotationCanvas: View {
                     // Background image (with blur regions applied)
                     imageLayer
 
-                    // Annotation canvas - same size as image, aligned top-left
+                    // Static annotation canvas - committed annotations only
+                    // Uses drawingGroup() for Metal-backed off-screen rendering
                     Canvas { context, size in
-                        // Draw all annotations
                         for annotation in state.annotations {
                             drawAnnotation(annotation, in: context, size: size)
                         }
-
-                        // Draw current drawing preview
-                        if let current = currentDrawing {
-                            drawAnnotation(current, in: context, size: size)
-                        }
                     }
                     .frame(width: scaledImageSize.width, height: scaledImageSize.height)
+                    .drawingGroup() // Metal-backed rendering for better performance
+
+                    // Dynamic canvas - current drawing preview only
+                    // Separated to avoid redrawing all annotations during drag
+                    if currentDrawing != nil {
+                        Canvas { context, size in
+                            if let current = currentDrawing {
+                                drawAnnotation(current, in: context, size: size)
+                            }
+                        }
+                        .frame(width: scaledImageSize.width, height: scaledImageSize.height)
+                        .allowsHitTesting(false)
+                    }
 
                     // Selection handles for selected annotation
                     ForEach(state.annotations) { annotation in
