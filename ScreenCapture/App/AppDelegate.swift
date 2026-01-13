@@ -267,6 +267,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
             window.delegate = self
 
+            // Hide system traffic lights - we use custom SwiftUI buttons inside the content area
+            window.standardWindowButton(.closeButton)?.isHidden = true
+            window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+            window.standardWindowButton(.zoomButton)?.isHidden = true
+
             quickAccessWindow = window
 
             // CRITICAL: For LSUIElement/accessory apps, we must activate the app

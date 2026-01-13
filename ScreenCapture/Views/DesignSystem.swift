@@ -977,6 +977,86 @@ struct DSBadge: View {
     }
 }
 
+// MARK: - Traffic Light Buttons
+
+/// Custom macOS-style traffic light buttons (close, minimize, zoom)
+/// Can be used when system traffic lights are hidden but you want the same visual style
+struct DSTrafficLightButtons: View {
+    /// Optional custom close action. If nil, uses NSApp.keyWindow?.close()
+    var onClose: (() -> Void)?
+
+    @State private var hoveredButton: TrafficLightButton?
+
+    enum TrafficLightButton {
+        case close, minimize, zoom
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // Close button (red)
+            trafficLightButton(
+                type: .close,
+                color: Color(red: 1, green: 0.38, blue: 0.36),
+                hoverIcon: "xmark"
+            ) {
+                if let onClose = onClose {
+                    onClose()
+                } else {
+                    NSApp.keyWindow?.close()
+                }
+            }
+
+            // Minimize button (yellow)
+            trafficLightButton(
+                type: .minimize,
+                color: Color(red: 1, green: 0.74, blue: 0.2),
+                hoverIcon: "minus"
+            ) {
+                NSApp.keyWindow?.miniaturize(nil)
+            }
+
+            // Zoom button (green) - toggles fullscreen
+            trafficLightButton(
+                type: .zoom,
+                color: Color(red: 0.15, green: 0.8, blue: 0.26),
+                hoverIcon: "arrow.up.left.and.arrow.down.right"
+            ) {
+                NSApp.keyWindow?.toggleFullScreen(nil)
+            }
+        }
+        .padding(.leading, 7)
+    }
+
+    private func trafficLightButton(
+        type: TrafficLightButton,
+        color: Color,
+        hoverIcon: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(color)
+                    .frame(width: 12, height: 12)
+
+                if hoveredButton != nil {
+                    Image(systemName: hoverIcon)
+                        .font(.system(size: 6, weight: .bold))
+                        .foregroundColor(Color(white: 0.2))
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            if hovering {
+                hoveredButton = type
+            } else if hoveredButton == type {
+                hoveredButton = nil
+            }
+        }
+    }
+}
+
 // MARK: - View Extensions
 
 extension View {
