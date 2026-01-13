@@ -14,6 +14,9 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     private var audioInput: AVAssetWriterInput?
     private var audioAppInput: AVAssetWriterInput?
 
+    // Shared CIContext for frame processing (expensive to create, reuse across frames)
+    private let ciContext = CIContext(options: [.cacheIntermediates: false])
+
     @Published var isRecording = false
     @Published var isGIFRecording = false
     @Published var recordingDuration: TimeInterval = 0
