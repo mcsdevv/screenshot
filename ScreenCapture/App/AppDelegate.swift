@@ -515,6 +515,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         window.delegate = self
         window.minSize = NSSize(width: 700, height: 500) // Ensure toolbar fits
 
+        // Hide system traffic lights - we use custom SwiftUI buttons in the toolbar
+        window.standardWindowButton(.closeButton)?.isHidden = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
+
         annotationWindow = window
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
