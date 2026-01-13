@@ -237,8 +237,8 @@ struct AnnotationCanvas: View {
         blurFilter.mask = combinedMask
         blurFilter.radius = Float(avgRadius)
 
-        guard let output = blurFilter.outputImage?.cropped(to: ciImage.extent),
-              let outputCGImage = viewModel.ciContext.createCGImage(output, from: output.extent) else {
+        guard let blurredOutput = blurFilter.outputImage?.cropped(to: ciImage.extent),
+              let outputCGImage = viewModel.ciContext.createCGImage(blurredOutput, from: blurredOutput.extent) else {
             return nil
         }
 
