@@ -993,83 +993,348 @@ struct TextInputOverlay: View {
     let onCommit: () -> Void
     let onCancel: () -> Void
 
-    @State private var size: CGSize = .zero
+    // Committed state - persists after gestures end
+    @State private var committedOffset: CGSize = .zero
+    @State private var committedWidth: CGFloat = 0
+    @State private var committedHeight: CGFloat = 0
+
+    // Gesture state - auto-resets when gesture ends
+    @GestureState private var dragTranslation: CGSize = .zero
+    @GestureState private var resizeState: ResizeState? = nil
+
+    // UI state
+    @State private var isHoveringBorder: Bool = false
+    @State private var hoveredCorner: TextBoxCorner? = nil
+    @State private var isDragging: Bool = false
+    @State private var isResizing: Bool = false
+
+    private let handleSize: CGFloat = 8
+    private let minWidth: CGFloat = 80
+    private let minHeight: CGFloat = 50
+    private let defaultHeight: CGFloat = 80
 
     // Default to 25% of image width, min 120, max 300
     private var defaultWidth: CGFloat {
         min(max(imageSize.width * 0.25, 120), 300)
     }
 
-    // Constrain the top-left position to keep text box within image bounds
-    private var constrainedTopLeft: CGPoint {
-        let boxWidth = size.width > 0 ? size.width : defaultWidth
-        let boxHeight = size.height > 0 ? size.height : 60
+    // Current dimensions including any active resize gesture
+    private var currentWidth: CGFloat {
+        let base = committedWidth > 0 ? committedWidth : defaultWidth
+        if let resize = resizeState {
+            return max(minWidth, base + resize.widthDelta)
+        }
+        return base
+    }
 
-        // Keep box within image bounds, with some margin
-        let x = min(max(position.x, 4), imageSize.width - boxWidth - 4)
-        let y = min(max(position.y, 4), imageSize.height - boxHeight - 4)
+    private var currentHeight: CGFloat {
+        let base = committedHeight > 0 ? committedHeight : defaultHeight
+        if let resize = resizeState {
+            return max(minHeight, base + resize.heightDelta)
+        }
+        return base
+    }
+
+    // Current position including any active drag or resize gesture
+    private var currentTopLeft: CGPoint {
+        var x = position.x + committedOffset.width + dragTranslation.width
+        var y = position.y + committedOffset.height + dragTranslation.height
+
+        // Apply position offset from resize (for left/top edge drags)
+        if let resize = resizeState {
+            x += resize.xOffset
+            y += resize.yOffset
+        }
+
+        // Constrain to image bounds
+        x = min(max(x, 4), imageSize.width - currentWidth - 4)
+        y = min(max(y, 4), imageSize.height - currentHeight - 4)
 
         return CGPoint(x: x, y: y)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Text input area using NSTextView for proper keyboard shortcut support
-            AnnotationTextView(
-                text: $text,
-                font: fontName == ".AppleSystemUIFont"
-                    ? NSFont.systemFont(ofSize: fontSize, weight: .medium)
-                    : NSFont(name: fontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize),
-                textColor: NSColor(color),
-                onCommit: onCommit
+        ZStack(alignment: .topLeading) {
+            // Main text box content
+            VStack(alignment: .leading, spacing: 4) {
+                // Text input area using NSTextView for proper keyboard shortcut support
+                AnnotationTextView(
+                    text: $text,
+                    font: fontName == ".AppleSystemUIFont"
+                        ? NSFont.systemFont(ofSize: fontSize, weight: .medium)
+                        : NSFont(name: fontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize),
+                    textColor: NSColor(color),
+                    onCommit: onCommit
+                )
+                .frame(minHeight: 24, maxHeight: .infinity)
+
+                // Minimal action buttons - positioned at bottom right
+                HStack(spacing: 6) {
+                    Spacer()
+
+                    Button(action: onCancel) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 20, height: 20)
+                    .background(Color(nsColor: .windowBackgroundColor).opacity(0.8))
+                    .clipShape(Circle())
+
+                    Button(action: onCommit) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 20, height: 20)
+                    .background(Color.accentColor)
+                    .clipShape(Circle())
+                }
+            }
+            .padding(8)
+            .frame(width: currentWidth, height: currentHeight, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(nsColor: .windowBackgroundColor).opacity(0.85))
+                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
             )
-            .frame(minHeight: 24, maxHeight: 120)
+            .overlay(
+                // Border with drag gesture and hover cursor
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(color.opacity(0.3), lineWidth: 1)
+                    .contentShape(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(lineWidth: 12) // Thicker hit area for dragging
+                    )
+                    .onHover { hovering in
+                        if hoveredCorner == nil && !isResizing {
+                            isHoveringBorder = hovering
+                            if hovering && !isDragging {
+                                NSCursor.openHand.push()
+                            } else if !hovering && !isDragging {
+                                NSCursor.pop()
+                            }
+                        }
+                    }
+                    .gesture(
+                        DragGesture(minimumDistance: 1)
+                            .updating($dragTranslation) { value, state, _ in
+                                state = value.translation
+                            }
+                            .onChanged { _ in
+                                if !isDragging {
+                                    isDragging = true
+                                    NSCursor.pop()
+                                    NSCursor.closedHand.push()
+                                }
+                            }
+                            .onEnded { value in
+                                isDragging = false
+                                NSCursor.pop()
+                                // Commit the final drag offset
+                                committedOffset.width += value.translation.width
+                                committedOffset.height += value.translation.height
+                                if isHoveringBorder {
+                                    NSCursor.openHand.push()
+                                }
+                            }
+                    )
+            )
+            .position(x: currentTopLeft.x + currentWidth / 2, y: currentTopLeft.y + currentHeight / 2)
 
-            // Minimal action buttons
-            HStack(spacing: 6) {
-                Button(action: onCancel) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .frame(width: 20, height: 20)
-                .background(Color(nsColor: .windowBackgroundColor).opacity(0.8))
-                .clipShape(Circle())
+            // Corner resize handles
+            ForEach(TextBoxCorner.allCases, id: \.self) { corner in
+                ResizeHandle(corner: corner, handleSize: handleSize)
+                    .position(cornerPosition(for: corner))
+                    .onHover { hovering in
+                        hoveredCorner = hovering ? corner : nil
+                        if hovering {
+                            if isHoveringBorder {
+                                NSCursor.pop()
+                                isHoveringBorder = false
+                            }
+                            corner.nsCursor.push()
+                        } else if !isResizing {
+                            NSCursor.pop()
+                        }
+                    }
+                    .gesture(
+                        DragGesture(minimumDistance: 1)
+                            .updating($resizeState) { value, state, _ in
+                                state = corner.calculateResize(
+                                    translation: value.translation,
+                                    currentWidth: committedWidth > 0 ? committedWidth : defaultWidth,
+                                    currentHeight: committedHeight > 0 ? committedHeight : defaultHeight,
+                                    minWidth: minWidth,
+                                    minHeight: minHeight
+                                )
+                            }
+                            .onChanged { _ in
+                                if !isResizing {
+                                    isResizing = true
+                                }
+                            }
+                            .onEnded { value in
+                                isResizing = false
+                                // Commit the resize
+                                let finalResize = corner.calculateResize(
+                                    translation: value.translation,
+                                    currentWidth: committedWidth > 0 ? committedWidth : defaultWidth,
+                                    currentHeight: committedHeight > 0 ? committedHeight : defaultHeight,
+                                    minWidth: minWidth,
+                                    minHeight: minHeight
+                                )
+                                committedWidth = max(minWidth, (committedWidth > 0 ? committedWidth : defaultWidth) + finalResize.widthDelta)
+                                committedHeight = max(minHeight, (committedHeight > 0 ? committedHeight : defaultHeight) + finalResize.heightDelta)
+                                committedOffset.width += finalResize.xOffset
+                                committedOffset.height += finalResize.yOffset
 
-                Button(action: onCommit) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.white)
-                }
-                .buttonStyle(.plain)
-                .frame(width: 20, height: 20)
-                .background(Color.accentColor)
-                .clipShape(Circle())
-
-                Spacer()
+                                if hoveredCorner != nil {
+                                    // Cursor already set from hover
+                                } else {
+                                    NSCursor.pop()
+                                }
+                            }
+                    )
             }
         }
-        .padding(8)
-        .frame(width: defaultWidth, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.85))
-                .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(color.opacity(0.3), lineWidth: 1)
-        )
-        .background(
-            GeometryReader { geo in
-                Color.clear.onAppear { size = geo.size }
-            }
-        )
-        // Position top-left of the box at click location (offset from origin)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .offset(x: constrainedTopLeft.x, y: constrainedTopLeft.y)
         .onExitCommand { onCancel() }
+        .onAppear {
+            if committedWidth == 0 {
+                committedWidth = defaultWidth
+            }
+            if committedHeight == 0 {
+                committedHeight = defaultHeight
+            }
+        }
+    }
+
+    private func cornerPosition(for corner: TextBoxCorner) -> CGPoint {
+        let topLeft = currentTopLeft
+
+        switch corner {
+        case .topLeft:
+            return CGPoint(x: topLeft.x, y: topLeft.y)
+        case .topRight:
+            return CGPoint(x: topLeft.x + currentWidth, y: topLeft.y)
+        case .bottomLeft:
+            return CGPoint(x: topLeft.x, y: topLeft.y + currentHeight)
+        case .bottomRight:
+            return CGPoint(x: topLeft.x + currentWidth, y: topLeft.y + currentHeight)
+        }
+    }
+}
+
+// MARK: - Resize State
+
+struct ResizeState: Equatable {
+    var widthDelta: CGFloat = 0
+    var heightDelta: CGFloat = 0
+    var xOffset: CGFloat = 0
+    var yOffset: CGFloat = 0
+}
+
+// MARK: - Resize Handle View
+
+struct ResizeHandle: View {
+    let corner: TextBoxCorner
+    let handleSize: CGFloat
+
+    var body: some View {
+        Circle()
+            .fill(Color.white)
+            .frame(width: handleSize, height: handleSize)
+            .overlay(
+                Circle()
+                    .stroke(Color.accentColor, lineWidth: 1.5)
+            )
+            .shadow(color: .black.opacity(0.15), radius: 1, x: 0, y: 1)
+    }
+}
+
+// MARK: - Text Box Corner
+
+enum TextBoxCorner: CaseIterable {
+    case topLeft, topRight, bottomLeft, bottomRight
+
+    var nsCursor: NSCursor {
+        switch self {
+        case .topLeft, .bottomRight:
+            // NW-SE diagonal resize
+            return NSCursor.crosshair // Fallback - macOS doesn't have diagonal cursors built-in
+        case .topRight, .bottomLeft:
+            // NE-SW diagonal resize
+            return NSCursor.crosshair
+        }
+    }
+
+    func calculateResize(
+        translation: CGSize,
+        currentWidth: CGFloat,
+        currentHeight: CGFloat,
+        minWidth: CGFloat,
+        minHeight: CGFloat
+    ) -> ResizeState {
+        var state = ResizeState()
+
+        switch self {
+        case .topLeft:
+            // Dragging top-left: decrease width/height, move origin
+            let newWidth = currentWidth - translation.width
+            let newHeight = currentHeight - translation.height
+
+            if newWidth >= minWidth {
+                state.widthDelta = -translation.width
+                state.xOffset = translation.width
+            }
+            if newHeight >= minHeight {
+                state.heightDelta = -translation.height
+                state.yOffset = translation.height
+            }
+
+        case .topRight:
+            // Dragging top-right: increase width, decrease height, move Y origin
+            let newWidth = currentWidth + translation.width
+            let newHeight = currentHeight - translation.height
+
+            if newWidth >= minWidth {
+                state.widthDelta = translation.width
+            }
+            if newHeight >= minHeight {
+                state.heightDelta = -translation.height
+                state.yOffset = translation.height
+            }
+
+        case .bottomLeft:
+            // Dragging bottom-left: decrease width, increase height, move X origin
+            let newWidth = currentWidth - translation.width
+            let newHeight = currentHeight + translation.height
+
+            if newWidth >= minWidth {
+                state.widthDelta = -translation.width
+                state.xOffset = translation.width
+            }
+            if newHeight >= minHeight {
+                state.heightDelta = translation.height
+            }
+
+        case .bottomRight:
+            // Dragging bottom-right: increase both width and height
+            let newWidth = currentWidth + translation.width
+            let newHeight = currentHeight + translation.height
+
+            if newWidth >= minWidth {
+                state.widthDelta = translation.width
+            }
+            if newHeight >= minHeight {
+                state.heightDelta = translation.height
+            }
+        }
+
+        return state
     }
 }
 
@@ -1108,8 +1373,10 @@ struct AnnotationTextView: NSViewRepresentable {
         scrollView.borderType = .noBorder
 
         // Make first responder after a brief delay to ensure view is in hierarchy
-        DispatchQueue.main.async {
-            textView.window?.makeFirstResponder(textView)
+        // Use weak reference to prevent crash if view is deallocated before async block executes
+        DispatchQueue.main.async { [weak textView] in
+            guard let textView = textView, let window = textView.window else { return }
+            window.makeFirstResponder(textView)
         }
 
         return scrollView
