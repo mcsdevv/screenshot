@@ -622,29 +622,14 @@ struct TextOptionsBar: View {
             .popover(isPresented: $showFontPicker) {
                 VStack(alignment: .leading, spacing: DSSpacing.xxs) {
                     ForEach(FontOption.systemFonts) { font in
-                        Button(action: {
+                        PickerOptionButton(
+                            label: font.displayName,
+                            isSelected: viewModel.state.currentFontName == font.name,
+                            font: DSTypography.bodySmall
+                        ) {
                             viewModel.state.currentFontName = font.name
                             showFontPicker = false
-                        }) {
-                            HStack {
-                                Text(font.displayName)
-                                    .font(DSTypography.bodySmall)
-                                    .foregroundColor(.dsTextPrimary)
-                                Spacer()
-                                if viewModel.state.currentFontName == font.name {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 10, weight: .semibold))
-                                        .foregroundColor(.dsAccent)
-                                }
-                            }
-                            .padding(.vertical, DSSpacing.xs)
-                            .padding(.horizontal, DSSpacing.sm)
-                            .background(
-                                RoundedRectangle(cornerRadius: DSRadius.xs)
-                                    .fill(viewModel.state.currentFontName == font.name ? Color.dsAccent.opacity(0.1) : Color.clear)
-                            )
                         }
-                        .buttonStyle(.plain)
                     }
                 }
                 .padding(DSSpacing.sm)
@@ -673,29 +658,14 @@ struct TextOptionsBar: View {
             .popover(isPresented: $showSizePicker) {
                 VStack(spacing: DSSpacing.xxs) {
                     ForEach([12, 14, 16, 18, 24, 32, 48, 64], id: \.self) { size in
-                        Button(action: {
+                        PickerOptionButton(
+                            label: "\(size)pt",
+                            isSelected: Int(viewModel.state.currentFontSize) == size,
+                            font: DSTypography.monoSmall
+                        ) {
                             viewModel.state.currentFontSize = CGFloat(size)
                             showSizePicker = false
-                        }) {
-                            HStack {
-                                Text("\(size)pt")
-                                    .font(DSTypography.monoSmall)
-                                    .foregroundColor(.dsTextPrimary)
-                                Spacer()
-                                if Int(viewModel.state.currentFontSize) == size {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 10, weight: .semibold))
-                                        .foregroundColor(.dsAccent)
-                                }
-                            }
-                            .padding(.vertical, DSSpacing.xs)
-                            .padding(.horizontal, DSSpacing.sm)
-                            .background(
-                                RoundedRectangle(cornerRadius: DSRadius.xs)
-                                    .fill(Int(viewModel.state.currentFontSize) == size ? Color.dsAccent.opacity(0.1) : Color.clear)
-                            )
                         }
-                        .buttonStyle(.plain)
                     }
                 }
                 .padding(DSSpacing.sm)
@@ -707,6 +677,48 @@ struct TextOptionsBar: View {
 
     private var currentFontDisplayName: String {
         FontOption.systemFonts.first { $0.name == viewModel.state.currentFontName }?.displayName ?? "System"
+    }
+}
+
+// MARK: - Picker Option Button with Hover State
+
+struct PickerOptionButton: View {
+    let label: String
+    let isSelected: Bool
+    let font: Font
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(label)
+                    .font(font)
+                    .foregroundColor(isHovered ? .dsTextPrimary : (isSelected ? .dsTextPrimary : .dsTextSecondary))
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.dsAccent)
+                }
+            }
+            .padding(.vertical, DSSpacing.xs)
+            .padding(.horizontal, DSSpacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: DSRadius.xs)
+                    .fill(
+                        isSelected ? Color.dsAccent.opacity(0.15) :
+                        (isHovered ? Color.white.opacity(0.08) : Color.clear)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(DSAnimation.quick) {
+                isHovered = hovering
+            }
+        }
     }
 }
 

@@ -399,8 +399,16 @@ struct AnnotationCanvas: View {
             return
         }
 
+        // Account for text box padding (8pt) + text container inset (4pt) = 12pt offset
+        // This ensures text renders at the same position as shown in the input overlay
+        let paddingOffset: CGFloat = 12
+        let adjustedPosition = CGPoint(
+            x: textPosition.x + paddingOffset,
+            y: textPosition.y + paddingOffset
+        )
+
         // Convert from scaled position to image coordinates
-        let unscaledPosition = clampToImageBounds(gestureLocationToImageCoords(textPosition))
+        let unscaledPosition = clampToImageBounds(gestureLocationToImageCoords(adjustedPosition))
         let annotation = Annotation(
             type: .text,
             rect: CGRect(origin: unscaledPosition, size: .zero),
@@ -459,11 +467,13 @@ struct AnnotationCanvas: View {
     // MARK: - Drawing
 
     private func scaleRect(_ rect: CGRect) -> CGRect {
+        // Use .size.width/.size.height to preserve negative values (direction for lines/arrows)
+        // Note: CGRect.width/height return absolute values, but .size preserves sign
         CGRect(
             x: rect.origin.x * zoom,
             y: rect.origin.y * zoom,
-            width: rect.width * zoom,
-            height: rect.height * zoom
+            width: rect.size.width * zoom,
+            height: rect.size.height * zoom
         )
     }
 
@@ -485,9 +495,10 @@ struct AnnotationCanvas: View {
             context.stroke(path, with: .color(color), lineWidth: annotation.strokeWidth)
 
         case .line:
-            // Use origin and origin+size to preserve direction (not minX/maxX which normalizes)
+            // Use .size.width/.size.height to preserve direction (negative values)
+            // Note: CGRect.width/height return absolute values, but .size preserves sign
             let start = CGPoint(x: scaledRect.origin.x, y: scaledRect.origin.y)
-            let end = CGPoint(x: scaledRect.origin.x + scaledRect.width, y: scaledRect.origin.y + scaledRect.height)
+            let end = CGPoint(x: scaledRect.origin.x + scaledRect.size.width, y: scaledRect.origin.y + scaledRect.size.height)
             var path = Path()
             path.move(to: start)
             path.addLine(to: end)
@@ -532,9 +543,10 @@ struct AnnotationCanvas: View {
 
     private func drawArrow(context: GraphicsContext, annotation: Annotation) {
         let scaledRect = scaleRect(annotation.cgRect)
-        // Use origin and origin+size to preserve direction (not minX/maxX which normalizes)
+        // Use .size.width/.size.height to preserve direction (negative values)
+        // Note: CGRect.width/height return absolute values, but .size preserves sign
         let start = CGPoint(x: scaledRect.origin.x, y: scaledRect.origin.y)
-        let end = CGPoint(x: scaledRect.origin.x + scaledRect.width, y: scaledRect.origin.y + scaledRect.height)
+        let end = CGPoint(x: scaledRect.origin.x + scaledRect.size.width, y: scaledRect.origin.y + scaledRect.size.height)
         let color = annotation.swiftUIColor
 
         // Draw line
@@ -975,7 +987,6 @@ struct TextInputOverlay: View {
     let onCommit: () -> Void
     let onCancel: () -> Void
 
-    @FocusState private var isFocused: Bool
     @State private var size: CGSize = .zero
 
     // Default to 25% of image width, min 120, max 300
@@ -983,27 +994,30 @@ struct TextInputOverlay: View {
         min(max(imageSize.width * 0.25, 120), 300)
     }
 
-    // Constrain position to keep text box within image bounds
-    private var constrainedPosition: CGPoint {
+    // Constrain the top-left position to keep text box within image bounds
+    private var constrainedTopLeft: CGPoint {
         let boxWidth = size.width > 0 ? size.width : defaultWidth
         let boxHeight = size.height > 0 ? size.height : 60
 
-        let x = min(max(position.x, boxWidth / 2 + 8), imageSize.width - boxWidth / 2 - 8)
-        let y = min(max(position.y, boxHeight / 2 + 8), imageSize.height - boxHeight / 2 - 8)
+        // Keep box within image bounds, with some margin
+        let x = min(max(position.x, 4), imageSize.width - boxWidth - 4)
+        let y = min(max(position.y, 4), imageSize.height - boxHeight - 4)
 
         return CGPoint(x: x, y: y)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // Text input area with transparent background
-            TextEditor(text: $text)
-                .font(fontName == ".AppleSystemUIFont" ? .system(size: fontSize) : .custom(fontName, size: fontSize))
-                .foregroundColor(color)
-                .scrollContentBackground(.hidden)
-                .background(Color.clear)
-                .focused($isFocused)
-                .frame(minHeight: 24, maxHeight: 120)
+            // Text input area using NSTextView for proper keyboard shortcut support
+            AnnotationTextView(
+                text: $text,
+                font: fontName == ".AppleSystemUIFont"
+                    ? NSFont.systemFont(ofSize: fontSize, weight: .medium)
+                    : NSFont(name: fontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize),
+                textColor: NSColor(color),
+                onCommit: onCommit
+            )
+            .frame(minHeight: 24, maxHeight: 120)
 
             // Minimal action buttons
             HStack(spacing: 6) {
@@ -1028,15 +1042,10 @@ struct TextInputOverlay: View {
                 .clipShape(Circle())
 
                 Spacer()
-
-                // Keyboard hint
-                Text("⏎ to add")
-                    .font(.system(size: 9))
-                    .foregroundColor(.secondary.opacity(0.6))
             }
         }
         .padding(8)
-        .frame(width: defaultWidth)
+        .frame(width: defaultWidth, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(Color(nsColor: .windowBackgroundColor).opacity(0.85))
@@ -1051,9 +1060,89 @@ struct TextInputOverlay: View {
                 Color.clear.onAppear { size = geo.size }
             }
         )
-        .position(constrainedPosition)
-        .onAppear { isFocused = true }
+        // Position top-left of the box at click location (offset from origin)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .offset(x: constrainedTopLeft.x, y: constrainedTopLeft.y)
         .onExitCommand { onCancel() }
-        .onSubmit { onCommit() }
+    }
+}
+
+// MARK: - NSTextView Wrapper for proper keyboard shortcut support
+
+struct AnnotationTextView: NSViewRepresentable {
+    @Binding var text: String
+    let font: NSFont
+    let textColor: NSColor
+    let onCommit: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSScrollView()
+        let textView = AnnotationNSTextView()
+
+        textView.delegate = context.coordinator
+        textView.font = font
+        textView.textColor = textColor
+        textView.backgroundColor = .clear
+        textView.drawsBackground = false
+        textView.isRichText = false
+        textView.allowsUndo = true
+        textView.isEditable = true
+        textView.isSelectable = true
+        textView.textContainerInset = NSSize(width: 4, height: 4)
+        textView.onCommit = onCommit
+
+        scrollView.documentView = textView
+        scrollView.hasVerticalScroller = false
+        scrollView.hasHorizontalScroller = false
+        scrollView.drawsBackground = false
+        scrollView.borderType = .noBorder
+
+        // Make first responder after a brief delay to ensure view is in hierarchy
+        DispatchQueue.main.async {
+            textView.window?.makeFirstResponder(textView)
+        }
+
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        guard let textView = scrollView.documentView as? NSTextView else { return }
+
+        if textView.string != text {
+            textView.string = text
+        }
+        textView.font = font
+        textView.textColor = textColor
+    }
+
+    class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: AnnotationTextView
+
+        init(_ parent: AnnotationTextView) {
+            self.parent = parent
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            parent.text = textView.string
+        }
+    }
+}
+
+// Custom NSTextView that handles Enter key for commit
+class AnnotationNSTextView: NSTextView {
+    var onCommit: (() -> Void)?
+
+    override func keyDown(with event: NSEvent) {
+        // Enter key (without modifiers) commits the text
+        if event.keyCode == 36 && event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty {
+            onCommit?()
+            return
+        }
+        super.keyDown(with: event)
     }
 }
