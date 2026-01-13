@@ -527,6 +527,7 @@ struct AnnotationToolbar: View {
             .help("Save and copy to clipboard (⌘↵)")
         }
         .frame(height: 52) // Taller for better vertical centering like Raycast
+        .padding(.top, 12) // Align with macOS traffic light vertical position
         .padding(.horizontal, DSSpacing.lg)
         .background(
             ZStack {

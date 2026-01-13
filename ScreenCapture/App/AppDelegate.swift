@@ -513,7 +513,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         window.contentView = hostingView
         window.center()
         window.delegate = self
-        window.minSize = NSSize(width: 700, height: 500) // Ensure toolbar fits
+        window.minSize = NSSize(width: 800, height: 500) // Ensure toolbar fits
 
         annotationWindow = window
         window.makeKeyAndOrderFront(nil)
