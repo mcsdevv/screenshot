@@ -29,7 +29,7 @@ struct AnnotationEditor: View {
                     if let image = viewModel.image {
                         AnnotationCanvas(
                             image: image,
-                            state: $viewModel.state,
+                            state: viewModel.state,  // @Observable - no binding needed
                             zoom: $viewModel.zoom,
                             offset: $viewModel.offset,
                             viewModel: viewModel
