@@ -454,6 +454,7 @@ class CaptureOutput: NSObject, SCStreamOutput {
 
 class GIFCaptureOutput: NSObject, SCStreamOutput {
     private let onFrame: (CGImage) -> Void
+    private let ciContext = CIContext(options: [.cacheIntermediates: false])
 
     init(onFrame: @escaping (CGImage) -> Void) {
         self.onFrame = onFrame
