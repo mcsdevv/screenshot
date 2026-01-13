@@ -994,82 +994,226 @@ struct TextInputOverlay: View {
     let onCancel: () -> Void
 
     @State private var size: CGSize = .zero
+    @State private var dragOffset: CGSize = .zero
+    @State private var boxWidth: CGFloat = 0
+    @State private var isHoveringBorder: Bool = false
+    @State private var hoveredCorner: TextBoxCorner? = nil
+    @State private var isDragging: Bool = false
+
+    private let handleSize: CGFloat = 10
+    private let minWidth: CGFloat = 100
 
     // Default to 25% of image width, min 120, max 300
     private var defaultWidth: CGFloat {
         min(max(imageSize.width * 0.25, 120), 300)
     }
 
+    private var currentWidth: CGFloat {
+        boxWidth > 0 ? boxWidth : defaultWidth
+    }
+
     // Constrain the top-left position to keep text box within image bounds
     private var constrainedTopLeft: CGPoint {
-        let boxWidth = size.width > 0 ? size.width : defaultWidth
         let boxHeight = size.height > 0 ? size.height : 60
 
+        // Apply drag offset to initial position
+        let draggedX = position.x + dragOffset.width
+        let draggedY = position.y + dragOffset.height
+
         // Keep box within image bounds, with some margin
-        let x = min(max(position.x, 4), imageSize.width - boxWidth - 4)
-        let y = min(max(position.y, 4), imageSize.height - boxHeight - 4)
+        let x = min(max(draggedX, 4), imageSize.width - currentWidth - 4)
+        let y = min(max(draggedY, 4), imageSize.height - boxHeight - 4)
 
         return CGPoint(x: x, y: y)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Text input area using NSTextView for proper keyboard shortcut support
-            AnnotationTextView(
-                text: $text,
-                font: fontName == ".AppleSystemUIFont"
-                    ? NSFont.systemFont(ofSize: fontSize, weight: .medium)
-                    : NSFont(name: fontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize),
-                textColor: NSColor(color),
-                onCommit: onCommit
+        ZStack(alignment: .topLeading) {
+            // Main text box content
+            VStack(alignment: .leading, spacing: 4) {
+                // Text input area using NSTextView for proper keyboard shortcut support
+                AnnotationTextView(
+                    text: $text,
+                    font: fontName == ".AppleSystemUIFont"
+                        ? NSFont.systemFont(ofSize: fontSize, weight: .medium)
+                        : NSFont(name: fontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize),
+                    textColor: NSColor(color),
+                    onCommit: onCommit
+                )
+                .frame(minHeight: 24, maxHeight: 120)
+
+                // Minimal action buttons - positioned at bottom right
+                HStack(spacing: 6) {
+                    Spacer()
+
+                    Button(action: onCancel) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 20, height: 20)
+                    .background(Color(nsColor: .windowBackgroundColor).opacity(0.8))
+                    .clipShape(Circle())
+
+                    Button(action: onCommit) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 20, height: 20)
+                    .background(Color.accentColor)
+                    .clipShape(Circle())
+                }
+            }
+            .padding(8)
+            .frame(width: currentWidth, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(nsColor: .windowBackgroundColor).opacity(0.85))
+                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
             )
-            .frame(minHeight: 24, maxHeight: 120)
-
-            // Minimal action buttons
-            HStack(spacing: 6) {
-                Button(action: onCancel) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.secondary)
+            .overlay(
+                // Border with drag gesture and hover cursor
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(color.opacity(0.3), lineWidth: 1)
+                    .contentShape(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(lineWidth: 10) // Thicker hit area for dragging
+                    )
+                    .onHover { hovering in
+                        if hoveredCorner == nil {
+                            isHoveringBorder = hovering
+                            if hovering && !isDragging {
+                                NSCursor.openHand.push()
+                            } else if !hovering && !isDragging {
+                                NSCursor.pop()
+                            }
+                        }
+                    }
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                if !isDragging {
+                                    isDragging = true
+                                    NSCursor.pop()
+                                    NSCursor.closedHand.push()
+                                }
+                                dragOffset = value.translation
+                            }
+                            .onEnded { value in
+                                isDragging = false
+                                NSCursor.pop()
+                                // Commit the drag offset to position
+                                dragOffset = value.translation
+                                if isHoveringBorder {
+                                    NSCursor.openHand.push()
+                                }
+                            }
+                    )
+            )
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear {
+                            size = geo.size
+                            if boxWidth == 0 {
+                                boxWidth = defaultWidth
+                            }
+                        }
+                        .onChange(of: geo.size) { newSize in
+                            size = newSize
+                        }
                 }
-                .buttonStyle(.plain)
-                .frame(width: 20, height: 20)
-                .background(Color(nsColor: .windowBackgroundColor).opacity(0.8))
-                .clipShape(Circle())
+            )
+            .offset(x: constrainedTopLeft.x, y: constrainedTopLeft.y)
 
-                Button(action: onCommit) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.white)
-                }
-                .buttonStyle(.plain)
-                .frame(width: 20, height: 20)
-                .background(Color.accentColor)
-                .clipShape(Circle())
-
-                Spacer()
+            // Corner resize handles
+            ForEach(TextBoxCorner.allCases, id: \.self) { corner in
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: handleSize, height: handleSize)
+                    .overlay(Circle().stroke(Color.accentColor, lineWidth: 1))
+                    .position(cornerPosition(for: corner))
+                    .onHover { hovering in
+                        hoveredCorner = hovering ? corner : nil
+                        if hovering {
+                            if isHoveringBorder {
+                                NSCursor.pop()
+                                isHoveringBorder = false
+                            }
+                            corner.cursor.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                handleCornerResize(corner: corner, translation: value.translation)
+                            }
+                    )
             }
         }
-        .padding(8)
-        .frame(width: defaultWidth, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.85))
-                .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(color.opacity(0.3), lineWidth: 1)
-        )
-        .background(
-            GeometryReader { geo in
-                Color.clear.onAppear { size = geo.size }
-            }
-        )
-        // Position top-left of the box at click location (offset from origin)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .offset(x: constrainedTopLeft.x, y: constrainedTopLeft.y)
         .onExitCommand { onCancel() }
+    }
+
+    private func cornerPosition(for corner: TextBoxCorner) -> CGPoint {
+        let boxHeight = size.height > 0 ? size.height : 60
+        let topLeft = constrainedTopLeft
+
+        switch corner {
+        case .topLeft:
+            return CGPoint(x: topLeft.x, y: topLeft.y)
+        case .topRight:
+            return CGPoint(x: topLeft.x + currentWidth, y: topLeft.y)
+        case .bottomLeft:
+            return CGPoint(x: topLeft.x, y: topLeft.y + boxHeight)
+        case .bottomRight:
+            return CGPoint(x: topLeft.x + currentWidth, y: topLeft.y + boxHeight)
+        }
+    }
+
+    private func handleCornerResize(corner: TextBoxCorner, translation: CGSize) {
+        switch corner {
+        case .topLeft:
+            let newWidth = currentWidth - translation.width
+            if newWidth >= minWidth {
+                boxWidth = newWidth
+                dragOffset.width = translation.width
+            }
+        case .topRight:
+            let newWidth = currentWidth + translation.width
+            if newWidth >= minWidth {
+                boxWidth = newWidth
+            }
+        case .bottomLeft:
+            let newWidth = currentWidth - translation.width
+            if newWidth >= minWidth {
+                boxWidth = newWidth
+                dragOffset.width = translation.width
+            }
+        case .bottomRight:
+            let newWidth = currentWidth + translation.width
+            if newWidth >= minWidth {
+                boxWidth = newWidth
+            }
+        }
+    }
+}
+
+enum TextBoxCorner: CaseIterable {
+    case topLeft, topRight, bottomLeft, bottomRight
+
+    var cursor: NSCursor {
+        switch self {
+        case .topLeft, .bottomRight:
+            return NSCursor(image: NSImage(systemSymbolName: "arrow.up.left.and.arrow.down.right", accessibilityDescription: nil)!, hotSpot: NSPoint(x: 8, y: 8))
+        case .topRight, .bottomLeft:
+            return NSCursor(image: NSImage(systemSymbolName: "arrow.up.right.and.arrow.down.left", accessibilityDescription: nil)!, hotSpot: NSPoint(x: 8, y: 8))
+        }
     }
 }
 
@@ -1108,8 +1252,10 @@ struct AnnotationTextView: NSViewRepresentable {
         scrollView.borderType = .noBorder
 
         // Make first responder after a brief delay to ensure view is in hierarchy
-        DispatchQueue.main.async {
-            textView.window?.makeFirstResponder(textView)
+        // Use weak reference to prevent crash if view is deallocated before async block executes
+        DispatchQueue.main.async { [weak textView] in
+            guard let textView = textView, let window = textView.window else { return }
+            window.makeFirstResponder(textView)
         }
 
         return scrollView
