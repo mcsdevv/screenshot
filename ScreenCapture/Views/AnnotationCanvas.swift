@@ -212,33 +212,30 @@ struct AnnotationCanvas: View {
 
     // MARK: - Blur Rendering
 
-    private func renderImageWithBlurs() -> NSImage? {
+    /// Renders only COMMITTED blur annotations (not current drawing during drag)
+    /// This function is only called when blur annotations are added/removed, not during drag
+    private func renderCommittedBlurs() -> NSImage? {
         let blurAnnotations = state.annotations.filter { $0.type == .blur }
         guard !blurAnnotations.isEmpty else { return nil }
-
-        // Include current drawing if it's a blur
-        var allBlurs = blurAnnotations
-        if let current = currentDrawing, current.type == .blur {
-            allBlurs.append(current)
-        }
 
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             return nil
         }
 
-        var ciImage = CIImage(cgImage: cgImage)
+        // Combine all blur regions into a single mask for efficiency
+        // This avoids creating N separate filters for N blur regions
+        let combinedMask = createCombinedMaskCIImage(for: blurAnnotations, in: image.size)
 
-        for blur in allBlurs {
-            let rect = blur.cgRect
+        // Use average blur radius for combined blur (could be refined per-region with more complex approach)
+        let avgRadius = blurAnnotations.reduce(0.0) { $0 + $1.blurRadius } / CGFloat(blurAnnotations.count)
 
-            // Create mask for this blur region
-            let maskImage = createMaskCIImage(for: rect, in: image.size)
+        let ciImage = CIImage(cgImage: cgImage)
 
-            // Apply masked blur
-            let blurFilter = CIFilter.maskedVariableBlur()
-            blurFilter.inputImage = ciImage.clampedToExtent()
-            blurFilter.mask = maskImage
-            blurFilter.radius = Float(blur.blurRadius)
+        // Single blur filter pass with combined mask
+        let blurFilter = CIFilter.maskedVariableBlur()
+        blurFilter.inputImage = ciImage.clampedToExtent()
+        blurFilter.mask = combinedMask
+        blurFilter.radius = Float(avgRadius)
 
             if let output = blurFilter.outputImage?.cropped(to: ciImage.extent) {
                 ciImage = output
