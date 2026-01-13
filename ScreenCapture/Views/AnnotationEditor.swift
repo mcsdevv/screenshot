@@ -835,6 +835,9 @@ struct ColorPickerGrid: View {
     @Binding var selectedColor: Color
     @Binding var showPicker: Bool
 
+    // Local state to buffer ColorPicker updates and prevent crash from rapid binding updates
+    @State private var pickerColor: Color = .red
+
     private let colors = Color.annotationColors
 
     var body: some View {
@@ -854,11 +857,17 @@ struct ColorPickerGrid: View {
 
             DSDivider()
 
-            ColorPicker("Custom", selection: $selectedColor)
+            ColorPicker("Custom", selection: $pickerColor)
                 .labelsHidden()
+                .onChange(of: pickerColor) { _, newColor in
+                    selectedColor = newColor
+                }
         }
         .padding(DSSpacing.md)
         .background(Color.dsBackgroundElevated)
+        .onAppear {
+            pickerColor = selectedColor
+        }
     }
 }
 
