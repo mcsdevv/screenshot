@@ -23,7 +23,6 @@ struct AnnotationEditor: View {
                     onDone: finishEditing,
                     onCancel: { dismiss() }
                 )
-                .padding(.top, DSSpacing.xxs)
 
                 // Main canvas area
                 ZStack {
@@ -444,8 +443,9 @@ struct AnnotationToolbar: View {
     var body: some View {
         HStack(alignment: .center, spacing: DSSpacing.md) {
             // Left padding for traffic light buttons (close/minimize/fullscreen)
+            // Standard macOS traffic light area is ~78px, add extra for breathing room
             Spacer()
-                .frame(width: 70)
+                .frame(width: 78)
 
             // Tool buttons
             HStack(spacing: 2) {
@@ -526,8 +526,8 @@ struct AnnotationToolbar: View {
             }
             .help("Save and copy to clipboard (⌘↵)")
         }
-        .frame(height: 44)
-        .padding(.horizontal, DSSpacing.md)
+        .frame(height: 52) // Taller for better vertical centering like Raycast
+        .padding(.horizontal, DSSpacing.lg)
         .background(
             ZStack {
                 Color.dsBackgroundElevated
@@ -732,20 +732,22 @@ struct ColorPickerButton: View {
     var body: some View {
         Button(action: { showPicker.toggle() }) {
             ZStack {
+                // Hover ring (always present but opacity changes)
+                Circle()
+                    .strokeBorder(Color.white.opacity(isHovered ? 0.4 : 0), lineWidth: 2)
+                    .frame(width: 28, height: 28)
+
+                // Color fill
                 Circle()
                     .fill(selectedColor)
-                    .frame(width: 24, height: 24)
+                    .frame(width: 22, height: 22)
 
+                // Border
                 Circle()
                     .strokeBorder(Color.white.opacity(0.3), lineWidth: 1)
-                    .frame(width: 24, height: 24)
-
-                if isHovered {
-                    Circle()
-                        .strokeBorder(Color.white.opacity(0.5), lineWidth: 2)
-                        .frame(width: 28, height: 28)
-                }
+                    .frame(width: 22, height: 22)
             }
+            .frame(width: 28, height: 28) // Fixed size to prevent layout shift
         }
         .buttonStyle(.plain)
         .onHover { hovering in

@@ -470,10 +470,30 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
         let hostingView = NSHostingView(rootView: annotationView)
 
+        // Get screen size
         let screenSize = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1200, height: 800)
+
+        // Get actual image size to fit window appropriately
+        let imageURL = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+        var imageSize = NSSize(width: 800, height: 600) // Default fallback
+        if let image = NSImage(contentsOf: imageURL) {
+            imageSize = image.size
+        }
+
+        // Calculate window size based on image
+        // Add space for toolbar (52pt) + status bar (28pt) + margins
+        let chromeHeight: CGFloat = 100
+        let margin: CGFloat = 40
+
+        // Target window size to fit image with chrome
+        let targetWidth = imageSize.width + margin
+        let targetHeight = imageSize.height + chromeHeight + margin
+
+        // Constrain to screen bounds (max 90% of screen)
+        // But also ensure minimum size for toolbar (700px wide minimum)
         let windowSize = NSSize(
-            width: min(screenSize.width * 0.85, 1400),
-            height: min(screenSize.height * 0.85, 900)
+            width: min(max(targetWidth, 700), screenSize.width * 0.9),
+            height: min(max(targetHeight, 500), screenSize.height * 0.9)
         )
 
         let window = NSWindow(
@@ -493,13 +513,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         window.contentView = hostingView
         window.center()
         window.delegate = self
-        window.minSize = NSSize(width: 600, height: 400)
+        window.minSize = NSSize(width: 700, height: 500) // Ensure toolbar fits
 
         annotationWindow = window
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
-        debugLog("AppDelegate: Annotation editor window shown")
+        debugLog("AppDelegate: Annotation editor window shown, size: \(windowSize)")
     }
 }
 
