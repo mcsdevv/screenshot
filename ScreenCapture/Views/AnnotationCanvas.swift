@@ -224,12 +224,26 @@ struct AnnotationCanvas: View {
     }
 
     private func createMaskCIImage(for rect: CGRect, in size: NSSize) -> CIImage {
-        let maskImage = NSImage(size: size)
-        maskImage.lockFocus()
+        // Use CGContext directly for better performance (avoids NSGraphicsContext overhead)
+        let width = Int(size.width)
+        let height = Int(size.height)
 
-        // Black background (no blur)
-        NSColor.black.setFill()
-        NSRect(origin: .zero, size: size).fill()
+        guard width > 0, height > 0,
+              let context = CGContext(
+                  data: nil,
+                  width: width,
+                  height: height,
+                  bitsPerComponent: 8,
+                  bytesPerRow: width,
+                  space: CGColorSpaceCreateDeviceGray(),
+                  bitmapInfo: CGImageAlphaInfo.none.rawValue
+              ) else {
+            return CIImage()
+        }
+
+        // Black background (no blur) - gray value 0
+        context.setFillColor(gray: 0, alpha: 1)
+        context.fill(CGRect(origin: .zero, size: size))
 
         // White rectangle (blur region) - note: flip Y coordinate for Core Image
         let flippedRect = CGRect(
@@ -238,12 +252,10 @@ struct AnnotationCanvas: View {
             width: rect.width,
             height: rect.height
         )
-        NSColor.white.setFill()
-        flippedRect.fill()
+        context.setFillColor(gray: 1, alpha: 1)
+        context.fill(flippedRect)
 
-        maskImage.unlockFocus()
-
-        guard let cgImage = maskImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+        guard let cgImage = context.makeImage() else {
             return CIImage()
         }
 
