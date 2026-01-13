@@ -143,16 +143,10 @@ struct AnnotationCanvas: View {
 
     @ViewBuilder
     private var imageLayer: some View {
-        // If there are blur annotations, render image with blurs applied
-        if let blurredImage = renderImageWithBlurs() {
-            Image(nsImage: blurredImage)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(
-                    width: image.size.width * zoom,
-                    height: image.size.height * zoom
-                )
-        } else {
+        let cacheKey = currentBlurCacheKey
+
+        if cacheKey.isEmpty {
+            // No blur annotations - show original image
             Image(nsImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
@@ -160,6 +154,30 @@ struct AnnotationCanvas: View {
                     width: image.size.width * zoom,
                     height: image.size.height * zoom
                 )
+        } else if let cached = blurPreviewImage, blurCacheKey == cacheKey {
+            // Use cached blur result
+            Image(nsImage: cached)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(
+                    width: image.size.width * zoom,
+                    height: image.size.height * zoom
+                )
+        } else {
+            // Render and cache blurs
+            let blurredImage = renderImageWithBlurs() ?? image
+            Image(nsImage: blurredImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(
+                    width: image.size.width * zoom,
+                    height: image.size.height * zoom
+                )
+                .onAppear {
+                    // Cache the result for future renders
+                    blurPreviewImage = blurredImage
+                    blurCacheKey = cacheKey
+                }
         }
     }
 
