@@ -179,9 +179,13 @@ struct QuickAccessOverlay: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Spacer for title bar area (traffic light buttons)
-            Spacer()
-                .frame(height: 32)
+            // Traffic light buttons
+            HStack {
+                DSTrafficLightButtons(onClose: controller.dismiss)
+                Spacer()
+            }
+            .frame(height: 32)
+            .padding(.top, DSSpacing.sm)
 
             // Thumbnail preview
             thumbnailSection
