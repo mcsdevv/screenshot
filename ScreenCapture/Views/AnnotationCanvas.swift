@@ -114,6 +114,13 @@ struct AnnotationCanvas: View {
             state.selectedAnnotationId = nil
             showTextInput = false
         }
+        .onChange(of: state.currentTool) { _, newTool in
+            // Dismiss text input when switching to a different tool
+            if newTool != .text && showTextInput {
+                showTextInput = false
+                textInput = ""
+            }
+        }
     }
 
     // MARK: - Image Layer
@@ -526,9 +533,8 @@ struct AnnotationCanvas: View {
             }
 
         case .blur:
-            // Blur is rendered in imageLayer, just show selection indicator
-            let path = Path(roundedRect: scaledRect, cornerRadius: 4)
-            context.stroke(path, with: .color(.gray.opacity(0.5)), style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
+            // Blur is rendered in imageLayer, no visual indicator needed
+            break
 
         case .pencil:
             drawPencilPath(context: context, annotation: annotation)
