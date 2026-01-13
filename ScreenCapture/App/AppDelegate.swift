@@ -205,10 +205,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     }
 
     private func requestPermissions() {
-        // Don't proactively request screen capture permission
-        // The system will automatically prompt when SCShareableContent is first used
-        // Calling CGRequestScreenCaptureAccess() can cause repeated prompts on macOS
-        _ = CGPreflightScreenCaptureAccess() // Just check, don't request
+        // Check screen capture permission at startup and show alert if not granted
+        // This gives users a clear path to enable the permission before trying to capture
+        Task { @MainActor in
+            _ = PermissionManager.shared.ensureScreenCapturePermission()
+        }
     }
 
     func showQuickAccessOverlay(for capture: CaptureItem) {
