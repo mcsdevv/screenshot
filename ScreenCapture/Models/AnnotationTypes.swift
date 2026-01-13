@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Observation
 
 // MARK: - Annotation Tools
 
