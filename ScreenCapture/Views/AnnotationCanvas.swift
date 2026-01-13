@@ -164,7 +164,6 @@ struct AnnotationCanvas: View {
         }
 
         var ciImage = CIImage(cgImage: cgImage)
-        let context = CIContext()
 
         for blur in allBlurs {
             let rect = blur.cgRect
