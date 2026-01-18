@@ -4,26 +4,17 @@ import ScreenCaptureKit
 import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, ObservableObject {
-    var screenshotManager: ScreenshotManager!
-    var screenRecordingManager: ScreenRecordingManager!
-    var storageManager: StorageManager!
-    var webcamManager: WebcamManager?
-    var keyboardShortcuts: KeyboardShortcuts!
+    lazy var storageManager = StorageManager()
+    lazy var screenshotManager = ScreenshotManager(storageManager: storageManager)
+    lazy var screenRecordingManager = ScreenRecordingManager(storageManager: storageManager)
+    lazy var webcamManager: WebcamManager? = WebcamManager()
+    lazy var keyboardShortcuts = KeyboardShortcuts()
     var quickAccessWindow: NSWindow?
     var quickAccessController: QuickAccessOverlayController?
     var selectionOverlayWindow: NSWindow?
     var settingsWindow: NSWindow?
     var annotationWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
-
-    override init() {
-        super.init()
-        storageManager = StorageManager()
-        screenshotManager = ScreenshotManager(storageManager: storageManager)
-        screenRecordingManager = ScreenRecordingManager(storageManager: storageManager)
-        webcamManager = WebcamManager()
-        keyboardShortcuts = KeyboardShortcuts()
-    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
