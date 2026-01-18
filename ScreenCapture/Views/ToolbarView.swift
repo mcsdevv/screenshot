@@ -168,9 +168,16 @@ struct StrokeOptionsView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(hoveredWidth == width ? Color.primary.opacity(0.08) : Color.clear)
+                    )
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .onHover { hovering in
+                    hoveredWidth = hovering ? width : nil
+                }
             }
         }
         .padding(.vertical, 8)
