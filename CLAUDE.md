@@ -4,6 +4,24 @@
 
 This is a macOS screenshot/screen capture application built with Swift and SwiftUI.
 
+## Conductor Commands
+
+Configuration is in `conductor.json`. Available commands:
+
+| Command | Script | Description |
+|---------|--------|-------------|
+| Setup | `./scripts/setup.sh` | Verify environment is ready |
+| Run | `./scripts/build-and-test.sh --run` | Build and launch app |
+| Build | `./scripts/build-and-test.sh` | Build only |
+| Test | `./scripts/build-and-test.sh --verbose` | Build with full output |
+
+## Setup
+
+Run once to verify the environment:
+```bash
+./scripts/setup.sh
+```
+
 ## Build & Verify
 
 **Always run the build script after making changes:**
