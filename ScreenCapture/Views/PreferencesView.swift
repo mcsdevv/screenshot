@@ -675,6 +675,7 @@ struct RecordingPreferencesView: View {
 
 // MARK: - Storage Preferences
 
+@MainActor
 struct StoragePreferencesView: View {
     @AppStorage("autoCleanup") private var autoCleanup = true
     @AppStorage("cleanupDays") private var cleanupDays = 30
