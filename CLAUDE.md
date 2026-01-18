@@ -6,12 +6,27 @@ This is a macOS screenshot/screen capture application built with Swift and Swift
 
 ## Build & Verify
 
-Always verify builds with:
+**Always run the build script after making changes:**
+```bash
+./scripts/build-and-test.sh
+```
+
+Options:
+- `--run` - Build and launch the app to test changes
+- `--clean` - Clean build first
+- `--open-xcode` - Open project in Xcode
+- `--verbose` - Show full build output
+- `--release` - Build release configuration
+
+Example workflow after code changes:
+```bash
+./scripts/build-and-test.sh --run   # Build and launch to verify
+```
+
+Or use the raw xcodebuild command:
 ```bash
 xcodebuild -project ScreenCapture.xcodeproj -scheme ScreenCapture build
 ```
-
-Or open in Xcode and build with Cmd+B.
 
 ## Skills to Use
 
