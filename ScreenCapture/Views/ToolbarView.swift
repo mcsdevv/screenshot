@@ -162,21 +162,26 @@ struct StrokeOptionsView: View {
 
                         if strokeWidth == width {
                             Image(systemName: "checkmark")
-                                .font(.system(size: 12))
-                                .foregroundColor(.accentColor)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(.dsAccent)
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .padding(.vertical, DSSpacing.xs)
+                    .padding(.horizontal, DSSpacing.sm)
                     .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(hoveredWidth == width ? Color.primary.opacity(0.08) : Color.clear)
+                        RoundedRectangle(cornerRadius: DSRadius.xs)
+                            .fill(
+                                strokeWidth == width ? Color.dsAccent.opacity(0.15) :
+                                (hoveredWidth == width ? Color.white.opacity(0.08) : Color.clear)
+                            )
                     )
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .onHover { hovering in
-                    hoveredWidth = hovering ? width : nil
+                    withAnimation(DSAnimation.quick) {
+                        hoveredWidth = hovering ? width : nil
+                    }
                 }
             }
         }
