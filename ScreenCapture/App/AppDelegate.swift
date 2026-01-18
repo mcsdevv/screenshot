@@ -3,6 +3,7 @@ import SwiftUI
 import ScreenCaptureKit
 import Combine
 
+@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, ObservableObject {
     lazy var storageManager = StorageManager()
     lazy var screenshotManager = ScreenshotManager(storageManager: storageManager)
