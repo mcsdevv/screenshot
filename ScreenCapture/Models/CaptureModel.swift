@@ -147,6 +147,15 @@ class CaptureHistory: Codable {
         self.lastCleanup = lastCleanup
     }
 
+    convenience init(fileURL: URL, fileManager: FileManager = .default) {
+        if let data = fileManager.contents(atPath: fileURL.path),
+           let loadedHistory = try? JSONDecoder().decode(CaptureHistory.self, from: data) {
+            self.init(items: loadedHistory.items, lastCleanup: loadedHistory.lastCleanup)
+        } else {
+            self.init()
+        }
+    }
+
     func add(_ item: CaptureItem) {
         items.insert(item, at: 0)
     }

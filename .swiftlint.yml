@@ -1,0 +1,135 @@
+# SwiftLint Configuration for ScreenCapture
+# https://github.com/realm/SwiftLint
+
+disabled_rules:
+  - trailing_whitespace
+  - todo
+  - line_length
+
+opt_in_rules:
+  - array_init
+  - closure_end_indentation
+  - closure_spacing
+  - collection_alignment
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - contains_over_first_not_nil
+  - empty_collection_literal
+  - empty_count
+  - empty_string
+  - explicit_init
+  - fallthrough
+  - fatal_error_message
+  - first_where
+  - force_unwrapping
+  - identical_operands
+  - joined_default_parameter
+  - last_where
+  - legacy_multiple
+  - legacy_random
+  - lower_acl_than_parent
+  - modifier_order
+  - operator_usage_whitespace
+  - optional_enum_case_matching
+  - overridden_super_call
+  - pattern_matching_keywords
+  - prefer_self_in_static_references
+  - prefer_self_type_over_type_of_self
+  - prefer_zero_over_explicit_init
+  - reduce_into
+  - redundant_nil_coalescing
+  - redundant_type_annotation
+  - sorted_first_last
+  - sorted_imports
+  - toggle_bool
+  - trailing_closure
+  - unneeded_parentheses_in_closure_argument
+  - vertical_parameter_alignment_on_call
+  - vertical_whitespace_closing_braces
+  - vertical_whitespace_opening_braces
+  - yoda_condition
+
+included:
+  - ScreenCapture
+
+excluded:
+  - Pods
+  - Carthage
+  - ScreenCapture.xcodeproj
+  - DerivedData
+  - .build
+  - ScreenCaptureTests
+  - ScreenCaptureIntegrationTests
+  - ScreenCaptureUITests
+
+line_length:
+  warning: 150
+  error: 200
+  ignores_comments: true
+  ignores_interpolated_strings: true
+  ignores_urls: true
+
+type_body_length:
+  warning: 300
+  error: 1000
+
+file_length:
+  warning: 500
+  error: 2000
+  ignore_comment_only_lines: true
+
+function_body_length:
+  warning: 50
+  error: 100
+
+function_parameter_count:
+  warning: 6
+  error: 8
+
+type_name:
+  min_length: 3
+  max_length:
+    warning: 50
+    error: 60
+  allowed_symbols: ["_"]
+  validates_start_with_lowercase: false
+
+identifier_name:
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 50
+    error: 60
+  excluded:
+    - id
+    - x
+    - y
+    - dx
+    - dy
+    - r
+    - g
+    - b
+    - a
+    - i
+    - OK
+    - to
+
+nesting:
+  type_level: 2
+  function_level: 3
+
+cyclomatic_complexity:
+  warning: 15
+  error: 50
+
+vertical_whitespace:
+  max_empty_lines: 2
+
+trailing_comma:
+  mandatory_comma: false
+
+force_cast: warning
+force_try: warning
+
+reporter: "xcode"

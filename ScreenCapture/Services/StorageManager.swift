@@ -2,9 +2,29 @@ import Foundation
 import AppKit
 import Combine
 
+struct StorageConfig {
+    let baseDirectory: URL
+    let userDefaults: UserDefaults
+    let fileManager: FileManager
+
+    static var live: StorageConfig {
+        StorageConfig(
+            baseDirectory: StorageManager.defaultBaseDirectory(),
+            userDefaults: .standard,
+            fileManager: .default
+        )
+    }
+
+    static func test(baseDirectory: URL, userDefaults: UserDefaults) -> StorageConfig {
+        StorageConfig(baseDirectory: baseDirectory, userDefaults: userDefaults, fileManager: .default)
+    }
+}
+
 class StorageManager: ObservableObject {
     @Published var history: CaptureHistory
     @Published var storageVerified: Bool = false
+
+    private let config: StorageConfig
 
     /// The current screenshots directory based on user preferences
     var screenshotsDirectory: URL {
@@ -22,27 +42,22 @@ class StorageManager: ObservableObject {
     private static let storageLocationKey = "storageLocation"
     private static let customFolderBookmarkKey = "customFolderBookmark"
 
-    init() {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        appDirectory = appSupport.appendingPathComponent("ScreenCapture", isDirectory: true)
+    init(config: StorageConfig = .live) {
+        self.config = config
+        appDirectory = config.baseDirectory
 
         defaultDirectory = appDirectory.appendingPathComponent("Screenshots", isDirectory: true)
         historyFile = appDirectory.appendingPathComponent("history.json")
 
         // Create default directory
         do {
-            try FileManager.default.createDirectory(at: defaultDirectory, withIntermediateDirectories: true)
+            try config.fileManager.createDirectory(at: defaultDirectory, withIntermediateDirectories: true)
             debugLog("StorageManager: Created/verified default directory at \(defaultDirectory.path)")
         } catch {
             errorLog("StorageManager: Failed to create default directory", error: error)
         }
 
-        if let data = try? Data(contentsOf: historyFile),
-           let loadedHistory = try? JSONDecoder().decode(CaptureHistory.self, from: data) {
-            history = loadedHistory
-        } else {
-            history = CaptureHistory()
-        }
+        history = CaptureHistory(fileURL: historyFile, fileManager: config.fileManager)
 
         setupAutoSave()
         cleanupOldCaptures()
@@ -51,13 +66,18 @@ class StorageManager: ObservableObject {
         verifyStoragePermissions()
     }
 
+    static func defaultBaseDirectory() -> URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        return appSupport.appendingPathComponent("ScreenCapture", isDirectory: true)
+    }
+
     /// Resolves the storage directory based on user preferences
     private func resolveStorageDirectory() -> URL {
-        let storageLocation = UserDefaults.standard.string(forKey: Self.storageLocationKey) ?? "default"
+        let storageLocation = config.userDefaults.string(forKey: Self.storageLocationKey) ?? "default"
 
         switch storageLocation {
         case "desktop":
-            return FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
+            return config.fileManager.urls(for: .desktopDirectory, in: .userDomainMask).first!
         case "custom":
             if let customURL = getCustomFolderURL() {
                 return customURL
@@ -71,7 +91,7 @@ class StorageManager: ObservableObject {
 
     /// Gets the custom folder URL from the stored security-scoped bookmark
     func getCustomFolderURL() -> URL? {
-        guard let bookmarkData = UserDefaults.standard.data(forKey: Self.customFolderBookmarkKey) else {
+        guard let bookmarkData = config.userDefaults.data(forKey: Self.customFolderBookmarkKey) else {
             return nil
         }
 
@@ -111,8 +131,8 @@ class StorageManager: ObservableObject {
                 relativeTo: nil
             )
 
-            UserDefaults.standard.set(bookmarkData, forKey: Self.customFolderBookmarkKey)
-            UserDefaults.standard.set("custom", forKey: Self.storageLocationKey)
+            config.userDefaults.set(bookmarkData, forKey: Self.customFolderBookmarkKey)
+            config.userDefaults.set("custom", forKey: Self.storageLocationKey)
 
             debugLog("StorageManager: Set custom folder to \(url.path)")
 
@@ -128,14 +148,14 @@ class StorageManager: ObservableObject {
 
     /// Sets the storage location preference
     func setStorageLocation(_ location: String) {
-        UserDefaults.standard.set(location, forKey: Self.storageLocationKey)
+        config.userDefaults.set(location, forKey: Self.storageLocationKey)
         debugLog("StorageManager: Storage location set to \(location)")
         verifyStoragePermissions()
     }
 
     /// Gets the current storage location preference
     func getStorageLocation() -> String {
-        return UserDefaults.standard.string(forKey: Self.storageLocationKey) ?? "default"
+        return config.userDefaults.string(forKey: Self.storageLocationKey) ?? "default"
     }
 
     /// Verifies that we have write permissions to the storage directory
@@ -147,7 +167,7 @@ class StorageManager: ObservableObject {
 
         do {
             try "test".write(to: testFile, atomically: true, encoding: .utf8)
-            try FileManager.default.removeItem(at: testFile)
+            try config.fileManager.removeItem(at: testFile)
             storageVerified = true
             debugLog("StorageManager: Storage permissions verified successfully")
             debugLog("StorageManager: Screenshots will be saved to: \(screenshotsDirectory.path)")
@@ -207,7 +227,7 @@ class StorageManager: ObservableObject {
 
         // Ensure directory exists
         do {
-            try FileManager.default.createDirectory(at: screenshotsDirectory, withIntermediateDirectories: true)
+            try config.fileManager.createDirectory(at: screenshotsDirectory, withIntermediateDirectories: true)
             debugLog("StorageManager: Directory verified at \(screenshotsDirectory.path)")
         } catch {
             errorLog("StorageManager: Failed to create directory", error: error)
@@ -243,7 +263,7 @@ class StorageManager: ObservableObject {
             debugLog("StorageManager: Successfully wrote \(pngData.count) bytes to \(url.path)")
 
             // Verify file exists
-            if FileManager.default.fileExists(atPath: url.path) {
+            if config.fileManager.fileExists(atPath: url.path) {
                 debugLog("StorageManager: File verified at \(url.path)")
             } else {
                 errorLog("StorageManager: File not found after write!")
@@ -324,7 +344,7 @@ class StorageManager: ObservableObject {
 
     private func deleteFile(named filename: String) {
         let url = screenshotsDirectory.appendingPathComponent(filename)
-        try? FileManager.default.removeItem(at: url)
+        try? config.fileManager.removeItem(at: url)
     }
 
     private func saveHistory() {
@@ -338,7 +358,7 @@ class StorageManager: ObservableObject {
 
         var metadata = CaptureMetadata()
 
-        if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+        if let attributes = try? config.fileManager.attributesOfItem(atPath: url.path),
            let fileSize = attributes[.size] as? Int64 {
             metadata.fileSize = fileSize
         }
@@ -360,7 +380,7 @@ class StorageManager: ObservableObject {
 
     func exportCapture(_ capture: CaptureItem, to destinationURL: URL) throws {
         let sourceURL = screenshotsDirectory.appendingPathComponent(capture.filename)
-        try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+        try config.fileManager.copyItem(at: sourceURL, to: destinationURL)
     }
 
     func importCapture(from url: URL) -> CaptureItem? {
@@ -368,7 +388,7 @@ class StorageManager: ObservableObject {
         let destinationURL = screenshotsDirectory.appendingPathComponent(filename)
 
         do {
-            try FileManager.default.copyItem(at: url, to: destinationURL)
+            try config.fileManager.copyItem(at: url, to: destinationURL)
 
             let type: CaptureType
             switch url.pathExtension.lowercased() {
@@ -388,7 +408,10 @@ class StorageManager: ObservableObject {
     }
 
     var totalStorageUsed: Int64 {
-        let enumerator = FileManager.default.enumerator(at: screenshotsDirectory, includingPropertiesForKeys: [.fileSizeKey])
+        let enumerator = config.fileManager.enumerator(
+            at: screenshotsDirectory,
+            includingPropertiesForKeys: [.fileSizeKey]
+        )
         var total: Int64 = 0
 
         while let url = enumerator?.nextObject() as? URL {

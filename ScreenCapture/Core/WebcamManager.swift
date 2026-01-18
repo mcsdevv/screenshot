@@ -84,9 +84,7 @@ class WebcamManager: NSObject, ObservableObject {
 
             self.captureSession = session
 
-            // Use nonisolated(unsafe) to allow capturing in background queue
-            // This is safe because AVCaptureSession.startRunning() is thread-safe
-            nonisolated(unsafe) let backgroundSession = session
+            let backgroundSession = session
             DispatchQueue.global(qos: .userInitiated).async {
                 backgroundSession.startRunning()
             }

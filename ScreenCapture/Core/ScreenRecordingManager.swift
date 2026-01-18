@@ -331,7 +331,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
     private func startRecordingTimer() {
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 guard let self = self, let startTime = self.recordingStartTime else { return }
                 self.recordingDuration = Date().timeIntervalSince(startTime)
             }
@@ -437,12 +437,15 @@ class CaptureOutput: NSObject, SCStreamOutput {
                 if self.videoInput?.isReadyForMoreMediaData == true {
                     self.videoInput?.append(sampleBuffer)
                 }
-            case .audio, .microphone:
+            case .audio:
                 if self.audioInput?.isReadyForMoreMediaData == true {
                     self.audioInput?.append(sampleBuffer)
                 }
             @unknown default:
-                break
+                // Treat unknown outputs as audio to support newer cases like microphone.
+                if self.audioInput?.isReadyForMoreMediaData == true {
+                    self.audioInput?.append(sampleBuffer)
+                }
             }
         }
     }
