@@ -106,55 +106,55 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
     private func setupKeyboardShortcuts() {
         keyboardShortcuts.register(shortcut: .captureArea) { [weak self] in
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 self?.screenshotManager.captureArea()
             }
         }
 
         keyboardShortcuts.register(shortcut: .captureWindow) { [weak self] in
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 self?.screenshotManager.captureWindow()
             }
         }
 
         keyboardShortcuts.register(shortcut: .captureFullscreen) { [weak self] in
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 self?.screenshotManager.captureFullscreen()
             }
         }
 
         keyboardShortcuts.register(shortcut: .captureScrolling) { [weak self] in
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 self?.screenshotManager.captureScrolling()
             }
         }
 
         keyboardShortcuts.register(shortcut: .recordScreen) { [weak self] in
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 self?.screenRecordingManager.toggleRecording()
             }
         }
 
         keyboardShortcuts.register(shortcut: .recordGIF) { [weak self] in
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 self?.screenRecordingManager.toggleGIFRecording()
             }
         }
 
         keyboardShortcuts.register(shortcut: .allInOne) { [weak self] in
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 self?.showAllInOneMenu()
             }
         }
 
         keyboardShortcuts.register(shortcut: .ocr) { [weak self] in
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 self?.screenshotManager.captureForOCR()
             }
         }
 
         keyboardShortcuts.register(shortcut: .pinScreenshot) { [weak self] in
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 self?.screenshotManager.captureForPinning()
             }
         }
@@ -207,7 +207,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     private func requestPermissions() {
         // Check screen capture permission at startup and show alert if not granted
         // This gives users a clear path to enable the permission before trying to capture
-        Task { @MainActor in
+        DispatchQueue.main.async {
             _ = PermissionManager.shared.ensureScreenCapturePermission()
         }
     }
@@ -314,37 +314,37 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
         let menuView = AllInOneMenuView(
             onCaptureArea: { [weak self] in
-                Task { @MainActor in
+                DispatchQueue.main.async {
                     self?.screenshotManager.captureArea()
                 }
             },
             onCaptureWindow: { [weak self] in
-                Task { @MainActor in
+                DispatchQueue.main.async {
                     self?.screenshotManager.captureWindow()
                 }
             },
             onCaptureFullscreen: { [weak self] in
-                Task { @MainActor in
+                DispatchQueue.main.async {
                     self?.screenshotManager.captureFullscreen()
                 }
             },
             onCaptureScrolling: { [weak self] in
-                Task { @MainActor in
+                DispatchQueue.main.async {
                     self?.screenshotManager.captureScrolling()
                 }
             },
             onRecordVideo: { [weak self] in
-                Task { @MainActor in
+                DispatchQueue.main.async {
                     self?.screenRecordingManager.toggleRecording()
                 }
             },
             onRecordGIF: { [weak self] in
-                Task { @MainActor in
+                DispatchQueue.main.async {
                     self?.screenRecordingManager.toggleGIFRecording()
                 }
             },
             onOCR: { [weak self] in
-                Task { @MainActor in
+                DispatchQueue.main.async {
                     self?.screenshotManager.captureForOCR()
                 }
             },
