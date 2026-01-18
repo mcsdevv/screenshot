@@ -16,18 +16,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     var annotationWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
 
+    override init() {
+        super.init()
+        storageManager = StorageManager()
+        screenshotManager = ScreenshotManager(storageManager: storageManager)
+        screenRecordingManager = ScreenRecordingManager(storageManager: storageManager)
+        webcamManager = WebcamManager()
+        keyboardShortcuts = KeyboardShortcuts()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
         // Initialize debug logger
         debugLog("Application launching...")
         debugLog("Log file at: \(DebugLogger.shared.logFilePath)")
-
-        storageManager = StorageManager()
-        screenshotManager = ScreenshotManager(storageManager: storageManager)
-        screenRecordingManager = ScreenRecordingManager(storageManager: storageManager)
-        webcamManager = WebcamManager()
-        keyboardShortcuts = KeyboardShortcuts()
 
         setupKeyboardShortcuts()
         setupNotifications()

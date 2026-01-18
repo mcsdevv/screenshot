@@ -37,8 +37,14 @@ jobs:
       - name: Install SwiftLint
         run: brew install swiftlint || true
 
+      - name: Link SwiftLint
+        run: brew link --overwrite swiftlint
+
       - name: Install SwiftFormat
         run: brew install swiftformat || true
+
+      - name: Link SwiftFormat
+        run: brew link --overwrite swiftformat
 
       - name: Run SwiftLint
         run: swiftlint lint --lenient --reporter github-actions-logging
