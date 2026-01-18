@@ -145,6 +145,7 @@ struct ToolbarButton: View {
 
 struct StrokeOptionsView: View {
     @Binding var strokeWidth: CGFloat
+    @State private var hoveredWidth: CGFloat?
 
     let widths: [CGFloat] = [1, 2, 3, 5, 8, 12]
 
