@@ -1,0 +1,20 @@
+{
+  "name": "ScreenCapture",
+  "description": "macOS screenshot and screen capture application",
+  "setup": {
+    "command": "./scripts/setup.sh",
+    "description": "Verify Xcode and build tools are available"
+  },
+  "run": {
+    "command": "./scripts/build-and-test.sh --run",
+    "description": "Build and launch the application"
+  },
+  "build": {
+    "command": "./scripts/build-and-test.sh",
+    "description": "Build the application"
+  },
+  "test": {
+    "command": "./scripts/build-and-test.sh --verbose",
+    "description": "Build with verbose output for validation"
+  }
+}
