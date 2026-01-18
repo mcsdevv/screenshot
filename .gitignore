@@ -19,3 +19,6 @@ Package.resolved
 
 # Claude Code
 .claude/
+
+# Conductor workspace context
+.context/
