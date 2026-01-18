@@ -4,18 +4,36 @@ import XCTest
 final class StorageManagerTests: XCTestCase {
 
     var storageManager: StorageManager!
+    private var tempDirectory: URL!
+    private var testDefaults: UserDefaults!
+    private var testSuiteName: String!
 
     override func setUp() {
         super.setUp()
-        storageManager = StorageManager()
+        tempDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+
+        testSuiteName = "StorageManagerTests.\(UUID().uuidString)"
+        testDefaults = UserDefaults(suiteName: testSuiteName)
+        storageManager = StorageManager(
+            config: .test(
+                baseDirectory: tempDirectory,
+                userDefaults: testDefaults ?? .standard
+            )
+        )
     }
 
     override func tearDown() {
-        // Clean up test items from history
-        for item in storageManager.history.items {
-            storageManager.deleteCapture(item)
-        }
         storageManager = nil
+        if let testSuiteName {
+            testDefaults?.removePersistentDomain(forName: testSuiteName)
+        }
+        if let tempDirectory {
+            try? FileManager.default.removeItem(at: tempDirectory)
+        }
+        tempDirectory = nil
+        testDefaults = nil
+        testSuiteName = nil
         super.tearDown()
     }
 
