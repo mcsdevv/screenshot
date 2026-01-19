@@ -397,7 +397,19 @@ struct DraggableLayerRow: View {
 
                 Spacer()
 
-                // Action buttons (shown on hover or selection)
+                // Visibility toggle (always shown for hidden layers, or on hover/selection)
+                if !isVisible || isHovered || isSelected {
+                    Button(action: onToggleVisibility) {
+                        Image(systemName: isVisible ? "eye" : "eye.slash")
+                            .font(.system(size: 10))
+                            .foregroundColor(isVisible ? .dsTextTertiary : .dsTextTertiary.opacity(0.5))
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 20, height: 20)
+                    .help(isVisible ? "Hide layer" : "Show layer")
+                }
+
+                // Other action buttons (shown on hover or selection only)
                 if isHovered || isSelected {
                     // Lock toggle for numbered steps
                     if annotation.type == .numberedStep {
@@ -410,16 +422,6 @@ struct DraggableLayerRow: View {
                         .frame(width: 20, height: 20)
                         .help(annotation.isNumberLocked ? "Unlock number" : "Lock number")
                     }
-
-                    // Visibility toggle
-                    Button(action: onToggleVisibility) {
-                        Image(systemName: isVisible ? "eye" : "eye.slash")
-                            .font(.system(size: 10))
-                            .foregroundColor(isVisible ? .dsTextTertiary : .dsTextTertiary.opacity(0.5))
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 20, height: 20)
-                    .help(isVisible ? "Hide layer" : "Show layer")
 
                     // Delete button
                     Button(action: onDelete) {
