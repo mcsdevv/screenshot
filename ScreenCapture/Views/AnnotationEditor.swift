@@ -191,15 +191,20 @@ class AnnotationEditorViewModel: ObservableObject {
             workingImage = cropImage(originalImage, to: cropRect)
         }
 
+        // Apply blur annotations to the working image
+        if let blurredImage = applyBlurAnnotations(to: workingImage, cropOffset: state.cropRect?.origin) {
+            workingImage = blurredImage
+        }
+
         let size = workingImage.size
         let newImage = NSImage(size: size)
 
         newImage.lockFocus()
 
-        // Draw original/cropped image
+        // Draw blurred image (blur already applied)
         workingImage.draw(in: NSRect(origin: .zero, size: size))
 
-        // Draw annotations
+        // Draw non-blur annotations
         for annotation in state.annotations {
             drawAnnotation(annotation, in: size)
         }
@@ -207,6 +212,130 @@ class AnnotationEditorViewModel: ObservableObject {
         newImage.unlockFocus()
 
         return newImage
+    }
+
+    /// Applies all visible blur annotations to an image
+    /// - Parameters:
+    ///   - image: The source image to apply blur to
+    ///   - cropOffset: Optional offset if image was cropped (blur rects need adjustment)
+    /// - Returns: The blurred image, or nil if no blur annotations or processing failed
+    private func applyBlurAnnotations(to image: NSImage, cropOffset: CGPoint?) -> NSImage? {
+        // Filter visible blur annotations
+        let blurAnnotations = state.annotations.filter {
+            $0.type == .blur && state.isAnnotationVisible($0.id)
+        }
+        guard !blurAnnotations.isEmpty else { return nil }
+
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
+
+        // CRITICAL: Use pixel dimensions for the mask, not point dimensions
+        // NSImage.size returns points, but CGImage has actual pixels (2x for Retina)
+        let pixelWidth = cgImage.width
+        let pixelHeight = cgImage.height
+        let pointSize = image.size
+        guard pointSize.width > 0, pointSize.height > 0 else {
+            return nil
+        }
+
+        // Scale factor from points to pixels
+        let scaleX = CGFloat(pixelWidth) / pointSize.width
+        let scaleY = CGFloat(pixelHeight) / pointSize.height
+
+        let ciImage = CIImage(cgImage: cgImage)
+
+        // Create combined mask for all blur regions at PIXEL dimensions
+        guard let combinedMask = createBlurMask(
+            for: blurAnnotations,
+            pixelWidth: pixelWidth,
+            pixelHeight: pixelHeight,
+            scaleX: scaleX,
+            scaleY: scaleY,
+            cropOffset: cropOffset
+        ) else {
+            return nil
+        }
+
+        // Calculate average blur radius, scaled for pixel density
+        let avgRadius = blurAnnotations.reduce(0.0) { $0 + $1.blurRadius } / CGFloat(blurAnnotations.count)
+        let scaledRadius = avgRadius * max(scaleX, scaleY)
+
+        // Apply masked variable blur
+        let blurFilter = CIFilter.maskedVariableBlur()
+        blurFilter.inputImage = ciImage.clampedToExtent()
+        blurFilter.mask = combinedMask
+        blurFilter.radius = Float(scaledRadius)
+
+        guard let blurredOutput = blurFilter.outputImage?.cropped(to: ciImage.extent),
+              let outputCGImage = ciContext.createCGImage(blurredOutput, from: blurredOutput.extent) else {
+            return nil
+        }
+
+        return NSImage(cgImage: outputCGImage, size: pointSize)
+    }
+
+    /// Creates a grayscale mask image for blur regions at PIXEL dimensions
+    /// White = blur, Black = no blur
+    private func createBlurMask(
+        for blurAnnotations: [Annotation],
+        pixelWidth: Int,
+        pixelHeight: Int,
+        scaleX: CGFloat,
+        scaleY: CGFloat,
+        cropOffset: CGPoint?
+    ) -> CIImage? {
+        guard pixelWidth > 0, pixelHeight > 0,
+              let context = CGContext(
+                  data: nil,
+                  width: pixelWidth,
+                  height: pixelHeight,
+                  bitsPerComponent: 8,
+                  bytesPerRow: pixelWidth,
+                  space: CGColorSpaceCreateDeviceGray(),
+                  bitmapInfo: CGImageAlphaInfo.none.rawValue
+              ) else {
+            return nil
+        }
+
+        // Black background (no blur)
+        context.setFillColor(gray: 0, alpha: 1)
+        context.fill(CGRect(x: 0, y: 0, width: pixelWidth, height: pixelHeight))
+
+        // White rectangles for blur regions
+        context.setFillColor(gray: 1, alpha: 1)
+        for blur in blurAnnotations {
+            var rect = blur.cgRect
+
+            // Adjust for crop offset if image was cropped
+            if let offset = cropOffset {
+                rect.origin.x -= offset.x
+                rect.origin.y -= offset.y
+            }
+
+            // Scale from points to pixels
+            let scaledRect = CGRect(
+                x: rect.origin.x * scaleX,
+                y: rect.origin.y * scaleY,
+                width: rect.width * scaleX,
+                height: rect.height * scaleY
+            )
+
+            // Flip Y coordinate for Core Image (bottom-left origin)
+            let flippedRect = CGRect(
+                x: scaledRect.origin.x,
+                y: CGFloat(pixelHeight) - scaledRect.origin.y - scaledRect.height,
+                width: scaledRect.width,
+                height: scaledRect.height
+            )
+            context.fill(flippedRect)
+        }
+
+        guard let cgImage = context.makeImage() else {
+            return nil
+        }
+
+        return CIImage(cgImage: cgImage)
     }
 
     private func cropImage(_ image: NSImage, to rect: CGRect) -> NSImage {
