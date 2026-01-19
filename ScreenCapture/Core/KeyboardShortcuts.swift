@@ -12,6 +12,7 @@ class KeyboardShortcuts {
         case allInOne = "allInOne"
         case ocr = "ocr"
         case pinScreenshot = "pinScreenshot"
+        case showKeyboardShortcuts = "showKeyboardShortcuts"
 
         var defaultKeyCode: UInt32 {
             switch self {
@@ -24,6 +25,7 @@ class KeyboardShortcuts {
             case .allInOne: return UInt32(kVK_ANSI_A)
             case .ocr: return UInt32(kVK_ANSI_O)
             case .pinScreenshot: return UInt32(kVK_ANSI_P)
+            case .showKeyboardShortcuts: return UInt32(kVK_ANSI_Slash)
             }
         }
 
@@ -40,6 +42,8 @@ class KeyboardShortcuts {
                     return UInt32(cmdKey | shiftKey)
                 case .allInOne:
                     return UInt32(cmdKey | shiftKey | optionKey)
+                case .showKeyboardShortcuts:
+                    return UInt32(cmdKey)
                 }
             } else {
                 // Use Control+Shift to avoid conflicts with macOS built-in ⌘⇧3/4/5
@@ -50,6 +54,8 @@ class KeyboardShortcuts {
                     return UInt32(controlKey | shiftKey)
                 case .allInOne:
                     return UInt32(controlKey | shiftKey | optionKey)
+                case .showKeyboardShortcuts:
+                    return UInt32(cmdKey)
                 }
             }
         }
@@ -70,6 +76,7 @@ class KeyboardShortcuts {
             case .allInOne: return "All-in-One Menu"
             case .ocr: return "Capture Text (OCR)"
             case .pinScreenshot: return "Pin Screenshot"
+            case .showKeyboardShortcuts: return "Keyboard Shortcuts"
             }
         }
 
@@ -86,6 +93,7 @@ class KeyboardShortcuts {
                 case .allInOne: return "⌘⇧⌥A"
                 case .ocr: return "⌘⇧O"
                 case .pinScreenshot: return "⌘⇧P"
+                case .showKeyboardShortcuts: return "⌘/"
                 }
             } else {
                 switch self {
@@ -98,6 +106,7 @@ class KeyboardShortcuts {
                 case .allInOne: return "⌃⇧⌥A"
                 case .ocr: return "⌃⇧O"
                 case .pinScreenshot: return "⌃⇧P"
+                case .showKeyboardShortcuts: return "⌘/"
                 }
             }
         }
