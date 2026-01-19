@@ -75,7 +75,6 @@ final class KeyboardShortcutsTests: XCTestCase {
     func testDefaultKeyCodeForShowKeyboardShortcuts() {
         XCTAssertEqual(KeyboardShortcuts.Shortcut.showKeyboardShortcuts.defaultKeyCode, UInt32(kVK_ANSI_Slash))
     }
-
     // MARK: - Modifiers Tests (Native Shortcuts)
 
     func testModifiersWithNativeShortcutsForCaptureShortcuts() {
@@ -105,7 +104,6 @@ final class KeyboardShortcutsTests: XCTestCase {
         let expectedCmd = UInt32(cmdKey)
         XCTAssertEqual(KeyboardShortcuts.Shortcut.showKeyboardShortcuts.modifiers(useNativeShortcuts: true), expectedCmd)
     }
-
     // MARK: - Modifiers Tests (Non-Native Shortcuts)
 
     func testModifiersWithoutNativeShortcutsForCaptureShortcuts() {
@@ -135,7 +133,6 @@ final class KeyboardShortcutsTests: XCTestCase {
         let expectedCmd = UInt32(cmdKey)
         XCTAssertEqual(KeyboardShortcuts.Shortcut.showKeyboardShortcuts.modifiers(useNativeShortcuts: false), expectedCmd)
     }
-
     func testDefaultModifiersUsesNonNativeShortcuts() {
         // defaultModifiers should use the safe mode (Control+Shift)
         let expectedCtrlShift = UInt32(controlKey | shiftKey)

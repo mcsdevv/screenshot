@@ -5,6 +5,8 @@ DerivedData/
 *.xccheckout
 *.xcscmblueprint
 xcuserdata/
+TestResults/
+*.xcresult
 
 # Swift Package Manager
 .build/
