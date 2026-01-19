@@ -329,12 +329,33 @@ struct AnnotationCanvas: View {
             return nil
         }
 
-        // Combine all blur regions into a single mask for efficiency
-        // This avoids creating N separate filters for N blur regions
-        let combinedMask = createCombinedMaskCIImage(for: blurAnnotations, in: image.size)
+        // CRITICAL: Use pixel dimensions for the mask, not point dimensions
+        // NSImage.size returns points, but CGImage has actual pixels (2x for Retina)
+        let pixelWidth = cgImage.width
+        let pixelHeight = cgImage.height
+        let pointSize = image.size
+        guard pointSize.width > 0, pointSize.height > 0 else {
+            return nil
+        }
 
-        // Use average blur radius for combined blur (could be refined per-region with more complex approach)
+        // Scale factor from points to pixels
+        let scaleX = CGFloat(pixelWidth) / pointSize.width
+        let scaleY = CGFloat(pixelHeight) / pointSize.height
+
+        // Combine all blur regions into a single mask at PIXEL dimensions
+        guard let combinedMask = createCombinedMaskCIImage(
+            for: blurAnnotations,
+            pixelWidth: pixelWidth,
+            pixelHeight: pixelHeight,
+            scaleX: scaleX,
+            scaleY: scaleY
+        ) else {
+            return nil
+        }
+
+        // Use average blur radius for combined blur, scaled for pixel density
         let avgRadius = blurAnnotations.reduce(0.0) { $0 + $1.blurRadius } / CGFloat(blurAnnotations.count)
+        let scaledRadius = avgRadius * max(scaleX, scaleY)
 
         let ciImage = CIImage(cgImage: cgImage)
 
@@ -342,7 +363,7 @@ struct AnnotationCanvas: View {
         let blurFilter = CIFilter.maskedVariableBlur()
         blurFilter.inputImage = ciImage.clampedToExtent()
         blurFilter.mask = combinedMask
-        blurFilter.radius = Float(avgRadius)
+        blurFilter.radius = Float(scaledRadius)
 
         guard let blurredOutput = blurFilter.outputImage?.cropped(to: ciImage.extent),
               let outputCGImage = viewModel.ciContext.createCGImage(blurredOutput, from: blurredOutput.extent) else {
@@ -352,44 +373,62 @@ struct AnnotationCanvas: View {
         return NSImage(cgImage: outputCGImage, size: image.size)
     }
 
-    /// Creates a combined mask for all blur regions - much more efficient than separate masks
-    private func createCombinedMaskCIImage(for blurAnnotations: [Annotation], in size: NSSize) -> CIImage {
-        let width = Int(size.width)
-        let height = Int(size.height)
-
-        guard width > 0, height > 0,
+    /// Creates a combined mask for all blur regions at PIXEL dimensions
+    /// - Parameters:
+    ///   - blurAnnotations: The blur annotations (coordinates in points)
+    ///   - pixelWidth: The actual pixel width of the image
+    ///   - pixelHeight: The actual pixel height of the image
+    ///   - scaleX: Scale factor from points to pixels (X axis)
+    ///   - scaleY: Scale factor from points to pixels (Y axis)
+    private func createCombinedMaskCIImage(
+        for blurAnnotations: [Annotation],
+        pixelWidth: Int,
+        pixelHeight: Int,
+        scaleX: CGFloat,
+        scaleY: CGFloat
+    ) -> CIImage? {
+        guard pixelWidth > 0, pixelHeight > 0,
               let context = CGContext(
                   data: nil,
-                  width: width,
-                  height: height,
+                  width: pixelWidth,
+                  height: pixelHeight,
                   bitsPerComponent: 8,
-                  bytesPerRow: width,
+                  bytesPerRow: pixelWidth,
                   space: CGColorSpaceCreateDeviceGray(),
                   bitmapInfo: CGImageAlphaInfo.none.rawValue
               ) else {
-            return CIImage()
+            return nil
         }
 
         // Black background (no blur)
         context.setFillColor(gray: 0, alpha: 1)
-        context.fill(CGRect(origin: .zero, size: size))
+        context.fill(CGRect(x: 0, y: 0, width: pixelWidth, height: pixelHeight))
 
         // White rectangles for all blur regions (combined into single mask)
         context.setFillColor(gray: 1, alpha: 1)
         for blur in blurAnnotations {
             let rect = blur.cgRect
-            // Flip Y coordinate for Core Image
+
+            // Scale from points to pixels
+            let scaledRect = CGRect(
+                x: rect.origin.x * scaleX,
+                y: rect.origin.y * scaleY,
+                width: rect.width * scaleX,
+                height: rect.height * scaleY
+            )
+
+            // Flip Y coordinate for Core Image (bottom-left origin)
             let flippedRect = CGRect(
-                x: rect.origin.x,
-                y: size.height - rect.origin.y - rect.height,
-                width: rect.width,
-                height: rect.height
+                x: scaledRect.origin.x,
+                y: CGFloat(pixelHeight) - scaledRect.origin.y - scaledRect.height,
+                width: scaledRect.width,
+                height: scaledRect.height
             )
             context.fill(flippedRect)
         }
 
         guard let cgImage = context.makeImage() else {
-            return CIImage()
+            return nil
         }
 
         return CIImage(cgImage: cgImage)
