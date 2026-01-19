@@ -1,4 +1,5 @@
 import XCTest
+import Combine
 import AVFoundation
 @testable import ScreenCapture
 

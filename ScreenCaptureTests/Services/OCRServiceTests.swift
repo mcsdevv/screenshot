@@ -270,7 +270,11 @@ final class OCRServiceTests: XCTestCase {
 
     // MARK: - Static Method Tests
 
-    func testRecognizeAndCopyDoesNotCrashWithValidImage() {
+    func testRecognizeAndCopyDoesNotCrashWithValidImage() throws {
+        let env = ProcessInfo.processInfo.environment
+        if env["CI"] != nil || env["GITHUB_ACTIONS"] != nil {
+            throw XCTSkip("Skipping pasteboard/alert test in CI environments.")
+        }
         // Just verify the static method doesn't crash
         let testImage = TestImageGenerator.createImageWithText(
             "COPY TEST",
