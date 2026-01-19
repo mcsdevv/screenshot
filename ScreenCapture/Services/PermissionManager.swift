@@ -8,10 +8,12 @@ class PermissionManager {
 
     private init() {}
 
-    /// Checks if screen capture permission has been granted
+    /// Requests screen capture permission and checks if it has been granted.
+    /// This also registers the app in System Settings > Privacy > Screen Recording,
+    /// making it easy for users to toggle the permission on.
     /// - Returns: true if the app has screen recording permission
     func checkScreenCapturePermission() -> Bool {
-        return CGPreflightScreenCaptureAccess()
+        return CGRequestScreenCaptureAccess()
     }
 
     /// Opens System Settings directly to the Screen Recording privacy pane
@@ -27,7 +29,7 @@ class PermissionManager {
     func showPermissionAlert(completion: ((Bool) -> Void)? = nil) {
         let alert = NSAlert()
         alert.messageText = "Screen Recording Permission Required"
-        alert.informativeText = "ScreenCapture needs screen recording permission to capture screenshots and record your screen.\n\nClick \"Open Settings\" to grant permission in System Settings, then try again."
+        alert.informativeText = "ScreenCapture needs screen recording permission to capture screenshots and record your screen.\n\nClick \"Open Settings\" and toggle the switch next to ScreenCapture to grant permission."
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Open Settings")
         alert.addButton(withTitle: "Cancel")
