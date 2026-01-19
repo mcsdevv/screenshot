@@ -404,8 +404,8 @@ struct DraggableLayerRow: View {
 
                 Spacer()
 
-                // Other action buttons (shown on hover or selection only)
-                if isHovered || isSelected {
+                // Action buttons - always rendered for consistent layout, visibility controlled via opacity
+                HStack(spacing: 0) {
                     // Move up button (bring forward in z-order)
                     Button(action: { onBringForward?() }) {
                         Image(systemName: "chevron.up")
@@ -426,7 +426,7 @@ struct DraggableLayerRow: View {
                     .frame(width: 20, height: 20)
                     .help("Move down")
 
-                    // Lock toggle for numbered steps
+                    // Lock toggle for numbered steps (always rendered for consistent layout)
                     if annotation.type == .numberedStep {
                         Button(action: { onToggleLock?() }) {
                             Image(systemName: annotation.isNumberLocked ? "lock.fill" : "lock.open")
@@ -458,18 +458,9 @@ struct DraggableLayerRow: View {
                     .frame(width: 20, height: 20)
                     .help("Delete layer")
                 }
-
-                // Always show visibility icon for hidden layers (even when not hovered/selected)
-                if !isVisible && !isHovered && !isSelected {
-                    Button(action: onToggleVisibility) {
-                        Image(systemName: "eye.slash")
-                            .font(.system(size: 10))
-                            .foregroundColor(.dsTextTertiary.opacity(0.5))
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 20, height: 20)
-                    .help("Show layer")
-                }
+                .opacity(isHovered || isSelected || !isVisible ? 1 : 0)
+                .allowsHitTesting(isHovered || isSelected || !isVisible)
+                .accessibilityHidden(!(isHovered || isSelected || !isVisible))
             }
             .padding(.horizontal, DSSpacing.sm)
             .padding(.vertical, DSSpacing.xs)
