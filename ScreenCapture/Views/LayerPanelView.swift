@@ -319,20 +319,23 @@ struct DraggableLayerRow: View {
                     .frame(width: 24)
 
                 // Type icon with color (color picker for non-blur annotations)
-                if annotation.type != .blur {
-                    ColorPicker("", selection: Binding(
-                        get: { annotation.swiftUIColor },
-                        set: { newColor in onColorChange?(newColor) }
-                    ))
-                    .labelsHidden()
-                    .frame(width: 14, height: 14)
-                    .clipShape(Circle())
-                } else {
-                    Image(systemName: typeIcon)
-                        .font(.system(size: 11))
-                        .foregroundColor(.dsTextTertiary)
-                        .frame(width: 16)
+                // Use consistent container frame for all icon types to ensure alignment
+                Group {
+                    if annotation.type != .blur {
+                        ColorPicker("", selection: Binding(
+                            get: { annotation.swiftUIColor },
+                            set: { newColor in onColorChange?(newColor) }
+                        ))
+                        .labelsHidden()
+                        .frame(width: 14, height: 14)
+                        .clipShape(Circle())
+                    } else {
+                        Image(systemName: typeIcon)
+                            .font(.system(size: 11))
+                            .foregroundColor(.dsTextTertiary)
+                    }
                 }
+                .frame(width: 16, height: 16, alignment: .center)
 
                 // Type name and property
                 VStack(alignment: .leading, spacing: 1) {
