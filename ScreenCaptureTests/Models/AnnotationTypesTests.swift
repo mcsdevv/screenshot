@@ -991,8 +991,7 @@ final class AnnotationTypesTests: XCTestCase {
 
         state.updateAnnotationColor(id: annotation.id, color: .green)
 
-        let nsColor = NSColor(state.annotations.first!.swiftUIColor).usingColorSpace(.sRGB)!
-        XCTAssertEqual(nsColor.greenComponent, 1.0, accuracy: 0.01)
+        XCTAssertEqual(state.annotations.first?.color, CodableColor(.green))
     }
 
     func testUpdateAnnotationColorByInvalidId() {
@@ -1003,8 +1002,7 @@ final class AnnotationTypesTests: XCTestCase {
         state.updateAnnotationColor(id: UUID(), color: .green)
 
         // Should remain unchanged
-        let nsColor = NSColor(state.annotations.first!.swiftUIColor).usingColorSpace(.sRGB)!
-        XCTAssertEqual(nsColor.redComponent, 1.0, accuracy: 0.01)
+        XCTAssertEqual(state.annotations.first?.color, CodableColor(.red))
     }
 
     func testUpdateAnnotationName() {

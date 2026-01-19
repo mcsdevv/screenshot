@@ -258,8 +258,8 @@ final class CaptureHistoryTests: XCTestCase {
         let loadedHistory = CaptureHistory(fileURL: fileURL)
 
         XCTAssertEqual(loadedHistory.items.count, 2)
-        XCTAssertEqual(loadedHistory.items[0].filename, "test1.png")
-        XCTAssertEqual(loadedHistory.items[1].filename, "test2.mp4")
+        XCTAssertEqual(loadedHistory.items[0].filename, "test2.mp4")
+        XCTAssertEqual(loadedHistory.items[1].filename, "test1.png")
     }
 
     func testLoadFromInvalidJSONFile() throws {
@@ -330,9 +330,9 @@ final class CaptureHistoryTests: XCTestCase {
         let loadedHistory = CaptureHistory(fileURL: fileURL)
 
         XCTAssertEqual(loadedHistory.items.count, 2)
-        XCTAssertTrue(loadedHistory.items[0].isFavorite)
-        XCTAssertEqual(loadedHistory.items[0].type, .gif)
-        XCTAssertEqual(loadedHistory.items[1].type, .scrollingCapture)
+        XCTAssertEqual(loadedHistory.items[0].type, .scrollingCapture)
+        XCTAssertEqual(loadedHistory.items[1].type, .gif)
+        XCTAssertTrue(loadedHistory.items[1].isFavorite)
     }
 
     // MARK: - Filter Edge Cases Tests

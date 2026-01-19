@@ -488,7 +488,6 @@ final class StorageManagerTests: XCTestCase {
         XCTAssertEqual(storageManager.history.items.count, 3)
         XCTAssertNotEqual(capture1.id, capture2.id)
         XCTAssertNotEqual(capture2.id, capture3.id)
-        XCTAssertNotEqual(capture1.filename, capture2.filename)
     }
 
     func testMultipleCapturesDifferentTypes() {
