@@ -268,9 +268,10 @@ jobs:
           echo "Coverage: $COVERAGE%"
           echo "COVERAGE_PERCENT=$COVERAGE" >> $GITHUB_ENV
 
-          # Check threshold
-          if (( $(echo "$COVERAGE < 5" | bc -l) )); then
-            echo "::error::Coverage $COVERAGE% is below 5% threshold"
+          # Check threshold (7% - realistic for macOS app with system dependencies and SwiftUI views)
+          # Note: Increase this threshold as more dependency injection is added
+          if (( $(echo "$COVERAGE < 7" | bc -l) )); then
+            echo "::error::Coverage $COVERAGE% is below 7% threshold"
             exit 1
           fi
 
