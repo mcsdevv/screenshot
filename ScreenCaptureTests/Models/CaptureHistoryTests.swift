@@ -235,4 +235,217 @@ final class CaptureHistoryTests: XCTestCase {
 
         XCTAssertEqual(decoded.items.count, 2)
     }
+
+    // MARK: - File Loading Tests
+
+    func testLoadFromValidJSONFile() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+        let fileURL = tempDir.appendingPathComponent("test_history_\(UUID().uuidString).json")
+
+        defer {
+            try? FileManager.default.removeItem(at: fileURL)
+        }
+
+        // Create and save a history
+        let originalHistory = CaptureHistory()
+        originalHistory.add(CaptureItem(type: .screenshot, filename: "test1.png"))
+        originalHistory.add(CaptureItem(type: .recording, filename: "test2.mp4"))
+
+        let data = try JSONEncoder().encode(originalHistory)
+        try data.write(to: fileURL)
+
+        // Load the history from file
+        let loadedHistory = CaptureHistory(fileURL: fileURL)
+
+        XCTAssertEqual(loadedHistory.items.count, 2)
+        XCTAssertEqual(loadedHistory.items[0].filename, "test1.png")
+        XCTAssertEqual(loadedHistory.items[1].filename, "test2.mp4")
+    }
+
+    func testLoadFromInvalidJSONFile() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+        let fileURL = tempDir.appendingPathComponent("invalid_history_\(UUID().uuidString).json")
+
+        defer {
+            try? FileManager.default.removeItem(at: fileURL)
+        }
+
+        // Write invalid JSON
+        let invalidData = "not valid json".data(using: .utf8)!
+        try invalidData.write(to: fileURL)
+
+        // Should fall back to empty history
+        let loadedHistory = CaptureHistory(fileURL: fileURL)
+
+        XCTAssertTrue(loadedHistory.items.isEmpty)
+    }
+
+    func testLoadFromNonExistentFile() {
+        let nonExistentURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("nonexistent_\(UUID().uuidString).json")
+
+        // Should fall back to empty history
+        let loadedHistory = CaptureHistory(fileURL: nonExistentURL)
+
+        XCTAssertTrue(loadedHistory.items.isEmpty)
+        XCTAssertNotNil(loadedHistory.lastCleanup)
+    }
+
+    func testLoadFromEmptyFile() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+        let fileURL = tempDir.appendingPathComponent("empty_history_\(UUID().uuidString).json")
+
+        defer {
+            try? FileManager.default.removeItem(at: fileURL)
+        }
+
+        // Write empty data
+        try Data().write(to: fileURL)
+
+        // Should fall back to empty history
+        let loadedHistory = CaptureHistory(fileURL: fileURL)
+
+        XCTAssertTrue(loadedHistory.items.isEmpty)
+    }
+
+    func testLoadPreservesAllFields() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+        let fileURL = tempDir.appendingPathComponent("full_history_\(UUID().uuidString).json")
+
+        defer {
+            try? FileManager.default.removeItem(at: fileURL)
+        }
+
+        // Create history with all fields populated
+        let originalHistory = CaptureHistory()
+        var favoriteItem = CaptureItem(type: .gif, filename: "fav.gif")
+        favoriteItem.isFavorite = true
+        originalHistory.add(favoriteItem)
+        originalHistory.add(CaptureItem(type: .scrollingCapture, filename: "scroll.png"))
+
+        let data = try JSONEncoder().encode(originalHistory)
+        try data.write(to: fileURL)
+
+        // Load and verify all fields
+        let loadedHistory = CaptureHistory(fileURL: fileURL)
+
+        XCTAssertEqual(loadedHistory.items.count, 2)
+        XCTAssertTrue(loadedHistory.items[0].isFavorite)
+        XCTAssertEqual(loadedHistory.items[0].type, .gif)
+        XCTAssertEqual(loadedHistory.items[1].type, .scrollingCapture)
+    }
+
+    // MARK: - Filter Edge Cases Tests
+
+    func testFilterScrollingCapture() {
+        history.add(CaptureItem(type: .scrollingCapture, filename: "scroll1.png"))
+        history.add(CaptureItem(type: .scrollingCapture, filename: "scroll2.png"))
+        history.add(CaptureItem(type: .screenshot, filename: "ss.png"))
+
+        let scrolling = history.filter(by: .scrollingCapture)
+        XCTAssertEqual(scrolling.count, 2)
+    }
+
+    func testFilterEmptyHistory() {
+        let results = history.filter(by: .screenshot)
+        XCTAssertTrue(results.isEmpty)
+    }
+
+    // MARK: - Search Edge Cases Tests
+
+    func testSearchPartialMatch() {
+        history.add(CaptureItem(type: .screenshot, filename: "test.png"))
+
+        let results = history.search(query: "Screen")
+        XCTAssertEqual(results.count, 1)
+    }
+
+    func testSearchWhitespace() {
+        history.add(CaptureItem(type: .screenshot, filename: "test.png"))
+
+        let results = history.search(query: "   ")
+        // Whitespace is not empty, so search should run but likely no match
+        XCTAssertTrue(results.isEmpty)
+    }
+
+    func testSearchDatePortion() {
+        let date = Date()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy"
+        let yearString = formatter.string(from: date)
+
+        history.add(CaptureItem(type: .screenshot, filename: "test.png", createdAt: date))
+
+        let results = history.search(query: yearString)
+        XCTAssertEqual(results.count, 1)
+    }
+
+    // MARK: - Cleanup Edge Cases Tests
+
+    func testCleanupAllItems() {
+        let oldDate = Date().addingTimeInterval(-100 * 24 * 60 * 60) // 100 days ago
+        history.items = [
+            CaptureItem(type: .screenshot, filename: "1.png", createdAt: oldDate),
+            CaptureItem(type: .screenshot, filename: "2.png", createdAt: oldDate),
+            CaptureItem(type: .screenshot, filename: "3.png", createdAt: oldDate)
+        ]
+
+        history.cleanup(olderThan: 30)
+
+        XCTAssertTrue(history.items.isEmpty)
+    }
+
+    func testCleanupMixedFavorites() {
+        let oldDate = Date().addingTimeInterval(-40 * 24 * 60 * 60)
+        var fav1 = CaptureItem(type: .screenshot, filename: "fav1.png", createdAt: oldDate)
+        fav1.isFavorite = true
+        var fav2 = CaptureItem(type: .screenshot, filename: "fav2.png", createdAt: oldDate)
+        fav2.isFavorite = true
+        let notFav = CaptureItem(type: .screenshot, filename: "notfav.png", createdAt: oldDate)
+
+        history.items = [fav1, notFav, fav2]
+        history.cleanup(olderThan: 30)
+
+        XCTAssertEqual(history.items.count, 2)
+        XCTAssertTrue(history.items.allSatisfy { $0.isFavorite })
+    }
+
+    func testCleanupZeroDays() {
+        let item = CaptureItem(type: .screenshot, filename: "test.png")
+        history.add(item)
+
+        history.cleanup(olderThan: 0)
+
+        // Even a fresh item is older than 0 days
+        XCTAssertTrue(history.items.isEmpty)
+    }
+
+    // MARK: - Add/Remove Edge Cases Tests
+
+    func testAddSameItemTwice() {
+        let item = CaptureItem(type: .screenshot, filename: "test.png")
+        history.add(item)
+        history.add(item)
+
+        XCTAssertEqual(history.items.count, 2)
+        // Both have the same ID
+        XCTAssertEqual(history.items[0].id, history.items[1].id)
+    }
+
+    func testRemoveAllItems() {
+        let item1 = CaptureItem(type: .screenshot, filename: "1.png")
+        let item2 = CaptureItem(type: .screenshot, filename: "2.png")
+
+        history.add(item1)
+        history.add(item2)
+        history.remove(id: item1.id)
+        history.remove(id: item2.id)
+
+        XCTAssertTrue(history.items.isEmpty)
+    }
+
+    func testRemoveFromEmptyHistory() {
+        history.remove(id: UUID())
+        XCTAssertTrue(history.items.isEmpty)
+    }
 }
