@@ -15,6 +15,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     var selectionOverlayWindow: NSWindow?
     var settingsWindow: NSWindow?
     var annotationWindow: NSWindow?
+    var keyboardShortcutsWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -151,6 +152,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         keyboardShortcuts.register(shortcut: .pinScreenshot) { [weak self] in
             DispatchQueue.main.async {
                 self?.screenshotManager.captureForPinning()
+            }
+        }
+
+        keyboardShortcuts.register(shortcut: .showKeyboardShortcuts) { [weak self] in
+            DispatchQueue.main.async {
+                self?.toggleKeyboardShortcutsOverlay()
             }
         }
 
@@ -388,6 +395,93 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         }
     }
 
+    // MARK: - Keyboard Shortcuts Overlay
+
+    func toggleKeyboardShortcutsOverlay() {
+        if let existingWindow = keyboardShortcutsWindow, existingWindow.isVisible {
+            closeKeyboardShortcutsOverlay()
+        } else {
+            showKeyboardShortcutsOverlay()
+        }
+    }
+
+    func showKeyboardShortcutsOverlay() {
+        // Close existing window if any
+        closeKeyboardShortcutsOverlay()
+
+        guard let anchorWindow = NSApp.keyWindow ?? NSApp.mainWindow else {
+            debugLog("KeyboardShortcutsOverlay: Skipped (no active window)")
+            return
+        }
+
+        let overlayView = KeyboardShortcutsOverlay(
+            useNativeShortcuts: keyboardShortcuts.useNativeShortcuts,
+            onClose: { [weak self] in
+                self?.closeKeyboardShortcutsOverlay()
+            }
+        )
+
+        let windowSize = NSSize(width: 560, height: 680)
+        let hostingView = NSHostingView(rootView: overlayView)
+        hostingView.frame = NSRect(origin: .zero, size: windowSize)
+
+        guard let screen = anchorWindow.screen ?? NSScreen.main else { return }
+        let screenFrame = screen.visibleFrame
+
+        // Center on screen
+        let windowFrame = NSRect(
+            x: screenFrame.midX - windowSize.width / 2,
+            y: screenFrame.midY - windowSize.height / 2,
+            width: windowSize.width,
+            height: windowSize.height
+        )
+
+        let window = NSWindow(
+            contentRect: windowFrame,
+            styleMask: [.titled, .closable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+
+        // CRITICAL: Prevent double-release crash under ARC
+        window.isReleasedWhenClosed = false
+
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.title = "Keyboard Shortcuts"
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.contentView = hostingView
+        window.level = .floating
+        window.hasShadow = true
+        window.collectionBehavior = [.canJoinAllSpaces]
+        window.delegate = self
+
+        // Hide system traffic lights - we use custom SwiftUI buttons
+        window.standardWindowButton(.closeButton)?.isHidden = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
+
+        keyboardShortcutsWindow = window
+
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+
+        debugLog("KeyboardShortcutsOverlay: Window shown")
+    }
+
+    func closeKeyboardShortcutsOverlay() {
+        guard let windowToClose = keyboardShortcutsWindow else { return }
+        keyboardShortcutsWindow = nil
+
+        windowToClose.orderOut(nil)
+
+        DispatchQueue.main.async {
+            windowToClose.contentView = nil
+            windowToClose.close()
+        }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         keyboardShortcuts.unregisterAll()
     }
@@ -416,6 +510,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         // Handle Annotation Editor window close
         if window === annotationWindow {
             annotationWindow = nil
+        }
+
+        // Handle Keyboard Shortcuts window close
+        if window === keyboardShortcutsWindow {
+            keyboardShortcutsWindow = nil
         }
     }
 

@@ -36,6 +36,7 @@
 		SC025 /* DebugLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC123 /* DebugLogger.swift */; };
 		SC026 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC124 /* DesignSystem.swift */; };
 		SC027 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC125 /* PermissionManager.swift */; };
+		SC028 /* KeyboardShortcutsOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC126 /* KeyboardShortcutsOverlay.swift */; };
 		TST001 /* CaptureItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF001 /* CaptureItemTests.swift */; };
 		TST002 /* CaptureHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF002 /* CaptureHistoryTests.swift */; };
 		TST003 /* AnnotationTypesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF003 /* AnnotationTypesTests.swift */; };
@@ -99,6 +100,7 @@
 		SC123 /* DebugLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogger.swift; sourceTree = "<group>"; };
 		SC124 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		SC125 /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
+		SC126 /* KeyboardShortcutsOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsOverlay.swift; sourceTree = "<group>"; };
 		SC150 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		SC151 /* MainMenu.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = MainMenu.xib; sourceTree = "<group>"; };
 		SC152 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -222,6 +224,7 @@
 				SC118 /* ToolbarView.swift */,
 				SC119 /* ColorPickerView.swift */,
 				SC122 /* BackgroundTool.swift */,
+				SC126 /* KeyboardShortcutsOverlay.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -504,6 +507,7 @@
 				SC008 /* CaptureHistoryView.swift in Sources */,
 				SC011 /* PreferencesView.swift in Sources */,
 				SC027 /* PermissionManager.swift in Sources */,
+				SC028 /* KeyboardShortcutsOverlay.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
