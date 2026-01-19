@@ -259,22 +259,26 @@ struct DraggableLayerRow: View {
     }
 
     private func colorName(for color: Color) -> String {
-        // Simple color name detection
-        let nsColor = NSColor(color).usingColorSpace(.sRGB) ?? NSColor.gray
-        let r = nsColor.redComponent
-        let g = nsColor.greenComponent
-        let b = nsColor.blueComponent
+        guard let inputRGB = Color.sRGBComponents(for: color) else {
+            return "Gray"
+        }
 
-        if r > 0.8 && g < 0.3 && b < 0.3 { return "Red" }
-        if r > 0.8 && g > 0.4 && g < 0.7 && b < 0.3 { return "Orange" }
-        if r > 0.8 && g > 0.8 && b < 0.3 { return "Yellow" }
-        if r < 0.3 && g > 0.6 && b < 0.3 { return "Green" }
-        if r < 0.3 && g < 0.5 && b > 0.7 { return "Blue" }
-        if r > 0.4 && g < 0.3 && b > 0.6 { return "Purple" }
-        if r > 0.8 && g < 0.5 && b > 0.6 { return "Pink" }
-        if r > 0.9 && g > 0.9 && b > 0.9 { return "White" }
-        if r < 0.2 && g < 0.2 && b < 0.2 { return "Black" }
-        return "Gray"
+        var closestName = "Gray"
+        var minDistance = Double.infinity
+
+        for preset in Color.annotationColorPresets {
+            let dr = inputRGB.r - preset.rgb.r
+            let dg = inputRGB.g - preset.rgb.g
+            let db = inputRGB.b - preset.rgb.b
+            let distance = (dr * dr) + (dg * dg) + (db * db)
+
+            if distance < minDistance {
+                minDistance = distance
+                closestName = preset.name
+            }
+        }
+
+        return closestName
     }
 
     var body: some View {

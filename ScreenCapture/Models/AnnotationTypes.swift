@@ -628,18 +628,42 @@ struct AnnotationDocument: Codable {
 // MARK: - Color Presets
 
 extension Color {
-    static let annotationColors: [Color] = [
-        .red,
-        .orange,
-        .yellow,
-        .green,
-        .blue,
-        .purple,
-        .pink,
-        .white,
-        .black,
-        .gray
+    struct AnnotationColorPreset {
+        let color: Color
+        let name: String
+        let rgb: (r: Double, g: Double, b: Double)
+    }
+
+    static let annotationColorPresets: [AnnotationColorPreset] = [
+        annotationColorPreset(.red, "Red"),
+        annotationColorPreset(.orange, "Orange"),
+        annotationColorPreset(.yellow, "Yellow"),
+        annotationColorPreset(.green, "Green"),
+        annotationColorPreset(.blue, "Blue"),
+        annotationColorPreset(.purple, "Purple"),
+        annotationColorPreset(.pink, "Pink"),
+        annotationColorPreset(.white, "White"),
+        annotationColorPreset(.black, "Black"),
+        annotationColorPreset(.gray, "Gray")
     ]
+
+    static let annotationColors: [Color] = annotationColorPresets.map { $0.color }
+
+    static func sRGBComponents(for color: Color) -> (r: Double, g: Double, b: Double)? {
+        guard let nsColor = NSColor(color).usingColorSpace(.sRGB) else {
+            return nil
+        }
+        return (
+            r: Double(nsColor.redComponent),
+            g: Double(nsColor.greenComponent),
+            b: Double(nsColor.blueComponent)
+        )
+    }
+
+    private static func annotationColorPreset(_ color: Color, _ name: String) -> AnnotationColorPreset {
+        let rgb = sRGBComponents(for: color) ?? (r: 0.5, g: 0.5, b: 0.5)
+        return AnnotationColorPreset(color: color, name: name, rgb: rgb)
+    }
 }
 
 // MARK: - Font Options
