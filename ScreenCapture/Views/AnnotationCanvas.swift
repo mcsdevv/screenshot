@@ -25,7 +25,9 @@ struct AnnotationCanvas: View {
     // Cache key for COMMITTED blur annotations only (not current drawing)
     // This prevents re-rendering during drag which was causing performance issues
     private var committedBlurCacheKey: String {
-        let blurAnnotations = state.annotations.filter { $0.type == .blur }
+        let blurAnnotations = state.annotations.filter {
+            $0.type == .blur && state.isAnnotationVisible($0.id)
+        }
         guard !blurAnnotations.isEmpty else { return "" }
         return blurAnnotations.map { blur in
             "\(blur.id)|\(Int(blur.cgRect.origin.x)),\(Int(blur.cgRect.origin.y)),\(Int(blur.cgRect.width)),\(Int(blur.cgRect.height))|\(Int(blur.blurRadius))"
@@ -53,6 +55,16 @@ struct AnnotationCanvas: View {
             x: max(0, min(point.x, image.size.width)),
             y: max(0, min(point.y, image.size.height))
         )
+    }
+
+    // Check if a point is over any visible annotation (for hover cursor)
+    private func isPointOverAnnotation(_ point: CGPoint) -> Bool {
+        for annotation in state.annotations.reversed() {
+            if state.isAnnotationVisible(annotation.id) && hitTest(annotation: annotation, at: point) {
+                return true
+            }
+        }
+        return false
     }
 
     var body: some View {
@@ -107,6 +119,15 @@ struct AnnotationCanvas: View {
                             )
                         }
                     }
+
+                    // Hover tracking for cursor changes in select mode
+                    AnnotationHoverTracker(
+                        state: state,
+                        zoom: zoom,
+                        hitTest: { point in isPointOverAnnotation(point) }
+                    )
+                    .frame(width: scaledImageSize.width, height: scaledImageSize.height)
+                    .allowsHitTesting(false)
 
                     // Crop overlay
                     if state.currentTool == .crop {
@@ -217,38 +238,40 @@ struct AnnotationCanvas: View {
         let cacheKey = committedBlurCacheKey
 
         ZStack(alignment: .topLeading) {
-            // Base image layer - either original or with committed blurs applied
-            if cacheKey.isEmpty {
-                // No committed blur annotations - show original image
-                Image(nsImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: scaledImageSize.width, height: scaledImageSize.height)
-            } else if let cached = cachedBlurImage, blurCacheKey == cacheKey {
-                // Use cached blur result for committed blurs
+            // Show cached blur image if valid, otherwise show original
+            if !cacheKey.isEmpty, let cached = cachedBlurImage, blurCacheKey == cacheKey {
                 Image(nsImage: cached)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: scaledImageSize.width, height: scaledImageSize.height)
             } else {
-                // Render committed blurs and cache (this only runs when annotations change, not during drag)
                 Image(nsImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: scaledImageSize.width, height: scaledImageSize.height)
-                    .task(id: cacheKey) {
-                        // Render blurs asynchronously to avoid blocking UI
-                        if let blurredImage = renderCommittedBlurs() {
-                            cachedBlurImage = blurredImage
-                            blurCacheKey = cacheKey
-                        }
-                    }
             }
 
-            // Blur preview overlay - shown during drag instead of real-time blur rendering
-            // This is MUCH faster than rendering actual blur on every mouse move
+            // Blur preview overlay during drag
             if isDrawingBlur, let current = currentDrawing {
                 blurPreviewOverlay(for: current)
+            }
+        }
+        // CRITICAL: Move .task OUTSIDE the ZStack and conditional branches
+        .task(id: cacheKey) {
+            guard !cacheKey.isEmpty else { return }
+            guard blurCacheKey != cacheKey else { return } // Already rendered
+
+            debugLog("AnnotationCanvas: Rendering blur for cache key: \(cacheKey)")
+
+            if let blurredImage = renderCommittedBlurs() {
+                cachedBlurImage = blurredImage
+                blurCacheKey = cacheKey
+                debugLog("AnnotationCanvas: Blur rendered successfully")
+            } else {
+                // Mark as processed even on failure to avoid infinite retries
+                blurCacheKey = cacheKey
+                cachedBlurImage = nil
+                debugLog("AnnotationCanvas: Blur rendering failed")
             }
         }
     }
@@ -263,14 +286,30 @@ struct AnnotationCanvas: View {
             height: annotation.cgRect.size.height * zoom
         )
 
-        Rectangle()
-            .fill(Color.white.opacity(0.3))
-            .background(.ultraThinMaterial)
-            .frame(width: abs(scaledRect.width), height: abs(scaledRect.height))
-            .position(
-                x: scaledRect.origin.x + scaledRect.width / 2,
-                y: scaledRect.origin.y + scaledRect.height / 2
-            )
+        ZStack {
+            // Semi-transparent fill
+            Rectangle()
+                .fill(Color.black.opacity(0.25))
+
+            // Dashed border for visibility
+            Rectangle()
+                .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                .foregroundColor(.white)
+
+            // "Blur" label
+            Text("Blur")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.black.opacity(0.6))
+                .cornerRadius(4)
+        }
+        .frame(width: max(abs(scaledRect.width), 20), height: max(abs(scaledRect.height), 20))
+        .position(
+            x: scaledRect.origin.x + scaledRect.width / 2,
+            y: scaledRect.origin.y + scaledRect.height / 2
+        )
     }
 
     // MARK: - Blur Rendering
@@ -278,8 +317,13 @@ struct AnnotationCanvas: View {
     /// Renders only COMMITTED blur annotations (not current drawing during drag)
     /// This function is only called when blur annotations are added/removed, not during drag
     private func renderCommittedBlurs() -> NSImage? {
-        let blurAnnotations = state.annotations.filter { $0.type == .blur }
-        guard !blurAnnotations.isEmpty else { return nil }
+        let blurAnnotations = state.annotations.filter {
+            $0.type == .blur && state.isAnnotationVisible($0.id)
+        }
+        guard !blurAnnotations.isEmpty else {
+            debugLog("AnnotationCanvas: No visible blur annotations")
+            return nil
+        }
 
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             return nil
@@ -366,42 +410,47 @@ struct AnnotationCanvas: View {
     private func handleTap(at location: CGPoint) {
         let unscaledLocation = clampToImageBounds(gestureLocationToImageCoords(location))
 
+        // First, try to select an annotation at this point (regardless of tool)
+        // Search in reverse to select topmost annotation
+        var hitAnnotation: Annotation? = nil
+        for annotation in state.annotations.reversed() {
+            if state.isAnnotationVisible(annotation.id) && hitTest(annotation: annotation, at: unscaledLocation) {
+                hitAnnotation = annotation
+                break
+            }
+        }
+
+        // If we hit an annotation, select it
+        if let annotation = hitAnnotation {
+            state.selectedAnnotationId = annotation.id
+            // For text annotations in select mode, also enter edit mode
+            if annotation.type == .text && state.currentTool == .select {
+                state.currentColor = annotation.swiftUIColor
+                state.currentFontSize = annotation.fontSize
+                state.currentFontName = annotation.fontName
+                editingAnnotationId = annotation.id
+                textInput = annotation.text ?? ""
+                // Position the text input at the annotation's location (scaled)
+                textPosition = CGPoint(
+                    x: annotation.cgRect.origin.x * zoom - 12, // Account for padding offset
+                    y: annotation.cgRect.origin.y * zoom - 12
+                )
+                showTextInput = true
+            }
+            // Show layer panel when selection made (unless manually hidden)
+            if !state.isLayerPanelManuallyHidden {
+                state.isLayerPanelVisible = true
+            }
+            return
+        }
+
+        // No annotation hit - proceed with tool-specific behavior
         switch state.currentTool {
         case .select:
-            // Try to select an annotation at this point
+            // Deselect when clicking empty space
             state.selectedAnnotationId = nil
-            for annotation in state.annotations.reversed() {
-                if hitTest(annotation: annotation, at: unscaledLocation) {
-                    // For text annotations, enter edit mode directly
-                    if annotation.type == .text {
-                        state.selectedAnnotationId = annotation.id
-                        state.currentColor = annotation.swiftUIColor
-                        state.currentFontSize = annotation.fontSize
-                        state.currentFontName = annotation.fontName
-                        editingAnnotationId = annotation.id
-                        textInput = annotation.text ?? ""
-                        // Position the text input at the annotation's location (scaled)
-                        textPosition = CGPoint(
-                            x: annotation.cgRect.origin.x * zoom - 12, // Account for padding offset
-                            y: annotation.cgRect.origin.y * zoom - 12
-                        )
-                        showTextInput = true
-                        // Show layer panel when selection made (unless manually hidden)
-                        if !state.isLayerPanelManuallyHidden {
-                            state.isLayerPanelVisible = true
-                        }
-                    } else {
-                        state.selectedAnnotationId = annotation.id
-                        // Show layer panel when selection made (unless manually hidden)
-                        if !state.isLayerPanelManuallyHidden {
-                            state.isLayerPanelVisible = true
-                        }
-                    }
-                    break
-                }
-            }
             // Hide layer panel if nothing selected
-            if state.selectedAnnotationId == nil && !state.isLayerPanelManuallyHidden {
+            if !state.isLayerPanelManuallyHidden {
                 state.isLayerPanelVisible = false
             }
 
@@ -422,7 +471,7 @@ struct AnnotationCanvas: View {
             state.stepCounter += 1
 
         default:
-            // Deselect on tap for other tools
+            // Deselect on tap for other tools when clicking empty space
             state.selectedAnnotationId = nil
         }
     }
@@ -2008,5 +2057,87 @@ class AnnotationKeyboardHandlerView: NSView {
         }
 
         super.keyDown(with: event)
+    }
+}
+
+// MARK: - Hover Tracking for Cursor Changes
+
+struct AnnotationHoverTracker: NSViewRepresentable {
+    let state: AnnotationState
+    let zoom: CGFloat
+    let hitTest: (CGPoint) -> Bool
+
+    func makeNSView(context: Context) -> HoverTrackingView {
+        let view = HoverTrackingView()
+        view.hitTest = hitTest
+        view.state = state
+        view.zoom = zoom
+        return view
+    }
+
+    func updateNSView(_ nsView: HoverTrackingView, context: Context) {
+        nsView.hitTest = hitTest
+        nsView.state = state
+        nsView.zoom = zoom
+        if state.currentTool != .select {
+            nsView.resetCursor()
+        }
+    }
+}
+
+class HoverTrackingView: NSView {
+    var hitTest: ((CGPoint) -> Bool)?
+    var state: AnnotationState?
+    var zoom: CGFloat = 1.0
+    private var trackingArea: NSTrackingArea?
+    private var isCursorOverAnnotation = false
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let existing = trackingArea {
+            removeTrackingArea(existing)
+        }
+        trackingArea = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        if let area = trackingArea {
+            addTrackingArea(area)
+        }
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        guard state?.currentTool == .select else {
+            resetCursor()
+            return
+        }
+
+        let locationInView = convert(event.locationInWindow, from: nil)
+        // Convert to image coordinates (divide by zoom)
+        // Note: SwiftUI flips Y, but NSView also has flipped coordinates when inside SwiftUI
+        let imageCoords = CGPoint(x: locationInView.x / zoom, y: locationInView.y / zoom)
+
+        let isOverAnnotation = hitTest?(imageCoords) ?? false
+
+        if isOverAnnotation && !isCursorOverAnnotation {
+            NSCursor.pointingHand.push()
+            isCursorOverAnnotation = true
+        } else if !isOverAnnotation && isCursorOverAnnotation {
+            NSCursor.pop()
+            isCursorOverAnnotation = false
+        }
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        resetCursor()
+    }
+
+    func resetCursor() {
+        if isCursorOverAnnotation {
+            NSCursor.pop()
+            isCursorOverAnnotation = false
+        }
     }
 }
