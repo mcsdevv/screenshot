@@ -404,20 +404,28 @@ struct DraggableLayerRow: View {
 
                 Spacer()
 
-                // Visibility toggle (always shown for hidden layers, or on hover/selection)
-                if !isVisible || isHovered || isSelected {
-                    Button(action: onToggleVisibility) {
-                        Image(systemName: isVisible ? "eye" : "eye.slash")
+                // Other action buttons (shown on hover or selection only)
+                if isHovered || isSelected {
+                    // Move up button (bring forward in z-order)
+                    Button(action: { onBringForward?() }) {
+                        Image(systemName: "chevron.up")
                             .font(.system(size: 10))
-                            .foregroundColor(isVisible ? .dsTextTertiary : .dsTextTertiary.opacity(0.5))
+                            .foregroundColor(.dsTextTertiary)
                     }
                     .buttonStyle(.plain)
                     .frame(width: 20, height: 20)
-                    .help(isVisible ? "Hide layer" : "Show layer")
-                }
+                    .help("Move up")
 
-                // Other action buttons (shown on hover or selection only)
-                if isHovered || isSelected {
+                    // Move down button (send backward in z-order)
+                    Button(action: { onSendBackward?() }) {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10))
+                            .foregroundColor(.dsTextTertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 20, height: 20)
+                    .help("Move down")
+
                     // Lock toggle for numbered steps
                     if annotation.type == .numberedStep {
                         Button(action: { onToggleLock?() }) {
@@ -430,6 +438,16 @@ struct DraggableLayerRow: View {
                         .help(annotation.isNumberLocked ? "Unlock number" : "Lock number")
                     }
 
+                    // Visibility toggle
+                    Button(action: onToggleVisibility) {
+                        Image(systemName: isVisible ? "eye" : "eye.slash")
+                            .font(.system(size: 10))
+                            .foregroundColor(isVisible ? .dsTextTertiary : .dsTextTertiary.opacity(0.5))
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 20, height: 20)
+                    .help(isVisible ? "Hide layer" : "Show layer")
+
                     // Delete button
                     Button(action: onDelete) {
                         Image(systemName: "trash")
@@ -439,6 +457,18 @@ struct DraggableLayerRow: View {
                     .buttonStyle(.plain)
                     .frame(width: 20, height: 20)
                     .help("Delete layer")
+                }
+
+                // Always show visibility icon for hidden layers (even when not hovered/selected)
+                if !isVisible && !isHovered && !isSelected {
+                    Button(action: onToggleVisibility) {
+                        Image(systemName: "eye.slash")
+                            .font(.system(size: 10))
+                            .foregroundColor(.dsTextTertiary.opacity(0.5))
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 20, height: 20)
+                    .help("Show layer")
                 }
             }
             .padding(.horizontal, DSSpacing.sm)
