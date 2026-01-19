@@ -95,6 +95,7 @@ struct Annotation: Identifiable, Equatable, Codable {
     var blurRadius: CGFloat
     var creationOrder: Int
     var isNumberLocked: Bool
+    var name: String?
 
     init(
         id: UUID = UUID(),
@@ -109,7 +110,8 @@ struct Annotation: Identifiable, Equatable, Codable {
         stepNumber: Int? = nil,
         blurRadius: CGFloat = 10,
         creationOrder: Int = 0,
-        isNumberLocked: Bool = false
+        isNumberLocked: Bool = false,
+        name: String? = nil
     ) {
         self.id = id
         self.type = type
@@ -124,6 +126,7 @@ struct Annotation: Identifiable, Equatable, Codable {
         self.blurRadius = blurRadius
         self.creationOrder = creationOrder
         self.isNumberLocked = isNumberLocked
+        self.name = name
     }
 
     // Convenience accessors for CGRect/Color
@@ -486,6 +489,13 @@ class AnnotationState {
         annotations[index].isNumberLocked.toggle()
     }
 
+    func updateAnnotationName(id: UUID, name: String?) {
+        guard let index = annotations.firstIndex(where: { $0.id == id }) else { return }
+        saveToUndoStack()
+        annotations[index].name = name?.isEmpty == true ? nil : name
+        redoStack.removeAll()
+    }
+
     func setStepNumber(id: UUID, number: Int) {
         guard let index = annotations.firstIndex(where: { $0.id == id }),
               annotations[index].type == .numberedStep else { return }
@@ -533,6 +543,13 @@ class AnnotationState {
     func updateSelectedAnnotationColor(_ color: Color) {
         guard let id = selectedAnnotationId,
               let index = annotations.firstIndex(where: { $0.id == id }) else { return }
+        saveToUndoStack()
+        annotations[index].color = CodableColor(color)
+        redoStack.removeAll()
+    }
+
+    func updateAnnotationColor(id: UUID, color: Color) {
+        guard let index = annotations.firstIndex(where: { $0.id == id }) else { return }
         saveToUndoStack()
         annotations[index].color = CodableColor(color)
         redoStack.removeAll()
