@@ -29,8 +29,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         setupNotifications()
         setupMainMenu()
 
-        requestPermissions()
-
         // Show shortcut remapping prompt on first launch
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             SystemShortcutManager.shared.showRemapPromptIfNeeded()
@@ -204,14 +202,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
                 debugLog("AppDelegate: Re-registered shortcuts after remap, useNative=\(useNative)")
             }
             .store(in: &cancellables)
-    }
-
-    private func requestPermissions() {
-        // Check screen capture permission at startup and show alert if not granted
-        // This gives users a clear path to enable the permission before trying to capture
-        DispatchQueue.main.async {
-            _ = PermissionManager.shared.ensureScreenCapturePermission()
-        }
     }
 
     func showQuickAccessOverlay(for capture: CaptureItem) {

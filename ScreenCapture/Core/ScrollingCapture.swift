@@ -152,8 +152,6 @@ class ScrollingCapture: NSObject {
                 }
             } catch {
                 print("Scrolling capture error: \(error)")
-                // Check if this is a permission issue and show alert if so
-                _ = PermissionManager.shared.ensureScreenCapturePermission()
             }
         }
     }

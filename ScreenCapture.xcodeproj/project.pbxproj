@@ -35,7 +35,6 @@
 		SC024 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = SC151 /* MainMenu.xib */; };
 		SC025 /* DebugLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC123 /* DebugLogger.swift */; };
 		SC026 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC124 /* DesignSystem.swift */; };
-		SC027 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC125 /* PermissionManager.swift */; };
 		SC028 /* KeyboardShortcutsOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC126 /* KeyboardShortcutsOverlay.swift */; };
 		SC029 /* LayerPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC127 /* LayerPanelView.swift */; };
 		TST001 /* CaptureItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF001 /* CaptureItemTests.swift */; };
@@ -52,7 +51,6 @@
 		TST012 /* DebugLoggerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF012 /* DebugLoggerTests.swift */; };
 		TST013 /* Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF013 /* Mocks.swift */; };
 		TST014 /* SystemShortcutManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF014 /* SystemShortcutManagerTests.swift */; };
-		TST015 /* PermissionManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF015 /* PermissionManagerTests.swift */; };
 		TST016 /* ScreenshotManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF016 /* ScreenshotManagerTests.swift */; };
 		TST017 /* ScreenRecordingManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF017 /* ScreenRecordingManagerTests.swift */; };
 		TST018 /* WebcamManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF018 /* WebcamManagerTests.swift */; };
@@ -112,7 +110,6 @@
 		SC122 /* BackgroundTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTool.swift; sourceTree = "<group>"; };
 		SC123 /* DebugLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogger.swift; sourceTree = "<group>"; };
 		SC124 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
-		SC125 /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 		SC126 /* KeyboardShortcutsOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsOverlay.swift; sourceTree = "<group>"; };
 		SC127 /* LayerPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerPanelView.swift; sourceTree = "<group>"; };
 		SC150 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -136,7 +133,6 @@
 		TSTF012 /* DebugLoggerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLoggerTests.swift; sourceTree = "<group>"; };
 		TSTF013 /* Mocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mocks.swift; sourceTree = "<group>"; };
 		TSTF014 /* SystemShortcutManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemShortcutManagerTests.swift; sourceTree = "<group>"; };
-		TSTF015 /* PermissionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManagerTests.swift; sourceTree = "<group>"; };
 		TSTF016 /* ScreenshotManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotManagerTests.swift; sourceTree = "<group>"; };
 		TSTF017 /* ScreenRecordingManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecordingManagerTests.swift; sourceTree = "<group>"; };
 		TSTF018 /* WebcamManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamManagerTests.swift; sourceTree = "<group>"; };
@@ -260,7 +256,6 @@
 			isa = PBXGroup;
 			children = (
 				SC110 /* OCRService.swift */,
-				SC125 /* PermissionManager.swift */,
 				SC114 /* StorageManager.swift */,
 			);
 			path = Services;
@@ -329,7 +324,6 @@
 			children = (
 				TSTF004 /* StorageManagerTests.swift */,
 				TSTF010 /* OCRServiceTests.swift */,
-				TSTF015 /* PermissionManagerTests.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -553,7 +547,6 @@
 				SC007 /* QuickAccessOverlay.swift in Sources */,
 				SC008 /* CaptureHistoryView.swift in Sources */,
 				SC011 /* PreferencesView.swift in Sources */,
-				SC027 /* PermissionManager.swift in Sources */,
 				SC028 /* KeyboardShortcutsOverlay.swift in Sources */,
 				SC029 /* LayerPanelView.swift in Sources */,
 			);
@@ -575,7 +568,6 @@
 				TST012 /* DebugLoggerTests.swift in Sources */,
 				TST013 /* Mocks.swift in Sources */,
 				TST014 /* SystemShortcutManagerTests.swift in Sources */,
-				TST015 /* PermissionManagerTests.swift in Sources */,
 				TST016 /* ScreenshotManagerTests.swift in Sources */,
 				TST017 /* ScreenRecordingManagerTests.swift in Sources */,
 				TST018 /* WebcamManagerTests.swift in Sources */,
