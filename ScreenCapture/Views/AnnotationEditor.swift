@@ -289,18 +289,27 @@ class AnnotationEditorViewModel: ObservableObject {
         let start = CGPoint(x: rect.origin.x, y: rect.origin.y)
         let end = CGPoint(x: rect.origin.x + rect.width, y: rect.origin.y + rect.height)
 
-        let path = NSBezierPath()
-        path.lineWidth = annotation.strokeWidth
-        path.lineCapStyle = .round
-
-        // Draw line
-        path.move(to: start)
-        path.line(to: end)
-
-        // Draw arrowhead
+        // Calculate arrow geometry
         let angle = atan2(end.y - start.y, end.x - start.x)
         let arrowLength: CGFloat = 15 + annotation.strokeWidth
+        let arrowheadHeight = arrowLength * cos(.pi / 6)  // Height from tip to base
+        let totalLength = hypot(end.x - start.x, end.y - start.y)
 
+        // Draw shaft only if arrow is longer than arrowhead, ending at arrowhead base
+        if totalLength > arrowheadHeight {
+            let shaftEnd = CGPoint(
+                x: end.x - arrowheadHeight * cos(angle),
+                y: end.y - arrowheadHeight * sin(angle)
+            )
+            let path = NSBezierPath()
+            path.lineWidth = annotation.strokeWidth
+            path.lineCapStyle = .round
+            path.move(to: start)
+            path.line(to: shaftEnd)
+            path.stroke()
+        }
+
+        // Draw arrowhead
         let arrowPoint1 = CGPoint(
             x: end.x - arrowLength * cos(angle - .pi / 6),
             y: end.y - arrowLength * sin(angle - .pi / 6)
@@ -310,15 +319,12 @@ class AnnotationEditorViewModel: ObservableObject {
             y: end.y - arrowLength * sin(angle + .pi / 6)
         )
 
-        // Filled arrowhead
         let arrowPath = NSBezierPath()
         arrowPath.move(to: end)
         arrowPath.line(to: arrowPoint1)
         arrowPath.line(to: arrowPoint2)
         arrowPath.close()
         arrowPath.fill()
-
-        path.stroke()
     }
 
     private func drawText(_ annotation: Annotation) {
