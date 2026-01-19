@@ -143,6 +143,12 @@ struct DSTypography {
     static let monoSmall = Font.system(size: 11, weight: .regular, design: .monospaced)
 }
 
+// MARK: - Row Heights
+
+struct DSRowHeight {
+    static let labelSmall: CGFloat = 14
+}
+
 // MARK: - Spacing
 
 struct DSSpacing {

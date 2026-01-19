@@ -341,6 +341,7 @@ struct DraggableLayerRow: View {
                         TextField("", text: $editedName)
                             .font(DSTypography.labelSmall)
                             .textFieldStyle(.plain)
+                            .frame(height: DSRowHeight.labelSmall)
                             .focused($isNameFieldFocused)
                             .onSubmit {
                                 onRename?(editedName.isEmpty ? nil : editedName)
@@ -359,6 +360,7 @@ struct DraggableLayerRow: View {
                         Text(annotation.name ?? typeName)
                             .font(DSTypography.labelSmall)
                             .foregroundColor(isVisible ? .dsTextPrimary : .dsTextTertiary)
+                            .frame(height: DSRowHeight.labelSmall)
                             .onTapGesture(count: 2) {
                                 editedName = annotation.name ?? typeName
                                 isEditingName = true
