@@ -24,30 +24,46 @@ struct AnnotationEditor: View {
                     onCancel: { dismiss() }
                 )
 
-                // Main canvas area
-                ZStack {
-                    if let image = viewModel.image {
-                        AnnotationCanvas(
-                            image: image,
-                            state: viewModel.state,  // @Observable - no binding needed
-                            zoom: $viewModel.zoom,
-                            offset: $viewModel.offset,
-                            viewModel: viewModel
-                        )
-                    } else {
-                        // Loading state
-                        VStack(spacing: DSSpacing.md) {
-                            ProgressView()
-                                .scaleEffect(1.2)
-                                .progressViewStyle(CircularProgressViewStyle(tint: .dsAccent))
-                            Text("Loading image...")
-                                .font(DSTypography.bodyMedium)
-                                .foregroundColor(.dsTextSecondary)
+                // Main canvas area with optional layer panel
+                HStack(spacing: 0) {
+                    // Canvas
+                    ZStack {
+                        if let image = viewModel.image {
+                            AnnotationCanvas(
+                                image: image,
+                                state: viewModel.state,  // @Observable - no binding needed
+                                zoom: $viewModel.zoom,
+                                offset: $viewModel.offset,
+                                viewModel: viewModel
+                            )
+                        } else {
+                            // Loading state
+                            VStack(spacing: DSSpacing.md) {
+                                ProgressView()
+                                    .scaleEffect(1.2)
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .dsAccent))
+                                Text("Loading image...")
+                                    .font(DSTypography.bodyMedium)
+                                    .foregroundColor(.dsTextSecondary)
+                            }
                         }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.dsBackground)
+
+                    // Layer panel (right sidebar)
+                    if viewModel.state.isLayerPanelVisible {
+                        LayerPanelView(
+                            state: viewModel.state,
+                            onClose: {
+                                viewModel.state.isLayerPanelVisible = false
+                                viewModel.state.isLayerPanelManuallyHidden = true
+                            }
+                        )
+                        .transition(.move(edge: .trailing))
+                    }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.dsBackground)
+                .animation(DSAnimation.standard, value: viewModel.state.isLayerPanelVisible)
 
                 // Bottom status bar
                 AnnotationStatusBar(viewModel: viewModel)
@@ -438,9 +454,39 @@ struct AnnotationToolbar: View {
     let onDone: () -> Void
     let onCancel: () -> Void
 
-    // Primary tools matching CleanShot X order
+    // Primary tools - Select tool first, then creation tools
     private var primaryTools: [AnnotationTool] {
-        [.crop, .rectangleOutline, .rectangleSolid, .circleOutline, .line, .arrow, .text, .blur]
+        [.select, .crop, .rectangleOutline, .rectangleSolid, .circleOutline, .line, .arrow, .text, .blur]
+    }
+
+    // Color binding - reflects selected annotation's color or current color
+    private var colorBinding: Binding<Color> {
+        Binding(
+            get: {
+                if let annotation = viewModel.state.selectedAnnotation {
+                    return annotation.swiftUIColor
+                }
+                return viewModel.state.currentColor
+            },
+            set: { newColor in
+                viewModel.state.currentColor = newColor
+            }
+        )
+    }
+
+    // Stroke width binding - reflects selected annotation's stroke or current stroke
+    private var strokeWidthBinding: Binding<CGFloat> {
+        Binding(
+            get: {
+                if let annotation = viewModel.state.selectedAnnotation {
+                    return annotation.strokeWidth
+                }
+                return viewModel.state.currentStrokeWidth
+            },
+            set: { newWidth in
+                viewModel.state.currentStrokeWidth = newWidth
+            }
+        )
     }
 
     var body: some View {
@@ -474,8 +520,9 @@ struct AnnotationToolbar: View {
                 .fill(Color.white.opacity(0.1))
                 .frame(width: 1, height: 24)
 
-            // Text options (shown when text tool is selected)
-            if viewModel.state.currentTool == .text {
+            // Text options (shown when text tool is selected OR text annotation is selected)
+            if viewModel.state.currentTool == .text ||
+               (viewModel.state.selectedAnnotation?.type == .text) {
                 TextOptionsBar(viewModel: viewModel)
 
                 Rectangle()
@@ -483,10 +530,24 @@ struct AnnotationToolbar: View {
                     .frame(width: 1, height: 24)
             }
 
-            // Color and stroke
+            // Color and stroke - sync with selected annotation
             HStack(alignment: .center, spacing: DSSpacing.sm) {
-                ColorPickerButton(selectedColor: $viewModel.state.currentColor)
-                StrokeWidthButton(strokeWidth: $viewModel.state.currentStrokeWidth)
+                ColorPickerButton(
+                    selectedColor: colorBinding,
+                    onColorChange: { newColor in
+                        if viewModel.state.selectedAnnotationId != nil {
+                            viewModel.state.updateSelectedAnnotationColor(newColor)
+                        }
+                    }
+                )
+                StrokeWidthButton(
+                    strokeWidth: strokeWidthBinding,
+                    onStrokeChange: { newWidth in
+                        if viewModel.state.selectedAnnotationId != nil {
+                            viewModel.state.updateSelectedAnnotationStrokeWidth(newWidth)
+                        }
+                    }
+                )
             }
 
             Spacer()
@@ -515,6 +576,13 @@ struct AnnotationToolbar: View {
                 }
                 .help("Delete selected (⌫)")
             }
+
+            // Layer panel toggle
+            DSIconButton(icon: viewModel.state.isLayerPanelVisible ? "sidebar.right" : "sidebar.right", size: 28) {
+                viewModel.state.toggleLayerPanelVisibility()
+            }
+            .opacity(viewModel.state.isLayerPanelVisible ? 1 : 0.6)
+            .help("Toggle layer panel")
 
             // Vertical divider
             Rectangle()
@@ -598,6 +666,22 @@ struct TextOptionsBar: View {
     @State private var showFontPicker = false
     @State private var showSizePicker = false
 
+    // Get current font name from selected annotation or current state
+    private var currentFontName: String {
+        if let annotation = viewModel.state.selectedAnnotation, annotation.type == .text {
+            return annotation.fontName
+        }
+        return viewModel.state.currentFontName
+    }
+
+    // Get current font size from selected annotation or current state
+    private var currentFontSize: CGFloat {
+        if let annotation = viewModel.state.selectedAnnotation, annotation.type == .text {
+            return annotation.fontSize
+        }
+        return viewModel.state.currentFontSize
+    }
+
     var body: some View {
         HStack(spacing: DSSpacing.sm) {
             // Font picker
@@ -625,10 +709,14 @@ struct TextOptionsBar: View {
                     ForEach(FontOption.systemFonts) { font in
                         PickerOptionButton(
                             label: font.displayName,
-                            isSelected: viewModel.state.currentFontName == font.name,
+                            isSelected: currentFontName == font.name,
                             font: DSTypography.bodySmall
                         ) {
                             viewModel.state.currentFontName = font.name
+                            // Update selected text annotation if any
+                            if viewModel.state.selectedAnnotation?.type == .text {
+                                viewModel.state.updateSelectedAnnotationFontName(font.name)
+                            }
                             showFontPicker = false
                         }
                     }
@@ -641,7 +729,7 @@ struct TextOptionsBar: View {
             // Font size
             Button(action: { showSizePicker.toggle() }) {
                 HStack(spacing: DSSpacing.xxs) {
-                    Text("\(Int(viewModel.state.currentFontSize))pt")
+                    Text("\(Int(currentFontSize))pt")
                         .font(DSTypography.monoSmall)
                         .foregroundColor(.dsTextSecondary)
                     Image(systemName: "chevron.down")
@@ -661,10 +749,14 @@ struct TextOptionsBar: View {
                     ForEach([12, 14, 16, 18, 24, 32, 48, 64], id: \.self) { size in
                         PickerOptionButton(
                             label: "\(size)pt",
-                            isSelected: Int(viewModel.state.currentFontSize) == size,
+                            isSelected: Int(currentFontSize) == size,
                             font: DSTypography.monoSmall
                         ) {
                             viewModel.state.currentFontSize = CGFloat(size)
+                            // Update selected text annotation if any
+                            if viewModel.state.selectedAnnotation?.type == .text {
+                                viewModel.state.updateSelectedAnnotationFontSize(CGFloat(size))
+                            }
                             showSizePicker = false
                         }
                     }
@@ -677,7 +769,7 @@ struct TextOptionsBar: View {
     }
 
     private var currentFontDisplayName: String {
-        FontOption.systemFonts.first { $0.name == viewModel.state.currentFontName }?.displayName ?? "System"
+        FontOption.systemFonts.first { $0.name == currentFontName }?.displayName ?? "System"
     }
 }
 
@@ -727,6 +819,7 @@ struct PickerOptionButton: View {
 
 struct ColorPickerButton: View {
     @Binding var selectedColor: Color
+    var onColorChange: ((Color) -> Void)? = nil
     @State private var showPicker = false
     @State private var isHovered = false
 
@@ -758,7 +851,7 @@ struct ColorPickerButton: View {
         }
         .help("Color")
         .popover(isPresented: $showPicker) {
-            ColorPickerGrid(selectedColor: $selectedColor, showPicker: $showPicker)
+            ColorPickerGrid(selectedColor: $selectedColor, showPicker: $showPicker, onColorChange: onColorChange)
         }
     }
 }
@@ -766,6 +859,7 @@ struct ColorPickerButton: View {
 struct ColorPickerGrid: View {
     @Binding var selectedColor: Color
     @Binding var showPicker: Bool
+    var onColorChange: ((Color) -> Void)? = nil
 
     // Local state to buffer ColorPicker updates and prevent crash from rapid binding updates
     @State private var pickerColor: Color = .red
@@ -782,6 +876,7 @@ struct ColorPickerGrid: View {
                         size: 28
                     ) {
                         selectedColor = color
+                        onColorChange?(color)
                         showPicker = false
                     }
                 }
@@ -793,6 +888,7 @@ struct ColorPickerGrid: View {
                 .labelsHidden()
                 .onChange(of: pickerColor) { _, newColor in
                     selectedColor = newColor
+                    onColorChange?(newColor)
                 }
         }
         .padding(DSSpacing.md)
@@ -807,6 +903,7 @@ struct ColorPickerGrid: View {
 
 struct StrokeWidthButton: View {
     @Binding var strokeWidth: CGFloat
+    var onStrokeChange: ((CGFloat) -> Void)? = nil
     @State private var showPicker = false
     @State private var isHovered = false
 
@@ -833,6 +930,7 @@ struct StrokeWidthButton: View {
                 ForEach([1, 2, 3, 5, 8, 12], id: \.self) { width in
                     Button(action: {
                         strokeWidth = CGFloat(width)
+                        onStrokeChange?(CGFloat(width))
                         showPicker = false
                     }) {
                         HStack {
