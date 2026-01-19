@@ -156,7 +156,7 @@ struct LayerPanelView: View {
                 .background(Color.dsBackgroundElevated)
             }
         }
-        .frame(width: 200)
+        .frame(width: 240)
         .background(Color.dsBackground)
         .overlay(
             Rectangle()
@@ -231,6 +231,7 @@ struct DraggableLayerRow: View {
     @State private var editedNumber: String = ""
     @State private var isEditingName = false
     @State private var editedName: String = ""
+    @FocusState private var isNameFieldFocused: Bool
 
     private var typeIcon: String {
         switch annotation.type {
@@ -324,7 +325,8 @@ struct DraggableLayerRow: View {
                         set: { newColor in onColorChange?(newColor) }
                     ))
                     .labelsHidden()
-                    .frame(width: 20, height: 16)
+                    .frame(width: 14, height: 14)
+                    .clipShape(Circle())
                 } else {
                     Image(systemName: typeIcon)
                         .font(.system(size: 11))
@@ -339,12 +341,19 @@ struct DraggableLayerRow: View {
                         TextField("", text: $editedName)
                             .font(DSTypography.labelSmall)
                             .textFieldStyle(.plain)
+                            .focused($isNameFieldFocused)
                             .onSubmit {
                                 onRename?(editedName.isEmpty ? nil : editedName)
                                 isEditingName = false
                             }
                             .onExitCommand {
                                 isEditingName = false
+                            }
+                            .onChange(of: isNameFieldFocused) { _, isFocused in
+                                if !isFocused && isEditingName {
+                                    onRename?(editedName.isEmpty ? nil : editedName)
+                                    isEditingName = false
+                                }
                             }
                     } else {
                         Text(annotation.name ?? typeName)
@@ -353,6 +362,7 @@ struct DraggableLayerRow: View {
                             .onTapGesture(count: 2) {
                                 editedName = annotation.name ?? typeName
                                 isEditingName = true
+                                isNameFieldFocused = true
                             }
                     }
 
@@ -506,6 +516,7 @@ struct DraggableLayerRow: View {
             Button {
                 editedName = annotation.name ?? typeName
                 isEditingName = true
+                isNameFieldFocused = true
             } label: {
                 Label("Rename", systemImage: "pencil")
             }
