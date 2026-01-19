@@ -829,16 +829,25 @@ struct AnnotationCanvas: View {
         let end = CGPoint(x: scaledRect.origin.x + scaledRect.size.width, y: scaledRect.origin.y + scaledRect.size.height)
         let color = annotation.swiftUIColor
 
-        // Draw line
-        var path = Path()
-        path.move(to: start)
-        path.addLine(to: end)
-        context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: annotation.strokeWidth, lineCap: .round))
-
-        // Draw arrowhead
+        // Calculate arrow geometry
         let angle = atan2(end.y - start.y, end.x - start.x)
         let arrowLength: CGFloat = (15 + annotation.strokeWidth) * zoom
+        let arrowheadHeight = arrowLength * cos(.pi / 6)  // Height from tip to base
+        let totalLength = hypot(end.x - start.x, end.y - start.y)
 
+        // Draw shaft only if arrow is longer than arrowhead, ending at arrowhead base
+        if totalLength > arrowheadHeight {
+            let shaftEnd = CGPoint(
+                x: end.x - arrowheadHeight * cos(angle),
+                y: end.y - arrowheadHeight * sin(angle)
+            )
+            var path = Path()
+            path.move(to: start)
+            path.addLine(to: shaftEnd)
+            context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: annotation.strokeWidth, lineCap: .round))
+        }
+
+        // Draw arrowhead
         let arrowPoint1 = CGPoint(
             x: end.x - arrowLength * cos(angle - .pi / 6),
             y: end.y - arrowLength * sin(angle - .pi / 6)
