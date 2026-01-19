@@ -52,9 +52,10 @@ struct LayerPanelView: View {
             ScrollView {
                 LazyVStack(spacing: 2) {
                     // Reversed to show top layers first (newest on top visually)
-                    ForEach(reversedAnnotations) { annotation in
+                    ForEach(Array(reversedAnnotations.enumerated()), id: \.element.id) { displayIndex, annotation in
                         DraggableLayerRow(
                             annotation: annotation,
+                            displayNumber: displayIndex + 1,
                             isSelected: annotation.id == state.selectedAnnotationId,
                             isVisible: state.isAnnotationVisible(annotation.id),
                             isDragging: draggedAnnotationId == annotation.id,
@@ -205,6 +206,7 @@ struct LayerPanelView: View {
 
 struct DraggableLayerRow: View {
     let annotation: Annotation
+    let displayNumber: Int
     let isSelected: Bool
     let isVisible: Bool
     let isDragging: Bool
@@ -312,8 +314,8 @@ struct DraggableLayerRow: View {
                     .foregroundColor(.dsTextTertiary.opacity(0.5))
                     .frame(width: 12)
 
-                // Creation order number
-                Text("#\(annotation.creationOrder)")
+                // Layer position number (updates after reordering)
+                Text("#\(displayNumber)")
                     .font(DSTypography.monoSmall)
                     .foregroundColor(.dsTextTertiary)
                     .frame(width: 24)
