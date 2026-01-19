@@ -118,7 +118,7 @@ struct LayerPanelView: View {
                         )
                     }
                 }
-                .padding(.vertical, DSSpacing.xs)
+                .padding(.bottom, DSSpacing.xs)
             }
             .frame(maxHeight: .infinity)
             .onDrop(of: [.text], isTargeted: $isDragTargeted) { _ in
