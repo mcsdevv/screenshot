@@ -1,0 +1,80 @@
+---
+title: System Integration
+description: Menu bar, URL scheme, and permissions
+---
+
+# System Integration
+
+ScreenCapture integrates deeply with macOS.
+
+## Menu Bar
+
+ScreenCapture lives in your menu bar for quick access.
+
+### Icon States
+
+| State | Appearance |
+|-------|------------|
+| Idle | Camera viewfinder icon |
+| Recording | Red circle indicator |
+
+### Menu Options
+
+The menu bar provides access to:
+- All capture modes
+- Recording controls
+- Capture History
+- Preferences
+- Quit
+
+## URL Scheme
+
+ScreenCapture supports URL scheme for automation.
+
+```
+screencapture://history
+```
+
+Opens the Capture History window.
+
+### Usage
+
+- Click links in browsers or documents
+- Use with macOS Shortcuts app
+- Integrate with other automation tools
+
+## Required Permissions
+
+| Permission | Usage |
+|------------|-------|
+| Screen Recording | ScreenCaptureKit capture |
+| Camera | Webcam overlay |
+| Microphone | Audio recording (optional) |
+| Files & Folders | Custom save locations |
+
+### Granting Permissions
+
+1. When prompted, click "Allow" or "Open System Settings"
+2. In System Settings > Privacy & Security
+3. Find the permission category
+4. Enable ScreenCapture
+
+## App Configuration
+
+| Setting | Value |
+|---------|-------|
+| App Type | Menu bar only (LSUIElement) |
+| Spaces | Works across all Spaces |
+| Login Item | ServiceManagement framework |
+
+### LSUIElement
+
+ScreenCapture runs as an "agent app" without a Dock icon. Access is through the menu bar only.
+
+### All Spaces
+
+Pinned screenshots and overlay windows work across all macOS Spaces and fullscreen apps.
+
+### Login Item
+
+Configure launch at login through Settings > General or System Settings > Login Items.

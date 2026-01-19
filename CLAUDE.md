@@ -66,3 +66,32 @@ xcodebuild -project ScreenCapture.xcodeproj -scheme ScreenCapture build
 - Use meaningful variable names
 - Add documentation comments for public APIs
 - Keep functions focused and single-purpose
+
+## Documentation Updates
+
+The documentation site is in `docs/` using Fumadocs (Next.js). When modifying features:
+
+1. Update the relevant MDX file in `docs/content/docs/`
+2. If adding a new feature, create a new MDX file
+3. Update `meta.json` navigation if needed
+4. Run `cd docs && pnpm build` to verify
+5. Commit both code and docs changes together
+
+### Documentation Structure
+
+```
+docs/content/docs/
+├── index.mdx              # Getting Started
+├── capture/               # Screenshot capture modes
+├── recording/             # Video and GIF recording
+├── annotation/            # Annotation tools
+├── features/              # Additional features
+├── shortcuts/             # Keyboard shortcuts
+├── settings/              # App settings
+├── storage/               # File management
+└── system/                # System integration
+```
+
+### Keeping FEATURES.md in Sync
+
+When updating documentation, also update `FEATURES.md` in the root to keep it as the source of truth for feature specifications.

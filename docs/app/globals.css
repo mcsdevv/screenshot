@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import 'fumadocs-ui/style.css';
+
+:root {
+  /* Prismatic Dark Theme */
+  --fd-background: 240 12% 7%;
+  --fd-foreground: 0 0% 100%;
+  --fd-muted: 240 10% 16%;
+  --fd-muted-foreground: 0 0% 60%;
+  --fd-popover: 240 12% 10%;
+  --fd-popover-foreground: 0 0% 100%;
+  --fd-card: 240 12% 10%;
+  --fd-card-foreground: 0 0% 100%;
+  --fd-border: 0 0% 100% / 8%;
+  --fd-input: 0 0% 100% / 8%;
+  --fd-primary: 193 95% 56%;
+  --fd-primary-foreground: 240 12% 7%;
+  --fd-secondary: 240 10% 13%;
+  --fd-secondary-foreground: 0 0% 95%;
+  --fd-accent: 193 95% 56%;
+  --fd-accent-foreground: 240 12% 7%;
+  --fd-ring: 193 95% 56%;
+}
+
+/* Override light mode with dark theme */
+.light,
+:root {
+  --fd-background: 240 12% 7%;
+  --fd-foreground: 0 0% 100%;
+  --fd-muted: 240 10% 16%;
+  --fd-muted-foreground: 0 0% 60%;
+  --fd-popover: 240 12% 10%;
+  --fd-popover-foreground: 0 0% 100%;
+  --fd-card: 240 12% 10%;
+  --fd-card-foreground: 0 0% 100%;
+  --fd-border: 0 0% 100% / 8%;
+  --fd-input: 0 0% 100% / 8%;
+  --fd-primary: 193 95% 56%;
+  --fd-primary-foreground: 240 12% 7%;
+  --fd-secondary: 240 10% 13%;
+  --fd-secondary-foreground: 0 0% 95%;
+  --fd-accent: 193 95% 56%;
+  --fd-accent-foreground: 240 12% 7%;
+  --fd-ring: 193 95% 56%;
+}
+
+body {
+  background-color: #121217;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+/* Liquid Glass effect for cards */
+.glass-panel {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+}
+
+/* Accent glow effect */
+.accent-glow {
+  box-shadow: 0 0 12px rgba(51, 200, 250, 0.3);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #121217;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Code block styling */
+pre {
+  background: #191921 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Table styling */
+table {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+th {
+  background: #191921;
+}
+
+tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
