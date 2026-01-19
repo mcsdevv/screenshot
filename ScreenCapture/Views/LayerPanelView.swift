@@ -13,10 +13,8 @@ struct LayerPanelView: View {
     @Bindable var state: AnnotationState
     let onClose: () -> Void
 
-    // Drag state tracking
+    // Drag state tracking - simplified for immediate-move approach
     @State private var draggedAnnotationId: UUID?
-    @State private var dropTargetId: UUID?
-    @State private var dropPosition: LayerDropPosition = .above
     @State private var isDragTargeted = false
 
     // Get reversed annotations for display (top layers first)
@@ -37,8 +35,7 @@ struct LayerPanelView: View {
                             isSelected: annotation.id == state.selectedAnnotationId,
                             isVisible: state.isAnnotationVisible(annotation.id),
                             isDragging: draggedAnnotationId == annotation.id,
-                            isDropTarget: dropTargetId == annotation.id,
-                            dropPosition: dropPosition,
+                            isDragActive: draggedAnnotationId != nil,
                             onSelect: {
                                 state.selectedAnnotationId = annotation.id
                             },
@@ -81,20 +78,32 @@ struct LayerPanelView: View {
                                 draggedAnnotationId = annotation.id
                             },
                             onDragEnded: {
-                                // Perform the move if we have a valid drop target
-                                if let draggedId = draggedAnnotationId,
-                                   let targetId = dropTargetId,
-                                   draggedId != targetId {
-                                    performMove(draggedId: draggedId, targetId: targetId, position: dropPosition)
-                                }
                                 draggedAnnotationId = nil
-                                dropTargetId = nil
-                            },
-                            onDropTargetChanged: { targetId, position in
-                                dropTargetId = targetId
-                                dropPosition = position
                             }
                         )
+                        .onDrop(of: [.text], delegate: ReorderDropDelegate(
+                            targetId: annotation.id,
+                            draggingId: $draggedAnnotationId,
+                            annotations: reversedAnnotations,
+                            moveAction: { fromId, toId in
+                                performMove(fromId: fromId, toTargetId: toId)
+                            }
+                        ))
+                    }
+
+                    // Bottom drop zone for dropping below last item
+                    if !reversedAnnotations.isEmpty && draggedAnnotationId != nil {
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(height: 30)
+                            .contentShape(Rectangle())
+                            .onDrop(of: [.text], delegate: BottomReorderDropDelegate(
+                                lastAnnotationId: reversedAnnotations.last?.id,
+                                draggingId: $draggedAnnotationId,
+                                moveToBottom: { fromId in
+                                    performMoveToBottom(fromId: fromId)
+                                }
+                            ))
                     }
                 }
                 .padding(.bottom, DSSpacing.xs)
@@ -107,7 +116,6 @@ struct LayerPanelView: View {
             .onChange(of: isDragTargeted) { _, isTargeted in
                 if !isTargeted {
                     draggedAnnotationId = nil
-                    dropTargetId = nil
                 }
             }
 
@@ -145,37 +153,39 @@ struct LayerPanelView: View {
         )
     }
 
-    /// Performs the move operation, accounting for reversed display order
-    private func performMove(draggedId: UUID, targetId: UUID, position: LayerDropPosition) {
+    /// Performs move when dragging over a target row - moves immediately for responsive feedback
+    private func performMove(fromId: UUID, toTargetId: UUID) {
         // Find indices in the original (non-reversed) array
-        guard let draggedIndex = state.annotations.firstIndex(where: { $0.id == draggedId }),
-              let targetIndex = state.annotations.firstIndex(where: { $0.id == targetId }) else {
+        guard let fromIndex = state.annotations.firstIndex(where: { $0.id == fromId }),
+              let targetIndex = state.annotations.firstIndex(where: { $0.id == toTargetId }) else {
             return
         }
 
-        // In the UI, we show reversed order (top = highest index in original array)
-        // "above" in UI means higher z-order = higher index in original array
-        // "below" in UI means lower z-order = lower index in original array
-
-        var newIndex: Int
-        if position == .above {
-            // Moving above target in UI = moving to higher index in original array
-            newIndex = targetIndex + 1
-        } else {
-            // Moving below target in UI = moving to lower index (or same position as target)
-            newIndex = targetIndex
-        }
+        // In reversed display, moving to a row means taking its position
+        // The target row shifts to accommodate the dragged item
+        var newIndex = targetIndex
 
         // Adjust for removal of dragged item if it's before the target
-        if draggedIndex < newIndex {
+        if fromIndex < newIndex {
             newIndex -= 1
         }
 
         // Clamp to valid range
         newIndex = max(0, min(newIndex, state.annotations.count - 1))
 
-        if newIndex != draggedIndex {
-            state.moveAnnotation(id: draggedId, toIndex: newIndex)
+        if newIndex != fromIndex {
+            state.moveAnnotation(id: fromId, toIndex: newIndex)
+        }
+    }
+
+    /// Move item to the bottom (index 0 in original array)
+    private func performMoveToBottom(fromId: UUID) {
+        guard let fromIndex = state.annotations.firstIndex(where: { $0.id == fromId }) else {
+            return
+        }
+
+        if fromIndex != 0 {
+            state.moveAnnotation(id: fromId, toIndex: 0)
         }
     }
 }
@@ -188,8 +198,7 @@ struct DraggableLayerRow: View {
     let isSelected: Bool
     let isVisible: Bool
     let isDragging: Bool
-    let isDropTarget: Bool
-    let dropPosition: LayerDropPosition
+    let isDragActive: Bool  // True when any drag is in progress
     let onSelect: () -> Void
     let onToggleVisibility: () -> Void
     let onDelete: () -> Void
@@ -204,7 +213,6 @@ struct DraggableLayerRow: View {
     var onRename: ((String?) -> Void)? = nil
     var onDragStarted: (() -> Void)? = nil
     var onDragEnded: (() -> Void)? = nil
-    var onDropTargetChanged: ((UUID?, LayerDropPosition) -> Void)? = nil
 
     private static let hoverDelay: TimeInterval = 0.12
 
@@ -288,30 +296,16 @@ struct DraggableLayerRow: View {
         let showActionButtons = isHovered || isSelected
         let showVisibilityToggle = showActionButtons || !isVisible
 
-        VStack(spacing: 0) {
-            // Drop indicator above
-            if isDropTarget && dropPosition == .above {
-                DropIndicatorLine()
+        // Main row content (drop indicators removed - immediate move provides visual feedback)
+        mainRowContent(showActionButtons: showActionButtons, showVisibilityToggle: showVisibilityToggle)
+            .onDrag {
+                onDragStarted?()
+                return NSItemProvider(object: annotation.id.uuidString as NSString)
+            } preview: {
+                // Empty preview prevents confusing "return to origin" animation
+                Color.clear.frame(width: 1, height: 1)
             }
-
-            // Main row content
-            mainRowContent(showActionButtons: showActionButtons, showVisibilityToggle: showVisibilityToggle)
-
-            // Drop indicator below
-            if isDropTarget && dropPosition == .below {
-                DropIndicatorLine()
-            }
-        }
-        .onDrag {
-            onDragStarted?()
-            return NSItemProvider(object: annotation.id.uuidString as NSString)
-        }
-        .onDrop(of: [.text], delegate: LayerDropDelegate(
-            targetAnnotationId: annotation.id,
-            onDropTargetChanged: onDropTargetChanged,
-            onDragEnded: onDragEnded
-        ))
-        .contextMenu { contextMenuContent }
+            .contextMenu { contextMenuContent }
     }
 
     // MARK: - Extracted Subviews
@@ -376,13 +370,20 @@ struct DraggableLayerRow: View {
     private var typeIconView: some View {
         Group {
             if annotation.type != .blur {
-                ColorPicker("", selection: Binding(
-                    get: { annotation.swiftUIColor },
-                    set: { newColor in onColorChange?(newColor) }
-                ))
-                .labelsHidden()
-                .frame(width: 14, height: 14)
-                .clipShape(Circle())
+                // Use simple Circle during drag to prevent ColorPicker state corruption
+                if isDragActive {
+                    Circle()
+                        .fill(annotation.swiftUIColor)
+                        .frame(width: 14, height: 14)
+                } else {
+                    ColorPicker("", selection: Binding(
+                        get: { annotation.swiftUIColor },
+                        set: { newColor in onColorChange?(newColor) }
+                    ))
+                    .labelsHidden()
+                    .frame(width: 14, height: 14)
+                    .clipShape(Circle())
+                }
             } else {
                 Image(systemName: typeIcon)
                     .font(.system(size: 11))
@@ -615,55 +616,50 @@ struct DraggableLayerRow: View {
     }
 }
 
-// MARK: - Drop Indicator Line
+// MARK: - Reorder Drop Delegate
 
-struct DropIndicatorLine: View {
-    var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(Color.dsAccent)
-                .frame(width: 6, height: 6)
-            Rectangle()
-                .fill(Color.dsAccent)
-                .frame(height: 2)
-            Circle()
-                .fill(Color.dsAccent)
-                .frame(width: 6, height: 6)
-        }
-        .padding(.horizontal, DSSpacing.sm)
-        .padding(.vertical, 2)
-    }
-}
-
-// MARK: - Layer Drop Delegate
-
-struct LayerDropDelegate: DropDelegate {
-    let targetAnnotationId: UUID
-    var onDropTargetChanged: ((UUID?, LayerDropPosition) -> Void)?
-    var onDragEnded: (() -> Void)?
+/// Handles drops on layer rows - moves items immediately when entering a new row
+struct ReorderDropDelegate: DropDelegate {
+    let targetId: UUID
+    @Binding var draggingId: UUID?
+    let annotations: [Annotation]
+    let moveAction: (UUID, UUID) -> Void
 
     func dropEntered(info: DropInfo) {
-        // Determine if we're dropping above or below based on position within the row
-        let position: LayerDropPosition = info.location.y < 20 ? .above : .below
-        onDropTargetChanged?(targetAnnotationId, position)
+        guard let dragId = draggingId, dragId != targetId else { return }
+        // Move immediately when entering a new row for responsive feedback
+        moveAction(dragId, targetId)
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        let position: LayerDropPosition = info.location.y < 20 ? .above : .below
-        onDropTargetChanged?(targetAnnotationId, position)
         return DropProposal(operation: .move)
     }
 
-    func dropExited(info: DropInfo) {
-        // Don't clear yet - let performDrop or another row handle it
+    func performDrop(info: DropInfo) -> Bool {
+        draggingId = nil
+        return true
+    }
+}
+
+// MARK: - Bottom Reorder Drop Delegate
+
+/// Handles drops on the bottom zone to move items below the last row
+struct BottomReorderDropDelegate: DropDelegate {
+    let lastAnnotationId: UUID?
+    @Binding var draggingId: UUID?
+    let moveToBottom: (UUID) -> Void
+
+    func dropEntered(info: DropInfo) {
+        guard let dragId = draggingId, dragId != lastAnnotationId else { return }
+        moveToBottom(dragId)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        return DropProposal(operation: .move)
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        onDragEnded?()
-        return true
-    }
-
-    func validateDrop(info: DropInfo) -> Bool {
+        draggingId = nil
         return true
     }
 }
