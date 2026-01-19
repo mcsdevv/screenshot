@@ -1,4 +1,4 @@
-name: Docs Build
+name: Docs
 
 on:
   push:
@@ -12,6 +12,7 @@ on:
 
 jobs:
   build:
+    name: Docs - Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
