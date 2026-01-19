@@ -295,219 +295,7 @@ struct DraggableLayerRow: View {
             }
 
             // Main row content
-            HStack(spacing: DSSpacing.xs) {
-                // Selectable area: drag handle through name/property
-                // This area handles tap-to-select; buttons are outside this
-                HStack(spacing: DSSpacing.xs) {
-                    // Drag handle
-                    Image(systemName: "line.3.horizontal")
-                        .font(.system(size: 10))
-                        .foregroundColor(.dsTextTertiary.opacity(0.5))
-                        .frame(width: 12)
-
-                    // Layer position number (updates after reordering)
-                    Text("#\(displayNumber)")
-                        .font(DSTypography.monoSmall)
-                        .foregroundColor(.dsTextTertiary)
-                        .frame(width: 24)
-
-                    // Type icon with color (color picker for non-blur annotations)
-                    // Use consistent container frame for all icon types to ensure alignment
-                    Group {
-                        if annotation.type != .blur {
-                            ColorPicker("", selection: Binding(
-                                get: { annotation.swiftUIColor },
-                                set: { newColor in onColorChange?(newColor) }
-                            ))
-                            .labelsHidden()
-                            .frame(width: 14, height: 14)
-                            .clipShape(Circle())
-                        } else {
-                            Image(systemName: typeIcon)
-                                .font(.system(size: 11))
-                                .foregroundColor(.dsTextTertiary)
-                        }
-                    }
-                    .frame(width: 16, height: 16, alignment: .center)
-
-                    // Type name and property
-                    VStack(alignment: .leading, spacing: 1) {
-                        // Layer name (custom or type name)
-                        if isEditingName {
-                            TextField("", text: $editedName)
-                                .font(DSTypography.labelSmall)
-                                .textFieldStyle(.plain)
-                                .frame(height: DSRowHeight.labelSmall)
-                                .focused($isNameFieldFocused)
-                                .onSubmit {
-                                    onRename?(editedName.isEmpty ? nil : editedName)
-                                    isEditingName = false
-                                }
-                                .onExitCommand {
-                                    isEditingName = false
-                                }
-                                .onChange(of: isNameFieldFocused) { _, isFocused in
-                                    if !isFocused && isEditingName {
-                                        onRename?(editedName.isEmpty ? nil : editedName)
-                                        isEditingName = false
-                                    }
-                                }
-                        } else {
-                            Text(annotation.name ?? typeName)
-                                .font(DSTypography.labelSmall)
-                                .foregroundColor(isVisible ? .dsTextPrimary : .dsTextTertiary)
-                                .frame(height: DSRowHeight.labelSmall)
-                                .onTapGesture(count: 2) {
-                                    editedName = annotation.name ?? typeName
-                                    isEditingName = true
-                                    isNameFieldFocused = true
-                                }
-                        }
-
-                        if !propertySummary.isEmpty {
-                            // For numbered steps, allow editing
-                            if annotation.type == .numberedStep, isEditingNumber {
-                                TextField("", text: $editedNumber)
-                                    .font(DSTypography.monoSmall)
-                                    .foregroundColor(.dsTextSecondary)
-                                    .textFieldStyle(.plain)
-                                    .frame(width: 40)
-                                    .onSubmit {
-                                        if let num = Int(editedNumber), num > 0 {
-                                            onUpdateStepNumber?(num)
-                                        }
-                                        isEditingNumber = false
-                                    }
-                            } else {
-                                Text(propertySummary)
-                                    .font(DSTypography.monoSmall)
-                                    .foregroundColor(.dsTextSecondary)
-                                    .lineLimit(1)
-                                    .onTapGesture {
-                                        if annotation.type == .numberedStep {
-                                            editedNumber = "\(annotation.stepNumber ?? 1)"
-                                            isEditingNumber = true
-                                        }
-                                    }
-                            }
-                        }
-                    }
-                    .frame(minWidth: 80, alignment: .leading)
-
-                    Spacer()
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    onSelect()
-                }
-
-                // Action buttons - always rendered for consistent layout, visibility controlled via opacity
-                HStack(spacing: 0) {
-                    // Move up button (bring forward in z-order)
-                    Button(action: { onBringForward?() }) {
-                        Image(systemName: "chevron.up")
-                            .font(.system(size: 10))
-                            .foregroundColor(.dsTextTertiary)
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 20, height: 20)
-                    .help("Move up")
-                    .opacity(showActionButtons ? 1 : 0)
-                    .allowsHitTesting(showActionButtons)
-                    .accessibilityHidden(!showActionButtons)
-
-                    // Move down button (send backward in z-order)
-                    Button(action: { onSendBackward?() }) {
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 10))
-                            .foregroundColor(.dsTextTertiary)
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 20, height: 20)
-                    .help("Move down")
-                    .opacity(showActionButtons ? 1 : 0)
-                    .allowsHitTesting(showActionButtons)
-                    .accessibilityHidden(!showActionButtons)
-
-                    // Lock toggle for numbered steps
-                    if annotation.type == .numberedStep {
-                        Button(action: { onToggleLock?() }) {
-                            Image(systemName: annotation.isNumberLocked ? "lock.fill" : "lock.open")
-                                .font(.system(size: 10))
-                                .foregroundColor(annotation.isNumberLocked ? .dsAccent : .dsTextTertiary)
-                        }
-                        .buttonStyle(.plain)
-                        .frame(width: 20, height: 20)
-                        .help(annotation.isNumberLocked ? "Unlock number" : "Lock number")
-                        .opacity(showActionButtons ? 1 : 0)
-                        .allowsHitTesting(showActionButtons)
-                        .accessibilityHidden(!showActionButtons)
-                    }
-
-                    // Visibility toggle
-                    Button(action: onToggleVisibility) {
-                        Image(systemName: isVisible ? "eye" : "eye.slash")
-                            .font(.system(size: 10))
-                            .foregroundColor(isVisible ? .dsTextTertiary : .dsTextTertiary.opacity(0.5))
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 20, height: 20)
-                    .help(isVisible ? "Hide layer" : "Show layer")
-                    .opacity(showVisibilityToggle ? 1 : 0)
-                    .allowsHitTesting(showVisibilityToggle)
-                    .accessibilityHidden(!showVisibilityToggle)
-
-                    // Delete button
-                    Button(action: onDelete) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 10))
-                            .foregroundColor(.dsTextTertiary)
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 20, height: 20)
-                    .help("Delete layer")
-                    .opacity(showActionButtons ? 1 : 0)
-                    .allowsHitTesting(showActionButtons)
-                    .accessibilityHidden(!showActionButtons)
-                }
-            }
-            .padding(.horizontal, DSSpacing.sm)
-            .padding(.vertical, DSSpacing.xs)
-            .background(
-                RoundedRectangle(cornerRadius: DSRadius.xs)
-                    .fill(
-                        isDragging ? Color.dsAccent.opacity(0.25) :
-                        (isSelected ? Color.dsAccent.opacity(0.15) :
-                        (isHovered ? Color.white.opacity(0.05) : Color.clear))
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DSRadius.xs)
-                    .strokeBorder(
-                        isDragging ? Color.dsAccent.opacity(0.5) :
-                        (isSelected ? Color.dsAccent.opacity(0.3) : Color.clear),
-                        lineWidth: 1
-                    )
-            )
-            .contentShape(Rectangle())
-            .onHover { hovering in
-                let token = UUID()
-                hoverDelayToken = token
-
-                if hovering {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + Self.hoverDelay) {
-                        guard hoverDelayToken == token else { return }
-                        withAnimation(DSAnimation.quick) {
-                            isHovered = true
-                        }
-                    }
-                } else {
-                    withAnimation(DSAnimation.quick) {
-                        isHovered = false
-                    }
-                }
-            }
-            .opacity(isDragging ? 0.5 : (isVisible ? 1 : 0.5))
+            mainRowContent(showActionButtons: showActionButtons, showVisibilityToggle: showVisibilityToggle)
 
             // Drop indicator below
             if isDropTarget && dropPosition == .below {
@@ -523,65 +311,306 @@ struct DraggableLayerRow: View {
             onDropTargetChanged: onDropTargetChanged,
             onDragEnded: onDragEnded
         ))
-        .contextMenu {
-            Button {
-                onBringToFront?()
-            } label: {
-                Label("Bring to Front", systemImage: "square.3.layers.3d.top.filled")
+        .contextMenu { contextMenuContent }
+    }
+
+    // MARK: - Extracted Subviews
+
+    @ViewBuilder
+    private func mainRowContent(showActionButtons: Bool, showVisibilityToggle: Bool) -> some View {
+        HStack(spacing: DSSpacing.xs) {
+            selectableArea
+            actionButtons(showActionButtons: showActionButtons, showVisibilityToggle: showVisibilityToggle)
+        }
+        .padding(.horizontal, DSSpacing.sm)
+        .padding(.vertical, DSSpacing.xs)
+        .background(rowBackground)
+        .overlay(rowBorder)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            let token = UUID()
+            hoverDelayToken = token
+
+            if hovering {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.hoverDelay) {
+                    guard hoverDelayToken == token else { return }
+                    withAnimation(DSAnimation.quick) {
+                        isHovered = true
+                    }
+                }
+            } else {
+                withAnimation(DSAnimation.quick) {
+                    isHovered = false
+                }
             }
-            .keyboardShortcut("]", modifiers: [.command, .shift])
+        }
+        .opacity(isDragging ? 0.5 : (isVisible ? 1 : 0.5))
+    }
 
-            Button {
-                onBringForward?()
-            } label: {
-                Label("Bring Forward", systemImage: "square.2.layers.3d.top.filled")
+    private var selectableArea: some View {
+        HStack(spacing: DSSpacing.xs) {
+            // Drag handle
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 10))
+                .foregroundColor(.dsTextTertiary.opacity(0.5))
+                .frame(width: 12)
+
+            // Layer position number
+            Text("#\(displayNumber)")
+                .font(DSTypography.monoSmall)
+                .foregroundColor(.dsTextTertiary)
+                .frame(width: 24)
+
+            // Type icon with color
+            typeIconView
+
+            // Type name and property
+            namePropertySection
+
+            Spacer()
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { onSelect() }
+    }
+
+    private var typeIconView: some View {
+        Group {
+            if annotation.type != .blur {
+                ColorPicker("", selection: Binding(
+                    get: { annotation.swiftUIColor },
+                    set: { newColor in onColorChange?(newColor) }
+                ))
+                .labelsHidden()
+                .frame(width: 14, height: 14)
+                .clipShape(Circle())
+            } else {
+                Image(systemName: typeIcon)
+                    .font(.system(size: 11))
+                    .foregroundColor(.dsTextTertiary)
             }
-            .keyboardShortcut("]", modifiers: .command)
+        }
+        .frame(width: 16, height: 16, alignment: .center)
+    }
 
-            Button {
-                onSendBackward?()
-            } label: {
-                Label("Send Backward", systemImage: "square.2.layers.3d.bottom.filled")
+    private var namePropertySection: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            nameField
+            propertySummaryField
+        }
+        .frame(minWidth: 80, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var nameField: some View {
+        if isEditingName {
+            TextField("", text: $editedName)
+                .font(DSTypography.labelSmall)
+                .textFieldStyle(.plain)
+                .frame(height: DSRowHeight.labelSmall)
+                .focused($isNameFieldFocused)
+                .onSubmit {
+                    onRename?(editedName.isEmpty ? nil : editedName)
+                    isEditingName = false
+                }
+                .onExitCommand { isEditingName = false }
+                .onChange(of: isNameFieldFocused) { _, isFocused in
+                    if !isFocused && isEditingName {
+                        onRename?(editedName.isEmpty ? nil : editedName)
+                        isEditingName = false
+                    }
+                }
+        } else {
+            Text(annotation.name ?? typeName)
+                .font(DSTypography.labelSmall)
+                .foregroundColor(isVisible ? .dsTextPrimary : .dsTextTertiary)
+                .frame(height: DSRowHeight.labelSmall)
+                .onTapGesture(count: 2) {
+                    editedName = annotation.name ?? typeName
+                    isEditingName = true
+                    isNameFieldFocused = true
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var propertySummaryField: some View {
+        if !propertySummary.isEmpty {
+            if annotation.type == .numberedStep, isEditingNumber {
+                TextField("", text: $editedNumber)
+                    .font(DSTypography.monoSmall)
+                    .foregroundColor(.dsTextSecondary)
+                    .textFieldStyle(.plain)
+                    .frame(width: 40)
+                    .onSubmit {
+                        if let num = Int(editedNumber), num > 0 {
+                            onUpdateStepNumber?(num)
+                        }
+                        isEditingNumber = false
+                    }
+            } else {
+                Text(propertySummary)
+                    .font(DSTypography.monoSmall)
+                    .foregroundColor(.dsTextSecondary)
+                    .lineLimit(1)
+                    .onTapGesture {
+                        if annotation.type == .numberedStep {
+                            editedNumber = "\(annotation.stepNumber ?? 1)"
+                            isEditingNumber = true
+                        }
+                    }
             }
-            .keyboardShortcut("[", modifiers: .command)
+        }
+    }
 
-            Button {
-                onSendToBack?()
-            } label: {
-                Label("Send to Back", systemImage: "square.3.layers.3d.bottom.filled")
+    @ViewBuilder
+    private func actionButtons(showActionButtons: Bool, showVisibilityToggle: Bool) -> some View {
+        HStack(spacing: 0) {
+            // Move up button
+            Button(action: { onBringForward?() }) {
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 10))
+                    .foregroundColor(.dsTextTertiary)
             }
-            .keyboardShortcut("[", modifiers: [.command, .shift])
+            .buttonStyle(.plain)
+            .frame(width: 20, height: 20)
+            .help("Move up")
+            .opacity(showActionButtons ? 1 : 0)
+            .allowsHitTesting(showActionButtons)
+            .accessibilityHidden(!showActionButtons)
 
-            Divider()
-
-            Button {
-                onDuplicate?()
-            } label: {
-                Label("Duplicate", systemImage: "plus.square.on.square")
+            // Move down button
+            Button(action: { onSendBackward?() }) {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10))
+                    .foregroundColor(.dsTextTertiary)
             }
-            .keyboardShortcut("d", modifiers: .command)
+            .buttonStyle(.plain)
+            .frame(width: 20, height: 20)
+            .help("Move down")
+            .opacity(showActionButtons ? 1 : 0)
+            .allowsHitTesting(showActionButtons)
+            .accessibilityHidden(!showActionButtons)
 
-            Button {
-                editedName = annotation.name ?? typeName
-                isEditingName = true
-                isNameFieldFocused = true
-            } label: {
-                Label("Rename", systemImage: "pencil")
+            // Lock toggle for numbered steps
+            if annotation.type == .numberedStep {
+                Button(action: { onToggleLock?() }) {
+                    Image(systemName: annotation.isNumberLocked ? "lock.fill" : "lock.open")
+                        .font(.system(size: 10))
+                        .foregroundColor(annotation.isNumberLocked ? .dsAccent : .dsTextTertiary)
+                }
+                .buttonStyle(.plain)
+                .frame(width: 20, height: 20)
+                .help(annotation.isNumberLocked ? "Unlock number" : "Lock number")
+                .opacity(showActionButtons ? 1 : 0)
+                .allowsHitTesting(showActionButtons)
+                .accessibilityHidden(!showActionButtons)
             }
 
-            Button(role: .destructive) {
-                onDelete()
-            } label: {
-                Label("Delete", systemImage: "trash")
+            // Visibility toggle
+            Button(action: onToggleVisibility) {
+                Image(systemName: isVisible ? "eye" : "eye.slash")
+                    .font(.system(size: 10))
+                    .foregroundColor(isVisible ? .dsTextTertiary : .dsTextTertiary.opacity(0.5))
             }
+            .buttonStyle(.plain)
+            .frame(width: 20, height: 20)
+            .help(isVisible ? "Hide layer" : "Show layer")
+            .opacity(showVisibilityToggle ? 1 : 0)
+            .allowsHitTesting(showVisibilityToggle)
+            .accessibilityHidden(!showVisibilityToggle)
 
-            Divider()
-
-            Button {
-                onToggleVisibility()
-            } label: {
-                Label(isVisible ? "Hide" : "Show", systemImage: isVisible ? "eye.slash" : "eye")
+            // Delete button
+            Button(action: onDelete) {
+                Image(systemName: "trash")
+                    .font(.system(size: 10))
+                    .foregroundColor(.dsTextTertiary)
             }
+            .buttonStyle(.plain)
+            .frame(width: 20, height: 20)
+            .help("Delete layer")
+            .opacity(showActionButtons ? 1 : 0)
+            .allowsHitTesting(showActionButtons)
+            .accessibilityHidden(!showActionButtons)
+        }
+    }
+
+    private var rowBackground: some View {
+        RoundedRectangle(cornerRadius: DSRadius.xs)
+            .fill(
+                isDragging ? Color.dsAccent.opacity(0.25) :
+                (isSelected ? Color.dsAccent.opacity(0.15) :
+                (isHovered ? Color.white.opacity(0.05) : Color.clear))
+            )
+    }
+
+    private var rowBorder: some View {
+        RoundedRectangle(cornerRadius: DSRadius.xs)
+            .strokeBorder(
+                isDragging ? Color.dsAccent.opacity(0.5) :
+                (isSelected ? Color.dsAccent.opacity(0.3) : Color.clear),
+                lineWidth: 1
+            )
+    }
+
+    @ViewBuilder
+    private var contextMenuContent: some View {
+        Button {
+            onBringToFront?()
+        } label: {
+            Label("Bring to Front", systemImage: "square.3.layers.3d.top.filled")
+        }
+        .keyboardShortcut("]", modifiers: [.command, .shift])
+
+        Button {
+            onBringForward?()
+        } label: {
+            Label("Bring Forward", systemImage: "square.2.layers.3d.top.filled")
+        }
+        .keyboardShortcut("]", modifiers: .command)
+
+        Button {
+            onSendBackward?()
+        } label: {
+            Label("Send Backward", systemImage: "square.2.layers.3d.bottom.filled")
+        }
+        .keyboardShortcut("[", modifiers: .command)
+
+        Button {
+            onSendToBack?()
+        } label: {
+            Label("Send to Back", systemImage: "square.3.layers.3d.bottom.filled")
+        }
+        .keyboardShortcut("[", modifiers: [.command, .shift])
+
+        Divider()
+
+        Button {
+            onDuplicate?()
+        } label: {
+            Label("Duplicate", systemImage: "plus.square.on.square")
+        }
+        .keyboardShortcut("d", modifiers: .command)
+
+        Button {
+            editedName = annotation.name ?? typeName
+            isEditingName = true
+            isNameFieldFocused = true
+        } label: {
+            Label("Rename", systemImage: "pencil")
+        }
+
+        Button(role: .destructive) {
+            onDelete()
+        } label: {
+            Label("Delete", systemImage: "trash")
+        }
+
+        Divider()
+
+        Button {
+            onToggleVisibility()
+        } label: {
+            Label(isVisible ? "Hide" : "Show", systemImage: isVisible ? "eye.slash" : "eye")
         }
     }
 }
