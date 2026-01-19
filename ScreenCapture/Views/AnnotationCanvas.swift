@@ -16,6 +16,7 @@ struct AnnotationCanvas: View {
     @State private var showTextInput = false
     @State private var textPosition: CGPoint = .zero
     @State private var dragStartLocation: CGPoint = .zero
+    @State private var editingAnnotationId: UUID? = nil  // Track which annotation is being edited (for text)
 
     // For blur caching - only cache committed blur annotations, not during drag
     @State private var cachedBlurImage: NSImage?
@@ -62,11 +63,14 @@ struct AnnotationCanvas: View {
                     // Background image (with blur regions applied)
                     imageLayer
 
-                    // Static annotation canvas - committed annotations only
+                    // Static annotation canvas - committed annotations only (respects visibility)
                     // Uses drawingGroup() for Metal-backed off-screen rendering
                     Canvas { context, size in
                         for annotation in state.annotations {
-                            drawAnnotation(annotation, in: context, size: size)
+                            // Skip hidden annotations
+                            if state.isAnnotationVisible(annotation.id) {
+                                drawAnnotation(annotation, in: context, size: size)
+                            }
                         }
                     }
                     .frame(width: scaledImageSize.width, height: scaledImageSize.height)
@@ -86,7 +90,8 @@ struct AnnotationCanvas: View {
 
                     // Selection handles for selected annotation
                     ForEach(state.annotations) { annotation in
-                        if annotation.id == state.selectedAnnotationId {
+                        if annotation.id == state.selectedAnnotationId,
+                           state.isAnnotationVisible(annotation.id) {
                             AnnotationSelectionOverlay(
                                 annotation: annotation,
                                 zoom: zoom,
@@ -95,7 +100,10 @@ struct AnnotationCanvas: View {
                                 },
                                 onResize: { newRect in
                                     resizeSelectedAnnotation(to: newRect)
-                                }
+                                },
+                                onEndpointMove: (annotation.type == .line || annotation.type == .arrow) ? { index, position in
+                                    moveLineEndpoint(index: index, to: position)
+                                } : nil
                             )
                         }
                     }
@@ -121,7 +129,11 @@ struct AnnotationCanvas: View {
                             fontSize: state.currentFontSize,
                             fontName: state.currentFontName,
                             onCommit: { commitTextAnnotation() },
-                            onCancel: { showTextInput = false }
+                            onCancel: {
+                                showTextInput = false
+                                editingAnnotationId = nil
+                                textInput = ""
+                            }
                         )
                     }
                 }
@@ -137,14 +149,65 @@ struct AnnotationCanvas: View {
         .onExitCommand {
             state.selectedAnnotationId = nil
             showTextInput = false
+            editingAnnotationId = nil
         }
         .onChange(of: state.currentTool) { _, newTool in
             // Dismiss text input when switching to a different tool
             if newTool != .text && showTextInput {
                 showTextInput = false
                 textInput = ""
+                editingAnnotationId = nil
+            }
+            // Deselect annotation when switching tools (unless switching to select)
+            if newTool != .select {
+                state.selectedAnnotationId = nil
             }
         }
+        // Keyboard shortcuts for annotation manipulation
+        .background(
+            AnnotationKeyboardHandler(
+                onDelete: {
+                    guard state.selectedAnnotationId != nil, !showTextInput else { return }
+                    state.deleteSelectedAnnotation()
+                },
+                onNudge: { dx, dy in
+                    guard state.selectedAnnotationId != nil, !showTextInput else { return }
+                    state.nudgeSelectedAnnotation(dx: dx, dy: dy)
+                },
+                onDuplicate: {
+                    guard let id = state.selectedAnnotationId, !showTextInput else { return }
+                    if let newId = state.duplicateAnnotation(id: id) {
+                        state.selectedAnnotationId = newId
+                    }
+                },
+                onCopy: {
+                    guard state.selectedAnnotationId != nil, !showTextInput else { return }
+                    state.copySelectedAnnotation()
+                },
+                onPaste: {
+                    guard !showTextInput else { return }
+                    if let newId = state.pasteAnnotation() {
+                        state.selectedAnnotationId = newId
+                    }
+                },
+                onBringForward: {
+                    guard let id = state.selectedAnnotationId, !showTextInput else { return }
+                    state.bringForward(id: id)
+                },
+                onSendBackward: {
+                    guard let id = state.selectedAnnotationId, !showTextInput else { return }
+                    state.sendBackward(id: id)
+                },
+                onBringToFront: {
+                    guard let id = state.selectedAnnotationId, !showTextInput else { return }
+                    state.bringToFront(id: id)
+                },
+                onSendToBack: {
+                    guard let id = state.selectedAnnotationId, !showTextInput else { return }
+                    state.sendToBack(id: id)
+                }
+            )
+        )
     }
 
     // MARK: - Image Layer
@@ -309,9 +372,37 @@ struct AnnotationCanvas: View {
             state.selectedAnnotationId = nil
             for annotation in state.annotations.reversed() {
                 if hitTest(annotation: annotation, at: unscaledLocation) {
-                    state.selectedAnnotationId = annotation.id
+                    // For text annotations, enter edit mode directly
+                    if annotation.type == .text {
+                        state.selectedAnnotationId = annotation.id
+                        state.currentColor = annotation.swiftUIColor
+                        state.currentFontSize = annotation.fontSize
+                        state.currentFontName = annotation.fontName
+                        editingAnnotationId = annotation.id
+                        textInput = annotation.text ?? ""
+                        // Position the text input at the annotation's location (scaled)
+                        textPosition = CGPoint(
+                            x: annotation.cgRect.origin.x * zoom - 12, // Account for padding offset
+                            y: annotation.cgRect.origin.y * zoom - 12
+                        )
+                        showTextInput = true
+                        // Show layer panel when selection made (unless manually hidden)
+                        if !state.isLayerPanelManuallyHidden {
+                            state.isLayerPanelVisible = true
+                        }
+                    } else {
+                        state.selectedAnnotationId = annotation.id
+                        // Show layer panel when selection made (unless manually hidden)
+                        if !state.isLayerPanelManuallyHidden {
+                            state.isLayerPanelVisible = true
+                        }
+                    }
                     break
                 }
+            }
+            // Hide layer panel if nothing selected
+            if state.selectedAnnotationId == nil && !state.isLayerPanelManuallyHidden {
+                state.isLayerPanelVisible = false
             }
 
         case .text:
@@ -472,6 +563,28 @@ struct AnnotationCanvas: View {
     }
 
     private func commitTextAnnotation() {
+        // If editing an existing annotation
+        if let editingId = editingAnnotationId,
+           let index = state.annotations.firstIndex(where: { $0.id == editingId }) {
+            if textInput.isEmpty {
+                // Delete the annotation if text is empty
+                state.deleteAnnotation(id: editingId)
+            } else {
+                // Update the existing annotation
+                var annotation = state.annotations[index]
+                annotation.text = textInput
+                annotation.fontSize = state.currentFontSize
+                annotation.fontName = state.currentFontName
+                annotation.color = CodableColor(state.currentColor)
+                state.updateAnnotation(annotation)
+            }
+            editingAnnotationId = nil
+            showTextInput = false
+            textInput = ""
+            return
+        }
+
+        // Creating a new annotation
         guard !textInput.isEmpty else {
             showTextInput = false
             return
@@ -516,8 +629,18 @@ struct AnnotationCanvas: View {
               let index = state.annotations.firstIndex(where: { $0.id == id }) else { return }
 
         var annotation = state.annotations[index]
+
+        // Apply delta to annotation rect (delta is in screen coordinates, divide by zoom)
         annotation.cgRect = annotation.cgRect.offsetBy(dx: delta.width / zoom, dy: delta.height / zoom)
-        state.annotations[index] = annotation
+
+        // Also move points for pencil/highlighter
+        if !annotation.cgPoints.isEmpty {
+            annotation.cgPoints = annotation.cgPoints.map {
+                CGPoint(x: $0.x + delta.width / zoom, y: $0.y + delta.height / zoom)
+            }
+        }
+
+        state.updateAnnotation(annotation)
     }
 
     private func resizeSelectedAnnotation(to newRect: CGRect) {
@@ -531,7 +654,38 @@ struct AnnotationCanvas: View {
             width: newRect.width / zoom,
             height: newRect.height / zoom
         )
-        state.annotations[index] = annotation
+        state.updateAnnotation(annotation)
+    }
+
+    private func moveLineEndpoint(index: Int, to newPosition: CGPoint) {
+        guard let id = state.selectedAnnotationId,
+              let annotationIndex = state.annotations.firstIndex(where: { $0.id == id }) else { return }
+
+        var annotation = state.annotations[annotationIndex]
+
+        // Line/arrow rect stores start point in origin and end offset in size
+        let imageCoordPos = CGPoint(x: newPosition.x / zoom, y: newPosition.y / zoom)
+
+        if index == 0 {
+            // Moving start point - adjust origin and recalculate size to maintain end point
+            let endX = annotation.cgRect.origin.x + annotation.cgRect.size.width
+            let endY = annotation.cgRect.origin.y + annotation.cgRect.size.height
+            annotation.cgRect = CGRect(
+                origin: imageCoordPos,
+                size: CGSize(width: endX - imageCoordPos.x, height: endY - imageCoordPos.y)
+            )
+        } else {
+            // Moving end point - keep origin, adjust size
+            annotation.cgRect = CGRect(
+                origin: annotation.cgRect.origin,
+                size: CGSize(
+                    width: imageCoordPos.x - annotation.cgRect.origin.x,
+                    height: imageCoordPos.y - annotation.cgRect.origin.y
+                )
+            )
+        }
+
+        state.updateAnnotation(annotation)
     }
 
     // MARK: - Crop
@@ -705,8 +859,29 @@ struct AnnotationSelectionOverlay: View {
     let zoom: CGFloat
     let onMove: (CGSize) -> Void
     let onResize: (CGRect) -> Void
+    let onEndpointMove: ((Int, CGPoint) -> Void)?  // For line/arrow endpoints
 
     private let handleSize: CGFloat = 10
+
+    // Track original rect at drag start for proper delta handling
+    @State private var rectAtDragStart: CGRect = .zero
+    @GestureState private var dragOffset: CGSize = .zero
+    @GestureState private var resizeDelta: (position: HandlePosition, delta: CGSize)? = nil
+    @GestureState private var endpointDrag: (index: Int, delta: CGSize)? = nil
+
+    init(
+        annotation: Annotation,
+        zoom: CGFloat,
+        onMove: @escaping (CGSize) -> Void,
+        onResize: @escaping (CGRect) -> Void,
+        onEndpointMove: ((Int, CGPoint) -> Void)? = nil
+    ) {
+        self.annotation = annotation
+        self.zoom = zoom
+        self.onMove = onMove
+        self.onResize = onResize
+        self.onEndpointMove = onEndpointMove
+    }
 
     private var scaledRect: CGRect {
         CGRect(
@@ -717,86 +892,289 @@ struct AnnotationSelectionOverlay: View {
         )
     }
 
+    // For lines/arrows, use size to preserve direction (can be negative)
+    private var scaledLineStart: CGPoint {
+        CGPoint(x: annotation.cgRect.origin.x * zoom, y: annotation.cgRect.origin.y * zoom)
+    }
+
+    private var scaledLineEnd: CGPoint {
+        CGPoint(
+            x: (annotation.cgRect.origin.x + annotation.cgRect.size.width) * zoom,
+            y: (annotation.cgRect.origin.y + annotation.cgRect.size.height) * zoom
+        )
+    }
+
+    // Compute display rect with active gesture applied
+    private var displayRect: CGRect {
+        var rect = rectAtDragStart == .zero ? scaledRect : rectAtDragStart
+
+        // Apply move offset
+        if dragOffset != .zero {
+            rect.origin.x += dragOffset.width
+            rect.origin.y += dragOffset.height
+        }
+
+        // Apply resize delta
+        if let resize = resizeDelta {
+            rect = applyResizeDelta(to: rect, position: resize.position, delta: resize.delta)
+        }
+
+        return rect
+    }
+
     var body: some View {
         ZStack {
-            // Selection border
-            Rectangle()
-                .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
-                .frame(width: scaledRect.width, height: scaledRect.height)
-                .position(x: scaledRect.midX, y: scaledRect.midY)
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            onMove(value.translation)
-                        }
-                )
+            switch annotation.type {
+            case .line, .arrow:
+                // Line/Arrow: show 2 endpoint handles
+                lineArrowOverlay
 
-            // Resize handles
-            ForEach(HandlePosition.allCases, id: \.self) { position in
-                Circle()
-                    .fill(Color.white)
-                    .frame(width: handleSize, height: handleSize)
-                    .overlay(Circle().stroke(Color.accentColor, lineWidth: 1))
-                    .position(handlePoint(for: position))
-                    .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                handleResize(position: position, translation: value.translation)
-                            }
-                    )
+            case .pencil, .highlighter:
+                // Freeform: move only, no resize
+                freeformOverlay
+
+            default:
+                // Standard: border + 8 handles
+                standardOverlay
             }
         }
-    }
-
-    private func handlePoint(for position: HandlePosition) -> CGPoint {
-        switch position {
-        case .topLeft: return CGPoint(x: scaledRect.minX, y: scaledRect.minY)
-        case .topRight: return CGPoint(x: scaledRect.maxX, y: scaledRect.minY)
-        case .bottomLeft: return CGPoint(x: scaledRect.minX, y: scaledRect.maxY)
-        case .bottomRight: return CGPoint(x: scaledRect.maxX, y: scaledRect.maxY)
-        case .top: return CGPoint(x: scaledRect.midX, y: scaledRect.minY)
-        case .bottom: return CGPoint(x: scaledRect.midX, y: scaledRect.maxY)
-        case .left: return CGPoint(x: scaledRect.minX, y: scaledRect.midY)
-        case .right: return CGPoint(x: scaledRect.maxX, y: scaledRect.midY)
+        .onAppear {
+            rectAtDragStart = scaledRect
+        }
+        .onChange(of: annotation.cgRect) { _, _ in
+            // Update tracked rect when annotation changes externally
+            rectAtDragStart = scaledRect
         }
     }
 
-    private func handleResize(position: HandlePosition, translation: CGSize) {
-        var newRect = scaledRect
+    // MARK: - Standard Overlay (rectangles, circles, blur, text, numbered steps)
+
+    @ViewBuilder
+    private var standardOverlay: some View {
+        // Selection border with move gesture
+        Rectangle()
+            .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
+            .frame(width: max(displayRect.width, 10), height: max(displayRect.height, 10))
+            .position(x: displayRect.midX, y: displayRect.midY)
+            .contentShape(Rectangle())
+            .gesture(moveGesture)
+
+        // 8 resize handles
+        ForEach(HandlePosition.allCases, id: \.self) { position in
+            Circle()
+                .fill(Color.white)
+                .frame(width: handleSize, height: handleSize)
+                .overlay(Circle().stroke(Color.accentColor, lineWidth: 1))
+                .position(handlePoint(for: position, in: displayRect))
+                .gesture(resizeGesture(for: position))
+        }
+    }
+
+    // MARK: - Line/Arrow Overlay (2 endpoint handles)
+
+    @ViewBuilder
+    private var lineArrowOverlay: some View {
+        let start = endpointDrag?.index == 0
+            ? CGPoint(x: scaledLineStart.x + (endpointDrag?.delta.width ?? 0),
+                      y: scaledLineStart.y + (endpointDrag?.delta.height ?? 0))
+            : (dragOffset != .zero
+                ? CGPoint(x: scaledLineStart.x + dragOffset.width, y: scaledLineStart.y + dragOffset.height)
+                : scaledLineStart)
+
+        let end = endpointDrag?.index == 1
+            ? CGPoint(x: scaledLineEnd.x + (endpointDrag?.delta.width ?? 0),
+                      y: scaledLineEnd.y + (endpointDrag?.delta.height ?? 0))
+            : (dragOffset != .zero
+                ? CGPoint(x: scaledLineEnd.x + dragOffset.width, y: scaledLineEnd.y + dragOffset.height)
+                : scaledLineEnd)
+
+        // Dashed line showing selection
+        Path { path in
+            path.move(to: start)
+            path.addLine(to: end)
+        }
+        .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [5, 3]))
+        .contentShape(
+            Path { path in
+                path.move(to: start)
+                path.addLine(to: end)
+            }.strokedPath(StrokeStyle(lineWidth: 20))
+        )
+        .gesture(lineMoveGesture)
+
+        // Start endpoint handle
+        Circle()
+            .fill(Color.white)
+            .frame(width: handleSize, height: handleSize)
+            .overlay(Circle().stroke(Color.accentColor, lineWidth: 1))
+            .position(start)
+            .gesture(endpointGesture(index: 0))
+
+        // End endpoint handle
+        Circle()
+            .fill(Color.white)
+            .frame(width: handleSize, height: handleSize)
+            .overlay(Circle().stroke(Color.accentColor, lineWidth: 1))
+            .position(end)
+            .gesture(endpointGesture(index: 1))
+    }
+
+    // MARK: - Freeform Overlay (pencil/highlighter - move only)
+
+    @ViewBuilder
+    private var freeformOverlay: some View {
+        // Bounding rect with dashed border
+        let bounds = computeFreeformBounds()
+
+        Rectangle()
+            .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
+            .frame(width: bounds.width, height: bounds.height)
+            .position(
+                x: bounds.midX + dragOffset.width,
+                y: bounds.midY + dragOffset.height
+            )
+            .contentShape(Rectangle())
+            .gesture(moveGesture)
+
+        // Single center move handle
+        Circle()
+            .fill(Color.white)
+            .frame(width: handleSize, height: handleSize)
+            .overlay(Circle().stroke(Color.accentColor, lineWidth: 1))
+            .position(
+                x: bounds.midX + dragOffset.width,
+                y: bounds.midY + dragOffset.height
+            )
+    }
+
+    private func computeFreeformBounds() -> CGRect {
+        let points = annotation.cgPoints
+        guard !points.isEmpty else { return scaledRect }
+
+        let xs = points.map { $0.x * zoom }
+        let ys = points.map { $0.y * zoom }
+        let minX = xs.min() ?? 0
+        let maxX = xs.max() ?? 0
+        let minY = ys.min() ?? 0
+        let maxY = ys.max() ?? 0
+
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+            .insetBy(dx: -10, dy: -10)  // Add padding
+    }
+
+    // MARK: - Gestures
+
+    private var moveGesture: some Gesture {
+        DragGesture(minimumDistance: 1)
+            .updating($dragOffset) { value, state, _ in
+                state = value.translation
+            }
+            .onEnded { value in
+                onMove(value.translation)
+            }
+    }
+
+    private var lineMoveGesture: some Gesture {
+        DragGesture(minimumDistance: 1)
+            .updating($dragOffset) { value, state, _ in
+                state = value.translation
+            }
+            .onEnded { value in
+                onMove(value.translation)
+            }
+    }
+
+    private func resizeGesture(for position: HandlePosition) -> some Gesture {
+        DragGesture(minimumDistance: 1)
+            .updating($resizeDelta) { value, state, _ in
+                state = (position: position, delta: value.translation)
+            }
+            .onEnded { value in
+                let newRect = applyResizeDelta(to: rectAtDragStart, position: position, delta: value.translation)
+                onResize(newRect)
+            }
+    }
+
+    private func endpointGesture(index: Int) -> some Gesture {
+        DragGesture(minimumDistance: 1)
+            .updating($endpointDrag) { value, state, _ in
+                state = (index: index, delta: value.translation)
+            }
+            .onEnded { value in
+                if let callback = onEndpointMove {
+                    // Calculate new endpoint position in image coordinates
+                    let originalPoint = index == 0 ? scaledLineStart : scaledLineEnd
+                    let newPoint = CGPoint(
+                        x: originalPoint.x + value.translation.width,
+                        y: originalPoint.y + value.translation.height
+                    )
+                    callback(index, newPoint)
+                }
+            }
+    }
+
+    // MARK: - Helper Methods
+
+    private func handlePoint(for position: HandlePosition, in rect: CGRect) -> CGPoint {
+        switch position {
+        case .topLeft: return CGPoint(x: rect.minX, y: rect.minY)
+        case .topRight: return CGPoint(x: rect.maxX, y: rect.minY)
+        case .bottomLeft: return CGPoint(x: rect.minX, y: rect.maxY)
+        case .bottomRight: return CGPoint(x: rect.maxX, y: rect.maxY)
+        case .top: return CGPoint(x: rect.midX, y: rect.minY)
+        case .bottom: return CGPoint(x: rect.midX, y: rect.maxY)
+        case .left: return CGPoint(x: rect.minX, y: rect.midY)
+        case .right: return CGPoint(x: rect.maxX, y: rect.midY)
+        }
+    }
+
+    private func applyResizeDelta(to rect: CGRect, position: HandlePosition, delta: CGSize) -> CGRect {
+        var newRect = rect
 
         switch position {
         case .topLeft:
-            newRect.origin.x += translation.width
-            newRect.origin.y += translation.height
-            newRect.size.width -= translation.width
-            newRect.size.height -= translation.height
+            newRect.origin.x += delta.width
+            newRect.origin.y += delta.height
+            newRect.size.width -= delta.width
+            newRect.size.height -= delta.height
         case .topRight:
-            newRect.origin.y += translation.height
-            newRect.size.width += translation.width
-            newRect.size.height -= translation.height
+            newRect.origin.y += delta.height
+            newRect.size.width += delta.width
+            newRect.size.height -= delta.height
         case .bottomLeft:
-            newRect.origin.x += translation.width
-            newRect.size.width -= translation.width
-            newRect.size.height += translation.height
+            newRect.origin.x += delta.width
+            newRect.size.width -= delta.width
+            newRect.size.height += delta.height
         case .bottomRight:
-            newRect.size.width += translation.width
-            newRect.size.height += translation.height
+            newRect.size.width += delta.width
+            newRect.size.height += delta.height
         case .top:
-            newRect.origin.y += translation.height
-            newRect.size.height -= translation.height
+            newRect.origin.y += delta.height
+            newRect.size.height -= delta.height
         case .bottom:
-            newRect.size.height += translation.height
+            newRect.size.height += delta.height
         case .left:
-            newRect.origin.x += translation.width
-            newRect.size.width -= translation.width
+            newRect.origin.x += delta.width
+            newRect.size.width -= delta.width
         case .right:
-            newRect.size.width += translation.width
+            newRect.size.width += delta.width
         }
 
         // Ensure minimum size
-        if newRect.width > 10 && newRect.height > 10 {
-            onResize(newRect)
+        if newRect.width < 10 {
+            newRect.size.width = 10
+            if position == .topLeft || position == .bottomLeft || position == .left {
+                newRect.origin.x = rect.maxX - 10
+            }
         }
+        if newRect.height < 10 {
+            newRect.size.height = 10
+            if position == .topLeft || position == .topRight || position == .top {
+                newRect.origin.y = rect.maxY - 10
+            }
+        }
+
+        return newRect
     }
 
     enum HandlePosition: CaseIterable {
@@ -1487,6 +1865,148 @@ class AnnotationNSTextView: NSTextView {
             onCommit?()
             return
         }
+        super.keyDown(with: event)
+    }
+}
+
+// MARK: - Keyboard Shortcut Handler
+
+/// Handles keyboard shortcuts for annotation manipulation using NSViewRepresentable
+/// This is necessary because SwiftUI's keyboard handling doesn't capture all events reliably
+struct AnnotationKeyboardHandler: NSViewRepresentable {
+    var onDelete: () -> Void
+    var onNudge: (CGFloat, CGFloat) -> Void
+    var onDuplicate: () -> Void
+    var onCopy: () -> Void
+    var onPaste: () -> Void
+    var onBringForward: () -> Void
+    var onSendBackward: () -> Void
+    var onBringToFront: () -> Void
+    var onSendToBack: () -> Void
+
+    func makeNSView(context: Context) -> AnnotationKeyboardHandlerView {
+        let view = AnnotationKeyboardHandlerView()
+        view.onDelete = onDelete
+        view.onNudge = onNudge
+        view.onDuplicate = onDuplicate
+        view.onCopy = onCopy
+        view.onPaste = onPaste
+        view.onBringForward = onBringForward
+        view.onSendBackward = onSendBackward
+        view.onBringToFront = onBringToFront
+        view.onSendToBack = onSendToBack
+        return view
+    }
+
+    func updateNSView(_ nsView: AnnotationKeyboardHandlerView, context: Context) {
+        nsView.onDelete = onDelete
+        nsView.onNudge = onNudge
+        nsView.onDuplicate = onDuplicate
+        nsView.onCopy = onCopy
+        nsView.onPaste = onPaste
+        nsView.onBringForward = onBringForward
+        nsView.onSendBackward = onSendBackward
+        nsView.onBringToFront = onBringToFront
+        nsView.onSendToBack = onSendToBack
+    }
+}
+
+class AnnotationKeyboardHandlerView: NSView {
+    var onDelete: (() -> Void)?
+    var onNudge: ((CGFloat, CGFloat) -> Void)?
+    var onDuplicate: (() -> Void)?
+    var onCopy: (() -> Void)?
+    var onPaste: (() -> Void)?
+    var onBringForward: (() -> Void)?
+    var onSendBackward: (() -> Void)?
+    var onBringToFront: (() -> Void)?
+    var onSendToBack: (() -> Void)?
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let keyCode = event.keyCode
+
+        // Delete/Backspace (keyCode 51 = Delete, 117 = Forward Delete)
+        if keyCode == 51 || keyCode == 117 {
+            if modifiers.isEmpty {
+                onDelete?()
+                return
+            }
+        }
+
+        // Arrow keys for nudging
+        // Up: 126, Down: 125, Left: 123, Right: 124
+        let nudgeAmount: CGFloat = modifiers.contains(.shift) ? 10 : 1
+
+        switch keyCode {
+        case 126: // Up
+            if modifiers.isEmpty || modifiers == .shift {
+                onNudge?(0, -nudgeAmount)
+                return
+            }
+        case 125: // Down
+            if modifiers.isEmpty || modifiers == .shift {
+                onNudge?(0, nudgeAmount)
+                return
+            }
+        case 123: // Left
+            if modifiers.isEmpty || modifiers == .shift {
+                onNudge?(-nudgeAmount, 0)
+                return
+            }
+        case 124: // Right
+            if modifiers.isEmpty || modifiers == .shift {
+                onNudge?(nudgeAmount, 0)
+                return
+            }
+        default:
+            break
+        }
+
+        // Cmd+D - Duplicate
+        if keyCode == 2 && modifiers == .command { // D key
+            onDuplicate?()
+            return
+        }
+
+        // Cmd+C - Copy
+        if keyCode == 8 && modifiers == .command { // C key
+            onCopy?()
+            return
+        }
+
+        // Cmd+V - Paste
+        if keyCode == 9 && modifiers == .command { // V key
+            onPaste?()
+            return
+        }
+
+        // Cmd+] - Bring forward (keyCode 30 = ])
+        if keyCode == 30 && modifiers == .command {
+            onBringForward?()
+            return
+        }
+
+        // Cmd+[ - Send backward (keyCode 33 = [)
+        if keyCode == 33 && modifiers == .command {
+            onSendBackward?()
+            return
+        }
+
+        // Cmd+Shift+] - Bring to front
+        if keyCode == 30 && modifiers == [.command, .shift] {
+            onBringToFront?()
+            return
+        }
+
+        // Cmd+Shift+[ - Send to back
+        if keyCode == 33 && modifiers == [.command, .shift] {
+            onSendToBack?()
+            return
+        }
+
         super.keyDown(with: event)
     }
 }

@@ -93,6 +93,8 @@ struct Annotation: Identifiable, Equatable, Codable {
     var points: [CodablePoint]
     var stepNumber: Int?
     var blurRadius: CGFloat
+    var creationOrder: Int
+    var isNumberLocked: Bool
 
     init(
         id: UUID = UUID(),
@@ -105,7 +107,9 @@ struct Annotation: Identifiable, Equatable, Codable {
         fontName: String = ".AppleSystemUIFont",
         points: [CGPoint] = [],
         stepNumber: Int? = nil,
-        blurRadius: CGFloat = 10
+        blurRadius: CGFloat = 10,
+        creationOrder: Int = 0,
+        isNumberLocked: Bool = false
     ) {
         self.id = id
         self.type = type
@@ -118,6 +122,8 @@ struct Annotation: Identifiable, Equatable, Codable {
         self.points = points.map { CodablePoint($0) }
         self.stepNumber = stepNumber
         self.blurRadius = blurRadius
+        self.creationOrder = creationOrder
+        self.isNumberLocked = isNumberLocked
     }
 
     // Convenience accessors for CGRect/Color
@@ -226,6 +232,15 @@ class AnnotationState {
     var isCropping: Bool = false
     var originalImageSize: CGSize = .zero
 
+    // Layer panel state
+    var isLayerPanelVisible: Bool = false
+    var isLayerPanelManuallyHidden: Bool = false
+    var hiddenAnnotationIds: Set<UUID> = []
+    var clipboard: Annotation?
+
+    // Creation order counter
+    private var creationCounter: Int = 0
+
     // Undo/redo stacks - not observed to avoid unnecessary updates
     private var undoStack: [[Annotation]] = []
     private var redoStack: [[Annotation]] = []
@@ -257,8 +272,15 @@ class AnnotationState {
 
     func addAnnotation(_ annotation: Annotation) {
         saveToUndoStack()
-        annotations.append(annotation)
-        annotationIndex[annotation.id] = annotations.count - 1
+        var newAnnotation = annotation
+        if newAnnotation.creationOrder == 0 {
+            creationCounter += 1
+            newAnnotation.creationOrder = creationCounter
+        } else {
+            creationCounter = max(creationCounter, newAnnotation.creationOrder)
+        }
+        annotations.append(newAnnotation)
+        annotationIndex[newAnnotation.id] = annotations.count - 1
         redoStack.removeAll()
     }
 
@@ -268,13 +290,24 @@ class AnnotationState {
         }
     }
 
-    func deleteSelectedAnnotation() {
-        guard let id = selectedAnnotationId else { return }
+    func deleteAnnotation(id: UUID, renumberSteps: Bool = false) {
+        guard annotations.contains(where: { $0.id == id }) else { return }
         saveToUndoStack()
         annotations.removeAll { $0.id == id }
-        selectedAnnotationId = nil
+        hiddenAnnotationIds.remove(id)
+        if selectedAnnotationId == id {
+            selectedAnnotationId = nil
+        }
         rebuildIndex()
         redoStack.removeAll()
+        if renumberSteps {
+            self.renumberSteps(force: false)
+        }
+    }
+
+    func deleteSelectedAnnotation() {
+        guard let id = selectedAnnotationId else { return }
+        deleteAnnotation(id: id)
     }
 
     func undo() {
@@ -308,6 +341,233 @@ class AnnotationState {
                 break
             }
         }
+    }
+
+    // MARK: - Layer Panel Methods
+
+    func toggleLayerPanelVisibility() {
+        isLayerPanelVisible.toggle()
+        isLayerPanelManuallyHidden = !isLayerPanelVisible
+    }
+
+    func toggleAnnotationVisibility(id: UUID) {
+        if hiddenAnnotationIds.contains(id) {
+            hiddenAnnotationIds.remove(id)
+        } else {
+            hiddenAnnotationIds.insert(id)
+        }
+    }
+
+    func isAnnotationVisible(_ id: UUID) -> Bool {
+        !hiddenAnnotationIds.contains(id)
+    }
+
+    // MARK: - Layer Ordering Methods
+
+    func moveAnnotation(id: UUID, toIndex newIndex: Int) {
+        guard let currentIndex = annotations.firstIndex(where: { $0.id == id }),
+              newIndex >= 0 && newIndex < annotations.count else { return }
+        saveToUndoStack()
+        let annotation = annotations.remove(at: currentIndex)
+        annotations.insert(annotation, at: newIndex)
+        rebuildIndex()
+        redoStack.removeAll()
+        renumberSteps(force: false)
+    }
+
+    func bringForward(id: UUID) {
+        guard let currentIndex = annotations.firstIndex(where: { $0.id == id }),
+              currentIndex < annotations.count - 1 else { return }
+        moveAnnotation(id: id, toIndex: currentIndex + 1)
+    }
+
+    func sendBackward(id: UUID) {
+        guard let currentIndex = annotations.firstIndex(where: { $0.id == id }),
+              currentIndex > 0 else { return }
+        moveAnnotation(id: id, toIndex: currentIndex - 1)
+    }
+
+    func bringToFront(id: UUID) {
+        moveAnnotation(id: id, toIndex: annotations.count - 1)
+    }
+
+    func sendToBack(id: UUID) {
+        moveAnnotation(id: id, toIndex: 0)
+    }
+
+    // MARK: - Copy/Paste/Duplicate Methods
+
+    func duplicateAnnotation(id: UUID, offset: CGPoint = CGPoint(x: 10, y: 10)) -> UUID? {
+        guard let index = annotations.firstIndex(where: { $0.id == id }) else { return nil }
+        let original = annotations[index]
+
+        creationCounter += 1
+        let duplicate = Annotation(
+            type: original.type,
+            rect: original.cgRect.offsetBy(dx: offset.x, dy: offset.y),
+            color: original.swiftUIColor,
+            strokeWidth: original.strokeWidth,
+            text: original.text,
+            fontSize: original.fontSize,
+            fontName: original.fontName,
+            points: original.cgPoints.map { CGPoint(x: $0.x + offset.x, y: $0.y + offset.y) },
+            stepNumber: original.type == .numberedStep ? stepCounter : nil,
+            blurRadius: original.blurRadius,
+            creationOrder: creationCounter,
+            isNumberLocked: false
+        )
+
+        if original.type == .numberedStep {
+            stepCounter += 1
+        }
+
+        saveToUndoStack()
+        annotations.append(duplicate)
+        annotationIndex[duplicate.id] = annotations.count - 1
+        redoStack.removeAll()
+        return duplicate.id
+    }
+
+    func copySelectedAnnotation() {
+        guard let id = selectedAnnotationId,
+              let index = annotations.firstIndex(where: { $0.id == id }) else { return }
+        clipboard = annotations[index]
+    }
+
+    func pasteAnnotation(offset: CGPoint = CGPoint(x: 10, y: 10)) -> UUID? {
+        guard let original = clipboard else { return nil }
+
+        creationCounter += 1
+        let pasted = Annotation(
+            type: original.type,
+            rect: original.cgRect.offsetBy(dx: offset.x, dy: offset.y),
+            color: original.swiftUIColor,
+            strokeWidth: original.strokeWidth,
+            text: original.text,
+            fontSize: original.fontSize,
+            fontName: original.fontName,
+            points: original.cgPoints.map { CGPoint(x: $0.x + offset.x, y: $0.y + offset.y) },
+            stepNumber: original.type == .numberedStep ? stepCounter : nil,
+            blurRadius: original.blurRadius,
+            creationOrder: creationCounter,
+            isNumberLocked: false
+        )
+
+        if original.type == .numberedStep {
+            stepCounter += 1
+        }
+
+        saveToUndoStack()
+        annotations.append(pasted)
+        annotationIndex[pasted.id] = annotations.count - 1
+        redoStack.removeAll()
+        selectedAnnotationId = pasted.id
+        return pasted.id
+    }
+
+    // MARK: - Numbered Step Renumbering
+
+    func renumberSteps(force: Bool) {
+        var stepNumber = 1
+        for i in 0..<annotations.count {
+            guard annotations[i].type == .numberedStep else { continue }
+            if force || !annotations[i].isNumberLocked {
+                annotations[i].stepNumber = stepNumber
+            }
+            stepNumber += 1
+        }
+        // Update step counter to be one more than highest number
+        stepCounter = stepNumber
+    }
+
+    func toggleStepNumberLock(id: UUID) {
+        guard let index = annotations.firstIndex(where: { $0.id == id }),
+              annotations[index].type == .numberedStep else { return }
+        annotations[index].isNumberLocked.toggle()
+    }
+
+    func setStepNumber(id: UUID, number: Int) {
+        guard let index = annotations.firstIndex(where: { $0.id == id }),
+              annotations[index].type == .numberedStep else { return }
+        saveToUndoStack()
+        annotations[index].stepNumber = number
+        annotations[index].isNumberLocked = true
+        redoStack.removeAll()
+    }
+
+    // MARK: - Nudge Methods
+
+    func nudgeSelectedAnnotation(dx: CGFloat, dy: CGFloat) {
+        guard let id = selectedAnnotationId,
+              let index = annotations.firstIndex(where: { $0.id == id }) else { return }
+
+        var annotation = annotations[index]
+        annotation.cgRect = annotation.cgRect.offsetBy(dx: dx, dy: dy)
+
+        // Also offset points for pencil/highlighter
+        if !annotation.cgPoints.isEmpty {
+            annotation.cgPoints = annotation.cgPoints.map {
+                CGPoint(x: $0.x + dx, y: $0.y + dy)
+            }
+        }
+
+        saveToUndoStack()
+        annotations[index] = annotation
+        redoStack.removeAll()
+    }
+
+    // MARK: - Enhanced Add Annotation
+
+    func addAnnotationWithOrder(_ annotation: Annotation) {
+        creationCounter += 1
+        var newAnnotation = annotation
+        newAnnotation.creationOrder = creationCounter
+        saveToUndoStack()
+        annotations.append(newAnnotation)
+        annotationIndex[newAnnotation.id] = annotations.count - 1
+        redoStack.removeAll()
+    }
+
+    // MARK: - Update Selected Annotation Property
+
+    func updateSelectedAnnotationColor(_ color: Color) {
+        guard let id = selectedAnnotationId,
+              let index = annotations.firstIndex(where: { $0.id == id }) else { return }
+        saveToUndoStack()
+        annotations[index].color = CodableColor(color)
+        redoStack.removeAll()
+    }
+
+    func updateSelectedAnnotationStrokeWidth(_ width: CGFloat) {
+        guard let id = selectedAnnotationId,
+              let index = annotations.firstIndex(where: { $0.id == id }) else { return }
+        saveToUndoStack()
+        annotations[index].strokeWidth = width
+        redoStack.removeAll()
+    }
+
+    func updateSelectedAnnotationFontSize(_ size: CGFloat) {
+        guard let id = selectedAnnotationId,
+              let index = annotations.firstIndex(where: { $0.id == id }) else { return }
+        guard annotations[index].type == .text else { return }
+        saveToUndoStack()
+        annotations[index].fontSize = size
+        redoStack.removeAll()
+    }
+
+    func updateSelectedAnnotationFontName(_ name: String) {
+        guard let id = selectedAnnotationId,
+              let index = annotations.firstIndex(where: { $0.id == id }) else { return }
+        guard annotations[index].type == .text else { return }
+        saveToUndoStack()
+        annotations[index].fontName = name
+        redoStack.removeAll()
+    }
+
+    // MARK: - Deselection
+
+    func deselectAnnotation() {
+        selectedAnnotationId = nil
     }
 }
 
