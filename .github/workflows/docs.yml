@@ -1,0 +1,33 @@
+name: Docs Build
+
+on:
+  push:
+    paths:
+      - 'docs/**'
+      - 'FEATURES.md'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'FEATURES.md'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: docs/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: cd docs && pnpm install --frozen-lockfile
+
+      - name: Build docs
+        run: cd docs && pnpm build

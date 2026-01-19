@@ -1,0 +1,83 @@
+---
+title: Annotation Features
+description: Color picker, undo/redo, and non-destructive editing
+---
+
+# Annotation Features
+
+Advanced features that make annotation powerful and flexible.
+
+## Color Picker
+
+Choose from preset colors or create custom colors.
+
+### Preset Colors
+
+| Color | Hex |
+|-------|-----|
+| Red | `#FF3B30` |
+| Orange | `#FF9500` |
+| Yellow | `#FFCC00` |
+| Green | `#34C759` |
+| Blue | `#007AFF` |
+| Purple | `#AF52DE` |
+| Pink | `#FF2D55` |
+| White | `#FFFFFF` |
+| Black | `#000000` |
+| Gray | `#8E8E93` |
+
+### Custom Colors
+
+Use the HSB color picker for any custom color:
+- **Hue:** 0° - 360°
+- **Saturation:** 0% - 100%
+- **Brightness:** 0% - 100%
+
+## Stroke Width
+
+Configure the stroke width for drawing tools.
+
+| Setting | Default |
+|---------|---------|
+| Default Width | 3pt |
+| Range | 1pt - 20pt |
+
+## Undo/Redo
+
+Full undo/redo support for your annotations.
+
+| Feature | Value |
+|---------|-------|
+| Stack Limit | 50 items |
+| Shortcut (Undo) | `Cmd+Z` |
+| Shortcut (Redo) | `Cmd+Shift+Z` |
+
+## Non-Destructive Editing
+
+Annotations are stored separately from the original image.
+
+### How It Works
+
+- Annotations saved in `.screencapture-annotations` sidecar files
+- Original image remains untouched
+- Edit annotations anytime without quality loss
+
+### Hash Verification
+
+| Feature | Description |
+|---------|-------------|
+| Algorithm | SHA256 |
+| Purpose | Links annotations to source image |
+| Benefit | Ensures annotation integrity |
+
+## Keyboard Shortcuts
+
+| Action | Shortcut |
+|--------|----------|
+| Undo | `Cmd+Z` |
+| Redo | `Cmd+Shift+Z` |
+| Select All | `Cmd+A` |
+| Delete Selected | `Delete` |
+| Copy | `Cmd+C` |
+| Paste | `Cmd+V` |
+| Save | `Cmd+S` |

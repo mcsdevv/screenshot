@@ -8,7 +8,7 @@ final class KeyboardShortcutsTests: XCTestCase {
 
     func testAllShortcutCasesExist() {
         let allCases = KeyboardShortcuts.Shortcut.allCases
-        XCTAssertEqual(allCases.count, 9)
+        XCTAssertEqual(allCases.count, 10)
         XCTAssertTrue(allCases.contains(.captureArea))
         XCTAssertTrue(allCases.contains(.captureWindow))
         XCTAssertTrue(allCases.contains(.captureFullscreen))
@@ -18,6 +18,7 @@ final class KeyboardShortcutsTests: XCTestCase {
         XCTAssertTrue(allCases.contains(.allInOne))
         XCTAssertTrue(allCases.contains(.ocr))
         XCTAssertTrue(allCases.contains(.pinScreenshot))
+        XCTAssertTrue(allCases.contains(.showKeyboardShortcuts))
     }
 
     func testShortcutRawValues() {
@@ -30,6 +31,7 @@ final class KeyboardShortcutsTests: XCTestCase {
         XCTAssertEqual(KeyboardShortcuts.Shortcut.allInOne.rawValue, "allInOne")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.ocr.rawValue, "ocr")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.pinScreenshot.rawValue, "pinScreenshot")
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.showKeyboardShortcuts.rawValue, "showKeyboardShortcuts")
     }
 
     // MARK: - Default Key Code Tests
@@ -70,6 +72,9 @@ final class KeyboardShortcutsTests: XCTestCase {
         XCTAssertEqual(KeyboardShortcuts.Shortcut.pinScreenshot.defaultKeyCode, UInt32(kVK_ANSI_P))
     }
 
+    func testDefaultKeyCodeForShowKeyboardShortcuts() {
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.showKeyboardShortcuts.defaultKeyCode, UInt32(kVK_ANSI_Slash))
+    }
     // MARK: - Modifiers Tests (Native Shortcuts)
 
     func testModifiersWithNativeShortcutsForCaptureShortcuts() {
@@ -95,6 +100,10 @@ final class KeyboardShortcutsTests: XCTestCase {
         XCTAssertEqual(KeyboardShortcuts.Shortcut.allInOne.modifiers(useNativeShortcuts: true), expectedCmdShiftOption)
     }
 
+    func testModifiersWithNativeShortcutsForShowKeyboardShortcuts() {
+        let expectedCmd = UInt32(cmdKey)
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.showKeyboardShortcuts.modifiers(useNativeShortcuts: true), expectedCmd)
+    }
     // MARK: - Modifiers Tests (Non-Native Shortcuts)
 
     func testModifiersWithoutNativeShortcutsForCaptureShortcuts() {
@@ -120,6 +129,10 @@ final class KeyboardShortcutsTests: XCTestCase {
         XCTAssertEqual(KeyboardShortcuts.Shortcut.allInOne.modifiers(useNativeShortcuts: false), expectedCtrlShiftOption)
     }
 
+    func testModifiersWithoutNativeShortcutsForShowKeyboardShortcuts() {
+        let expectedCmd = UInt32(cmdKey)
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.showKeyboardShortcuts.modifiers(useNativeShortcuts: false), expectedCmd)
+    }
     func testDefaultModifiersUsesNonNativeShortcuts() {
         // defaultModifiers should use the safe mode (Control+Shift)
         let expectedCtrlShift = UInt32(controlKey | shiftKey)
@@ -138,6 +151,7 @@ final class KeyboardShortcutsTests: XCTestCase {
         XCTAssertEqual(KeyboardShortcuts.Shortcut.allInOne.displayName, "All-in-One Menu")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.ocr.displayName, "Capture Text (OCR)")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.pinScreenshot.displayName, "Pin Screenshot")
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.showKeyboardShortcuts.displayName, "Keyboard Shortcuts")
     }
 
     // MARK: - Display Shortcut Tests (Native)
@@ -152,6 +166,7 @@ final class KeyboardShortcutsTests: XCTestCase {
         XCTAssertEqual(KeyboardShortcuts.Shortcut.allInOne.displayShortcut(useNativeShortcuts: true), "⌘⇧⌥A")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.ocr.displayShortcut(useNativeShortcuts: true), "⌘⇧O")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.pinScreenshot.displayShortcut(useNativeShortcuts: true), "⌘⇧P")
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.showKeyboardShortcuts.displayShortcut(useNativeShortcuts: true), "⌘/")
     }
 
     // MARK: - Display Shortcut Tests (Non-Native)
@@ -166,6 +181,7 @@ final class KeyboardShortcutsTests: XCTestCase {
         XCTAssertEqual(KeyboardShortcuts.Shortcut.allInOne.displayShortcut(useNativeShortcuts: false), "⌃⇧⌥A")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.ocr.displayShortcut(useNativeShortcuts: false), "⌃⇧O")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.pinScreenshot.displayShortcut(useNativeShortcuts: false), "⌃⇧P")
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.showKeyboardShortcuts.displayShortcut(useNativeShortcuts: false), "⌘/")
     }
 
     // MARK: - Hot Key ID Tests

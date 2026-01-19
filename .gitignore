@@ -24,3 +24,9 @@ Package.resolved
 
 # Conductor workspace context
 .context/
+
+# Node.js / Documentation site
+docs/node_modules/
+docs/.next/
+docs/.source/
+docs/out/

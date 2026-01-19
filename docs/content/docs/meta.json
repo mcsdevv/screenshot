@@ -1,0 +1,19 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "---Capture---",
+    "capture",
+    "---Recording---",
+    "recording",
+    "---Annotation---",
+    "annotation",
+    "---Features---",
+    "features",
+    "---Reference---",
+    "shortcuts",
+    "settings",
+    "storage",
+    "system"
+  ]
+}

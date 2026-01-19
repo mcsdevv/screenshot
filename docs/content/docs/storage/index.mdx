@@ -1,0 +1,78 @@
+---
+title: Storage & File Management
+description: Save locations, file formats, and storage management
+---
+
+# Storage & File Management
+
+Manage where and how your captures are stored.
+
+## Save Locations
+
+| Location | Path |
+|----------|------|
+| Default | `~/Library/Application Support/ScreenCapture/Screenshots` |
+| Desktop | `~/Desktop` |
+| Custom | User-selected folder |
+
+## File Formats
+
+| Type | Format |
+|------|--------|
+| Screenshots | PNG |
+| Recordings | MP4 (H.264/AAC) |
+| GIFs | Animated GIF |
+| Scrolling Captures | PNG (stitched) |
+
+## Features
+
+### Security-Scoped Bookmarks
+
+Custom save locations use macOS security-scoped bookmarks to maintain access permissions across app restarts.
+
+### Bookmark Staleness Detection
+
+The app detects when bookmarks become invalid (e.g., folder moved or deleted) and prompts you to reconfigure.
+
+### Storage Usage Tracking
+
+View current storage usage in Settings > Storage.
+
+### Auto-Save
+
+| Setting | Value |
+|---------|-------|
+| Interval | Every 30 seconds |
+| Location | Configured save location |
+
+## Managing Storage
+
+### Auto-Cleanup
+
+Enable automatic deletion of old captures:
+
+| Option | Retention |
+|--------|-----------|
+| 7 days | One week |
+| 14 days | Two weeks |
+| 30 days | One month (default) |
+| 90 days | Three months |
+
+**Note:** Favorites are never auto-deleted.
+
+### Manual Cleanup
+
+1. Open Capture History (`Cmd+Shift+H`)
+2. Select captures to delete
+3. Right-click > Delete
+4. Or use `Cmd+Delete`
+
+### Clear All
+
+Remove all captures at once:
+
+1. Open Settings > Storage
+2. Click "Clear All Captures"
+3. Confirm the action
+
+**Warning:** This cannot be undone.
