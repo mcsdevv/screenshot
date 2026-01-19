@@ -26,28 +26,6 @@ struct LayerPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Layers")
-                    .font(DSTypography.labelMedium)
-                    .foregroundColor(.dsTextPrimary)
-                Spacer()
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.dsTextTertiary)
-                }
-                .buttonStyle(.plain)
-                .frame(width: 20, height: 20)
-                .background(Color.white.opacity(0.05))
-                .clipShape(Circle())
-            }
-            .padding(.horizontal, DSSpacing.md)
-            .padding(.vertical, DSSpacing.sm)
-            .background(Color.dsBackgroundElevated)
-
-            DSDivider()
-
             // Layer list
             ScrollView {
                 LazyVStack(spacing: 2) {
@@ -157,7 +135,7 @@ struct LayerPanelView: View {
                 .background(Color.dsBackgroundElevated)
             }
         }
-        .frame(width: 240)
+        .frame(width: 280)
         .background(Color.dsBackground)
         .overlay(
             Rectangle()
@@ -401,6 +379,7 @@ struct DraggableLayerRow: View {
                         }
                     }
                 }
+                .frame(minWidth: 80, alignment: .leading)
 
                 Spacer()
 
