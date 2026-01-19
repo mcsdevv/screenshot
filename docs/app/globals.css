@@ -1,11 +1,39 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+@source '../node_modules/fumadocs-ui/dist/**/*.js';
 
-@import 'fumadocs-ui/style.css';
+@theme {
+  /* Prismatic Dark Theme - Custom colors */
+  --color-background: #121217;
+  --color-background-elevated: #191921;
+  --color-background-secondary: #212129;
+  --color-background-tertiary: #292931;
+
+  /* Electric Cyan accent */
+  --color-accent: #33C8FA;
+  --color-accent-muted: rgba(51, 200, 250, 0.7);
+  --color-accent-glow: rgba(51, 200, 250, 0.3);
+
+  /* Warm accent */
+  --color-warm: #FF9433;
+
+  /* Status colors */
+  --color-success: #4DD880;
+  --color-danger: #FF5A66;
+
+  /* Border colors */
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-border-active: rgba(255, 255, 255, 0.15);
+  --color-border-accent: rgba(51, 200, 250, 0.5);
+
+  /* Shadow */
+  --shadow-glow: 0 0 12px rgba(51, 200, 250, 0.3);
+  --shadow-glow-lg: 0 0 24px rgba(51, 200, 250, 0.4);
+}
 
 :root {
-  /* Prismatic Dark Theme */
+  /* Prismatic Dark Theme - Fumadocs variables */
   --fd-background: 240 12% 7%;
   --fd-foreground: 0 0% 100%;
   --fd-muted: 240 10% 16%;
