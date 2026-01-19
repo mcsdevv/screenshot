@@ -981,4 +981,267 @@ final class AnnotationTypesTests: XCTestCase {
     func testAnnotationColorsCount() {
         XCTAssertEqual(Color.annotationColors.count, 10)
     }
+
+    // MARK: - Additional AnnotationState Tests
+
+    func testUpdateAnnotationColorById() {
+        let state = AnnotationState()
+        let annotation = Annotation(type: .line, rect: .zero, color: .red)
+        state.addAnnotation(annotation)
+
+        state.updateAnnotationColor(id: annotation.id, color: .green)
+
+        XCTAssertEqual(state.annotations.first?.color, CodableColor(.green))
+    }
+
+    func testUpdateAnnotationColorByInvalidId() {
+        let state = AnnotationState()
+        let annotation = Annotation(type: .line, rect: .zero, color: .red)
+        state.addAnnotation(annotation)
+
+        state.updateAnnotationColor(id: UUID(), color: .green)
+
+        // Should remain unchanged
+        XCTAssertEqual(state.annotations.first?.color, CodableColor(.red))
+    }
+
+    func testUpdateAnnotationName() {
+        let state = AnnotationState()
+        let annotation = Annotation(type: .line, rect: .zero)
+        state.addAnnotation(annotation)
+
+        state.updateAnnotationName(id: annotation.id, name: "My Line")
+
+        XCTAssertEqual(state.annotations.first?.name, "My Line")
+    }
+
+    func testUpdateAnnotationNameWithEmptyString() {
+        let state = AnnotationState()
+        var annotation = Annotation(type: .line, rect: .zero)
+        annotation.name = "Initial Name"
+        state.addAnnotation(annotation)
+
+        state.updateAnnotationName(id: annotation.id, name: "")
+
+        XCTAssertNil(state.annotations.first?.name) // Empty string should become nil
+    }
+
+    func testUpdateAnnotationNameToNil() {
+        let state = AnnotationState()
+        var annotation = Annotation(type: .line, rect: .zero)
+        annotation.name = "Initial Name"
+        state.addAnnotation(annotation)
+
+        state.updateAnnotationName(id: annotation.id, name: nil)
+
+        XCTAssertNil(state.annotations.first?.name)
+    }
+
+    func testDeleteAnnotationWithRenumberSteps() {
+        let state = AnnotationState()
+        let step1 = Annotation(type: .numberedStep, rect: .zero, stepNumber: 1)
+        let step2 = Annotation(type: .numberedStep, rect: .zero, stepNumber: 2)
+        let step3 = Annotation(type: .numberedStep, rect: .zero, stepNumber: 3)
+        state.addAnnotation(step1)
+        state.addAnnotation(step2)
+        state.addAnnotation(step3)
+
+        state.deleteAnnotation(id: step2.id, renumberSteps: true)
+
+        XCTAssertEqual(state.annotations.count, 2)
+        XCTAssertEqual(state.annotations[0].stepNumber, 1)
+        XCTAssertEqual(state.annotations[1].stepNumber, 2) // Renumbered from 3
+    }
+
+    func testDeleteAnnotationWithoutRenumberSteps() {
+        let state = AnnotationState()
+        let step1 = Annotation(type: .numberedStep, rect: .zero, stepNumber: 1)
+        let step2 = Annotation(type: .numberedStep, rect: .zero, stepNumber: 2)
+        let step3 = Annotation(type: .numberedStep, rect: .zero, stepNumber: 3)
+        state.addAnnotation(step1)
+        state.addAnnotation(step2)
+        state.addAnnotation(step3)
+
+        state.deleteAnnotation(id: step2.id, renumberSteps: false)
+
+        XCTAssertEqual(state.annotations.count, 2)
+        XCTAssertEqual(state.annotations[0].stepNumber, 1)
+        XCTAssertEqual(state.annotations[1].stepNumber, 3) // Unchanged
+    }
+
+    func testDeleteAnnotationClearsHiddenId() {
+        let state = AnnotationState()
+        let annotation = Annotation(type: .line, rect: .zero)
+        state.addAnnotation(annotation)
+        state.toggleAnnotationVisibility(id: annotation.id)
+
+        XCTAssertTrue(state.hiddenAnnotationIds.contains(annotation.id))
+
+        state.deleteAnnotation(id: annotation.id)
+
+        XCTAssertFalse(state.hiddenAnnotationIds.contains(annotation.id))
+    }
+
+    func testDeleteNonExistentAnnotation() {
+        let state = AnnotationState()
+        let annotation = Annotation(type: .line, rect: .zero)
+        state.addAnnotation(annotation)
+
+        state.deleteAnnotation(id: UUID())
+
+        XCTAssertEqual(state.annotations.count, 1)
+    }
+
+    func testSelectAnnotationAtReversesOrder() {
+        let state = AnnotationState()
+        // Both annotations overlap at (75, 75)
+        let annotation1 = Annotation(type: .rectangleOutline, rect: CGRect(x: 50, y: 50, width: 100, height: 100))
+        let annotation2 = Annotation(type: .rectangleOutline, rect: CGRect(x: 50, y: 50, width: 100, height: 100))
+        state.addAnnotation(annotation1)
+        state.addAnnotation(annotation2) // Added second, so it's "on top"
+
+        state.selectAnnotationAt(CGPoint(x: 75, y: 75))
+
+        // Should select the one on top (added last = annotation2)
+        XCTAssertEqual(state.selectedAnnotationId, annotation2.id)
+    }
+
+    func testUpdateAnnotationNonExistentId() {
+        let state = AnnotationState()
+        let annotation = Annotation(type: .line, rect: .zero)
+        state.addAnnotation(annotation)
+
+        var nonExistent = Annotation(type: .arrow, rect: CGRect(x: 100, y: 100, width: 50, height: 50))
+        nonExistent.cgRect = CGRect(x: 200, y: 200, width: 100, height: 100)
+        state.updateAnnotation(nonExistent)
+
+        // Original should be unchanged
+        XCTAssertEqual(state.annotations.count, 1)
+        XCTAssertEqual(state.annotations.first?.type, .line)
+    }
+
+    func testSelectedAnnotationWithStaleIndex() {
+        let state = AnnotationState()
+        let annotation = Annotation(type: .line, rect: .zero)
+        state.addAnnotation(annotation)
+        state.selectedAnnotationId = annotation.id
+
+        // Access should work via fallback
+        XCTAssertNotNil(state.selectedAnnotation)
+        XCTAssertEqual(state.selectedAnnotation?.id, annotation.id)
+    }
+
+    func testAnnotationDocumentVersion() {
+        XCTAssertEqual(AnnotationDocument.currentVersion, 1)
+    }
+
+    func testAnnotationDocumentFileExtension() {
+        XCTAssertEqual(AnnotationDocument.fileExtension, "screencapture-annotations")
+    }
+
+    func testCropStateDefaults() {
+        let state = AnnotationState()
+        XCTAssertNil(state.cropRect)
+        XCTAssertFalse(state.isCropping)
+        XCTAssertEqual(state.originalImageSize, .zero)
+    }
+
+    func testAnnotationWithName() {
+        let annotation = Annotation(type: .line, rect: .zero, name: "My Annotation")
+        XCTAssertEqual(annotation.name, "My Annotation")
+    }
+
+    func testAnnotationNameDefault() {
+        let annotation = Annotation(type: .line, rect: .zero)
+        XCTAssertNil(annotation.name)
+    }
+
+    func testCanBeFilleddCircleSolid() {
+        // Test that only rectangleSolid has canBeFilled true
+        XCTAssertFalse(AnnotationType.circleOutline.canBeFilled)
+    }
+
+    func testDuplicatePencilAnnotationWithPoints() {
+        let state = AnnotationState()
+        let points = [CGPoint(x: 0, y: 0), CGPoint(x: 50, y: 50), CGPoint(x: 100, y: 0)]
+        let annotation = Annotation(type: .pencil, rect: CGRect(x: 0, y: 0, width: 100, height: 50), points: points)
+        state.addAnnotation(annotation)
+
+        let duplicateId = state.duplicateAnnotation(id: annotation.id)
+
+        XCTAssertNotNil(duplicateId)
+        let duplicate = state.annotations.last!
+        XCTAssertEqual(duplicate.cgPoints.count, 3)
+        XCTAssertEqual(duplicate.cgPoints[0].x, 10) // Offset
+        XCTAssertEqual(duplicate.cgPoints[0].y, 10)
+    }
+
+    func testPasteNumberedStep() {
+        let state = AnnotationState()
+        state.stepCounter = 3
+        let annotation = Annotation(type: .numberedStep, rect: CGRect(x: 0, y: 0, width: 50, height: 50), stepNumber: 1)
+        state.addAnnotation(annotation)
+        state.selectedAnnotationId = annotation.id
+        state.copySelectedAnnotation()
+
+        let pastedId = state.pasteAnnotation()
+
+        XCTAssertNotNil(pastedId)
+        let pasted = state.annotations.last!
+        XCTAssertEqual(pasted.stepNumber, 3) // Uses current stepCounter
+        XCTAssertEqual(state.stepCounter, 4) // Incremented
+    }
+
+    func testAddAnnotationSetsCreationOrder() {
+        let state = AnnotationState()
+        let annotation = Annotation(type: .line, rect: .zero)
+
+        state.addAnnotation(annotation)
+
+        XCTAssertEqual(state.annotations.first?.creationOrder, 1)
+    }
+
+    func testAddAnnotationPreservesExistingCreationOrder() {
+        let state = AnnotationState()
+        let annotation = Annotation(type: .line, rect: .zero, creationOrder: 10)
+
+        state.addAnnotation(annotation)
+
+        XCTAssertEqual(state.annotations.first?.creationOrder, 10)
+    }
+
+    func testUpdateStrokeWidthWithNoSelection() {
+        let state = AnnotationState()
+        let annotation = Annotation(type: .line, rect: .zero, strokeWidth: 3)
+        state.addAnnotation(annotation)
+        // No selection
+
+        state.updateSelectedAnnotationStrokeWidth(10)
+
+        // Should remain unchanged
+        XCTAssertEqual(state.annotations.first?.strokeWidth, 3)
+    }
+
+    func testUpdateFontNameOnNonTextAnnotation() {
+        let state = AnnotationState()
+        let annotation = Annotation(type: .line, rect: .zero, fontName: ".AppleSystemUIFont")
+        state.addAnnotation(annotation)
+        state.selectedAnnotationId = annotation.id
+
+        state.updateSelectedAnnotationFontName("Helvetica")
+
+        // Should remain unchanged for non-text annotations
+        XCTAssertEqual(state.annotations.first?.fontName, ".AppleSystemUIFont")
+    }
+
+    func testSetStepNumberOnNonStep() {
+        let state = AnnotationState()
+        let annotation = Annotation(type: .line, rect: .zero)
+        state.addAnnotation(annotation)
+
+        state.setStepNumber(id: annotation.id, number: 42)
+
+        // Should have no effect
+        XCTAssertNil(state.annotations.first?.stepNumber)
+    }
 }
