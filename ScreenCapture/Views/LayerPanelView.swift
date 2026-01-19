@@ -206,6 +206,9 @@ struct DraggableLayerRow: View {
     var onDragEnded: (() -> Void)? = nil
     var onDropTargetChanged: ((UUID?, LayerDropPosition) -> Void)? = nil
 
+    private static let hoverDelay: TimeInterval = 0.12
+
+    @State private var hoverDelayToken = UUID()
     @State private var isHovered = false
     @State private var isEditingNumber = false
     @State private var editedNumber: String = ""
@@ -282,6 +285,9 @@ struct DraggableLayerRow: View {
     }
 
     var body: some View {
+        let showActionButtons = isHovered || isSelected
+        let showVisibilityToggle = showActionButtons || !isVisible
+
         VStack(spacing: 0) {
             // Drop indicator above
             if isDropTarget && dropPosition == .above {
@@ -290,102 +296,110 @@ struct DraggableLayerRow: View {
 
             // Main row content
             HStack(spacing: DSSpacing.xs) {
-                // Drag handle
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 10))
-                    .foregroundColor(.dsTextTertiary.opacity(0.5))
-                    .frame(width: 12)
+                // Selectable area: drag handle through name/property
+                // This area handles tap-to-select; buttons are outside this
+                HStack(spacing: DSSpacing.xs) {
+                    // Drag handle
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 10))
+                        .foregroundColor(.dsTextTertiary.opacity(0.5))
+                        .frame(width: 12)
 
-                // Layer position number (updates after reordering)
-                Text("#\(displayNumber)")
-                    .font(DSTypography.monoSmall)
-                    .foregroundColor(.dsTextTertiary)
-                    .frame(width: 24)
+                    // Layer position number (updates after reordering)
+                    Text("#\(displayNumber)")
+                        .font(DSTypography.monoSmall)
+                        .foregroundColor(.dsTextTertiary)
+                        .frame(width: 24)
 
-                // Type icon with color (color picker for non-blur annotations)
-                // Use consistent container frame for all icon types to ensure alignment
-                Group {
-                    if annotation.type != .blur {
-                        ColorPicker("", selection: Binding(
-                            get: { annotation.swiftUIColor },
-                            set: { newColor in onColorChange?(newColor) }
-                        ))
-                        .labelsHidden()
-                        .frame(width: 14, height: 14)
-                        .clipShape(Circle())
-                    } else {
-                        Image(systemName: typeIcon)
-                            .font(.system(size: 11))
-                            .foregroundColor(.dsTextTertiary)
+                    // Type icon with color (color picker for non-blur annotations)
+                    // Use consistent container frame for all icon types to ensure alignment
+                    Group {
+                        if annotation.type != .blur {
+                            ColorPicker("", selection: Binding(
+                                get: { annotation.swiftUIColor },
+                                set: { newColor in onColorChange?(newColor) }
+                            ))
+                            .labelsHidden()
+                            .frame(width: 14, height: 14)
+                            .clipShape(Circle())
+                        } else {
+                            Image(systemName: typeIcon)
+                                .font(.system(size: 11))
+                                .foregroundColor(.dsTextTertiary)
+                        }
                     }
-                }
-                .frame(width: 16, height: 16, alignment: .center)
+                    .frame(width: 16, height: 16, alignment: .center)
 
-                // Type name and property
-                VStack(alignment: .leading, spacing: 1) {
-                    // Layer name (custom or type name)
-                    if isEditingName {
-                        TextField("", text: $editedName)
-                            .font(DSTypography.labelSmall)
-                            .textFieldStyle(.plain)
-                            .frame(height: DSRowHeight.labelSmall)
-                            .focused($isNameFieldFocused)
-                            .onSubmit {
-                                onRename?(editedName.isEmpty ? nil : editedName)
-                                isEditingName = false
-                            }
-                            .onExitCommand {
-                                isEditingName = false
-                            }
-                            .onChange(of: isNameFieldFocused) { _, isFocused in
-                                if !isFocused && isEditingName {
+                    // Type name and property
+                    VStack(alignment: .leading, spacing: 1) {
+                        // Layer name (custom or type name)
+                        if isEditingName {
+                            TextField("", text: $editedName)
+                                .font(DSTypography.labelSmall)
+                                .textFieldStyle(.plain)
+                                .frame(height: DSRowHeight.labelSmall)
+                                .focused($isNameFieldFocused)
+                                .onSubmit {
                                     onRename?(editedName.isEmpty ? nil : editedName)
                                     isEditingName = false
                                 }
-                            }
-                    } else {
-                        Text(annotation.name ?? typeName)
-                            .font(DSTypography.labelSmall)
-                            .foregroundColor(isVisible ? .dsTextPrimary : .dsTextTertiary)
-                            .frame(height: DSRowHeight.labelSmall)
-                            .onTapGesture(count: 2) {
-                                editedName = annotation.name ?? typeName
-                                isEditingName = true
-                                isNameFieldFocused = true
-                            }
-                    }
-
-                    if !propertySummary.isEmpty {
-                        // For numbered steps, allow editing
-                        if annotation.type == .numberedStep, isEditingNumber {
-                            TextField("", text: $editedNumber)
-                                .font(DSTypography.monoSmall)
-                                .foregroundColor(.dsTextSecondary)
-                                .textFieldStyle(.plain)
-                                .frame(width: 40)
-                                .onSubmit {
-                                    if let num = Int(editedNumber), num > 0 {
-                                        onUpdateStepNumber?(num)
+                                .onExitCommand {
+                                    isEditingName = false
+                                }
+                                .onChange(of: isNameFieldFocused) { _, isFocused in
+                                    if !isFocused && isEditingName {
+                                        onRename?(editedName.isEmpty ? nil : editedName)
+                                        isEditingName = false
                                     }
-                                    isEditingNumber = false
                                 }
                         } else {
-                            Text(propertySummary)
-                                .font(DSTypography.monoSmall)
-                                .foregroundColor(.dsTextSecondary)
-                                .lineLimit(1)
-                                .onTapGesture {
-                                    if annotation.type == .numberedStep {
-                                        editedNumber = "\(annotation.stepNumber ?? 1)"
-                                        isEditingNumber = true
-                                    }
+                            Text(annotation.name ?? typeName)
+                                .font(DSTypography.labelSmall)
+                                .foregroundColor(isVisible ? .dsTextPrimary : .dsTextTertiary)
+                                .frame(height: DSRowHeight.labelSmall)
+                                .onTapGesture(count: 2) {
+                                    editedName = annotation.name ?? typeName
+                                    isEditingName = true
+                                    isNameFieldFocused = true
                                 }
                         }
-                    }
-                }
-                .frame(minWidth: 80, alignment: .leading)
 
-                Spacer()
+                        if !propertySummary.isEmpty {
+                            // For numbered steps, allow editing
+                            if annotation.type == .numberedStep, isEditingNumber {
+                                TextField("", text: $editedNumber)
+                                    .font(DSTypography.monoSmall)
+                                    .foregroundColor(.dsTextSecondary)
+                                    .textFieldStyle(.plain)
+                                    .frame(width: 40)
+                                    .onSubmit {
+                                        if let num = Int(editedNumber), num > 0 {
+                                            onUpdateStepNumber?(num)
+                                        }
+                                        isEditingNumber = false
+                                    }
+                            } else {
+                                Text(propertySummary)
+                                    .font(DSTypography.monoSmall)
+                                    .foregroundColor(.dsTextSecondary)
+                                    .lineLimit(1)
+                                    .onTapGesture {
+                                        if annotation.type == .numberedStep {
+                                            editedNumber = "\(annotation.stepNumber ?? 1)"
+                                            isEditingNumber = true
+                                        }
+                                    }
+                            }
+                        }
+                    }
+                    .frame(minWidth: 80, alignment: .leading)
+
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onSelect()
+                }
 
                 // Action buttons - always rendered for consistent layout, visibility controlled via opacity
                 HStack(spacing: 0) {
@@ -398,6 +412,9 @@ struct DraggableLayerRow: View {
                     .buttonStyle(.plain)
                     .frame(width: 20, height: 20)
                     .help("Move up")
+                    .opacity(showActionButtons ? 1 : 0)
+                    .allowsHitTesting(showActionButtons)
+                    .accessibilityHidden(!showActionButtons)
 
                     // Move down button (send backward in z-order)
                     Button(action: { onSendBackward?() }) {
@@ -408,8 +425,11 @@ struct DraggableLayerRow: View {
                     .buttonStyle(.plain)
                     .frame(width: 20, height: 20)
                     .help("Move down")
+                    .opacity(showActionButtons ? 1 : 0)
+                    .allowsHitTesting(showActionButtons)
+                    .accessibilityHidden(!showActionButtons)
 
-                    // Lock toggle for numbered steps (always rendered for consistent layout)
+                    // Lock toggle for numbered steps
                     if annotation.type == .numberedStep {
                         Button(action: { onToggleLock?() }) {
                             Image(systemName: annotation.isNumberLocked ? "lock.fill" : "lock.open")
@@ -419,6 +439,9 @@ struct DraggableLayerRow: View {
                         .buttonStyle(.plain)
                         .frame(width: 20, height: 20)
                         .help(annotation.isNumberLocked ? "Unlock number" : "Lock number")
+                        .opacity(showActionButtons ? 1 : 0)
+                        .allowsHitTesting(showActionButtons)
+                        .accessibilityHidden(!showActionButtons)
                     }
 
                     // Visibility toggle
@@ -430,6 +453,9 @@ struct DraggableLayerRow: View {
                     .buttonStyle(.plain)
                     .frame(width: 20, height: 20)
                     .help(isVisible ? "Hide layer" : "Show layer")
+                    .opacity(showVisibilityToggle ? 1 : 0)
+                    .allowsHitTesting(showVisibilityToggle)
+                    .accessibilityHidden(!showVisibilityToggle)
 
                     // Delete button
                     Button(action: onDelete) {
@@ -440,10 +466,10 @@ struct DraggableLayerRow: View {
                     .buttonStyle(.plain)
                     .frame(width: 20, height: 20)
                     .help("Delete layer")
+                    .opacity(showActionButtons ? 1 : 0)
+                    .allowsHitTesting(showActionButtons)
+                    .accessibilityHidden(!showActionButtons)
                 }
-                .opacity(isHovered || isSelected || !isVisible ? 1 : 0)
-                .allowsHitTesting(isHovered || isSelected || !isVisible)
-                .accessibilityHidden(!(isHovered || isSelected || !isVisible))
             }
             .padding(.horizontal, DSSpacing.sm)
             .padding(.vertical, DSSpacing.xs)
@@ -464,12 +490,21 @@ struct DraggableLayerRow: View {
                     )
             )
             .contentShape(Rectangle())
-            .onTapGesture {
-                onSelect()
-            }
             .onHover { hovering in
-                withAnimation(DSAnimation.quick) {
-                    isHovered = hovering
+                let token = UUID()
+                hoverDelayToken = token
+
+                if hovering {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Self.hoverDelay) {
+                        guard hoverDelayToken == token else { return }
+                        withAnimation(DSAnimation.quick) {
+                            isHovered = true
+                        }
+                    }
+                } else {
+                    withAnimation(DSAnimation.quick) {
+                        isHovered = false
+                    }
                 }
             }
             .opacity(isDragging ? 0.5 : (isVisible ? 1 : 0.5))
