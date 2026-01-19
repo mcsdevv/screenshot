@@ -675,6 +675,7 @@ struct RecordingPreferencesView: View {
 
 // MARK: - Storage Preferences
 
+@MainActor
 struct StoragePreferencesView: View {
     @AppStorage("autoCleanup") private var autoCleanup = true
     @AppStorage("cleanupDays") private var cleanupDays = 30
@@ -683,7 +684,7 @@ struct StoragePreferencesView: View {
     @State private var storageUsed: String = "Calculating..."
     @State private var currentPath: String = ""
 
-    private var storageManager: StorageManager {
+    @MainActor private var storageManager: StorageManager {
         if let appDelegate = NSApp.delegate as? AppDelegate {
             return appDelegate.storageManager
         }

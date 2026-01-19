@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 
+@MainActor
 class MenuBarController: NSObject {
     private var statusItem: NSStatusItem!
     private var menu: NSMenu!
