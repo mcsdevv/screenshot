@@ -60,6 +60,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate Xcode project path
+        run: |
+          set -euo pipefail
+          expected="./${{ env.PROJECT }}"
+          project_count=$(find . -maxdepth 2 -name "*.xcodeproj" -print | wc -l | tr -d ' ')
+          if [ "$project_count" -ne 1 ] || [ ! -d "$expected" ]; then
+            echo "Expected exactly one Xcode project at $expected."
+            echo "Found:"
+            find . -maxdepth 2 -name "*.xcodeproj" -print
+            exit 1
+          fi
+
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.2.app || sudo xcode-select -s /Applications/Xcode.app
 
