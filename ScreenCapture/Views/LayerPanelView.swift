@@ -422,8 +422,8 @@ struct DraggableLayerRow: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            if isEditingName {
-                // Clicking outside the text field ends editing
+            // Clear editing state if any layer is being edited (not just this one)
+            if editingNameAnnotationId != nil {
                 editingNameAnnotationId = nil
             }
             onSelect()
