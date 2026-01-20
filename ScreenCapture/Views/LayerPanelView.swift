@@ -238,6 +238,8 @@ struct DraggableLayerRow: View {
     @State private var editedNumber: String = ""
     @State private var editedName: String = ""
     @State private var shouldSaveOnEditEnd: Bool = true
+    // Local state to buffer ColorPicker updates and prevent crash from rapid binding updates
+    @State private var pickerColor: Color = .red
     @FocusState private var isNameFieldFocused: Bool
 
     /// Whether this row is currently editing its name (derived from parent binding)
@@ -437,13 +439,20 @@ struct DraggableLayerRow: View {
                         .fill(annotation.swiftUIColor)
                         .frame(width: 14, height: 14)
                 } else {
-                    ColorPicker("", selection: Binding(
-                        get: { annotation.swiftUIColor },
-                        set: { newColor in onColorChange?(newColor) }
-                    ))
-                    .labelsHidden()
-                    .frame(width: 14, height: 14)
-                    .clipShape(Circle())
+                    // Use stable @State binding to prevent crash from binding invalidation during popover animation
+                    ColorPicker("", selection: $pickerColor)
+                        .labelsHidden()
+                        .frame(width: 14, height: 14)
+                        .clipShape(Circle())
+                        .onChange(of: pickerColor) { _, newColor in
+                            onColorChange?(newColor)
+                        }
+                        .onAppear {
+                            pickerColor = annotation.swiftUIColor
+                        }
+                        .onChange(of: annotation.swiftUIColor) { _, newColor in
+                            pickerColor = newColor
+                        }
                 }
             } else {
                 Image(systemName: typeIcon)
