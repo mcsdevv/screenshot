@@ -508,9 +508,11 @@ struct CaptureGridCard: View {
     }
 
     private func loadThumbnail() {
-        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        if let image = NSImage(contentsOf: url) {
-            thumbnail = image
+        Task { @MainActor in
+            let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+            if let image = NSImage(contentsOf: url) {
+                thumbnail = image
+            }
         }
     }
 
@@ -663,9 +665,11 @@ struct CaptureListRow: View {
     }
 
     private func loadThumbnail() {
-        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        if let image = NSImage(contentsOf: url) {
-            thumbnail = image
+        Task { @MainActor in
+            let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+            if let image = NSImage(contentsOf: url) {
+                thumbnail = image
+            }
         }
     }
 
