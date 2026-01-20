@@ -4,24 +4,20 @@ import Foundation
 // MARK: - Notification Observer Helper
 
 /// Helper class for observing and capturing notifications in tests
-/// @MainActor ensures thread-safe access to receivedNotifications
-@MainActor
+/// Thread-safe via main queue delivery and lock-protected observer storage
 class NotificationObserver {
     private(set) var receivedNotifications: [Notification] = []
-    // Nonisolated storage with a lock so observers can be removed in deinit.
-    nonisolated(unsafe) private let observersLock = NSLock()
-    nonisolated(unsafe) private var observers: [NSObjectProtocol] = []
+    private let observersLock = NSLock()
+    private var observers: [NSObjectProtocol] = []
 
     /// Start observing a notification name
-    nonisolated func observe(_ name: Notification.Name, object: Any? = nil) {
+    func observe(_ name: Notification.Name, object: Any? = nil) {
         let observer = NotificationCenter.default.addObserver(
             forName: name,
             object: object,
             queue: .main
         ) { [weak self] notification in
-            Task { @MainActor in
-                self?.receivedNotifications.append(notification)
-            }
+            self?.receivedNotifications.append(notification)
         }
         observersLock.lock()
         observers.append(observer)
@@ -43,7 +39,7 @@ class NotificationObserver {
         receivedNotifications.removeAll()
     }
 
-    nonisolated func removeAllObservers() {
+    func removeAllObservers() {
         observersLock.lock()
         let currentObservers = observers
         observers.removeAll()
