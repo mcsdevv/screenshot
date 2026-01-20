@@ -701,7 +701,7 @@ struct AnnotationToolbar: View {
                 }
                 .disabled(!viewModel.state.canRedo)
                 .opacity(viewModel.state.canRedo ? 1 : 0.4)
-                .help("Redo (⌘⇧Z)")
+                .help("Redo (⌘Y)")
             }
 
             // Delete selected

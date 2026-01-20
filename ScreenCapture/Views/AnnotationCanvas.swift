@@ -226,6 +226,14 @@ struct AnnotationCanvas: View {
                 onSendToBack: {
                     guard let id = state.selectedAnnotationId, !showTextInput else { return }
                     state.sendToBack(id: id)
+                },
+                onUndo: {
+                    guard !showTextInput else { return }
+                    state.undo()
+                },
+                onRedo: {
+                    guard !showTextInput else { return }
+                    state.redo()
                 }
             )
         )
@@ -2016,6 +2024,8 @@ struct AnnotationKeyboardHandler: NSViewRepresentable {
     var onSendBackward: () -> Void
     var onBringToFront: () -> Void
     var onSendToBack: () -> Void
+    var onUndo: () -> Void
+    var onRedo: () -> Void
 
     func makeNSView(context: Context) -> AnnotationKeyboardHandlerView {
         let view = AnnotationKeyboardHandlerView()
@@ -2028,6 +2038,8 @@ struct AnnotationKeyboardHandler: NSViewRepresentable {
         view.onSendBackward = onSendBackward
         view.onBringToFront = onBringToFront
         view.onSendToBack = onSendToBack
+        view.onUndo = onUndo
+        view.onRedo = onRedo
         return view
     }
 
@@ -2041,6 +2053,8 @@ struct AnnotationKeyboardHandler: NSViewRepresentable {
         nsView.onSendBackward = onSendBackward
         nsView.onBringToFront = onBringToFront
         nsView.onSendToBack = onSendToBack
+        nsView.onUndo = onUndo
+        nsView.onRedo = onRedo
     }
 }
 
@@ -2054,8 +2068,29 @@ class AnnotationKeyboardHandlerView: NSView {
     var onSendBackward: (() -> Void)?
     var onBringToFront: (() -> Void)?
     var onSendToBack: (() -> Void)?
+    var onUndo: (() -> Void)?
+    var onRedo: (() -> Void)?
 
     override var acceptsFirstResponder: Bool { true }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let keyCode = event.keyCode
+
+        // Cmd+Z - Undo (intercept before menu system)
+        if keyCode == 6 && modifiers == .command {
+            onUndo?()
+            return true
+        }
+
+        // Cmd+Y - Redo (intercept before menu system)
+        if keyCode == 16 && modifiers == .command {
+            onRedo?()
+            return true
+        }
+
+        return super.performKeyEquivalent(with: event)
+    }
 
     override func keyDown(with event: NSEvent) {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
@@ -2096,6 +2131,18 @@ class AnnotationKeyboardHandlerView: NSView {
             }
         default:
             break
+        }
+
+        // Cmd+Z - Undo
+        if keyCode == 6 && modifiers == .command { // Z key
+            onUndo?()
+            return
+        }
+
+        // Cmd+Y - Redo
+        if keyCode == 16 && modifiers == .command { // Y key
+            onRedo?()
+            return
         }
 
         // Cmd+D - Duplicate
