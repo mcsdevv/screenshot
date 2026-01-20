@@ -174,7 +174,9 @@ struct LayerPanelView: View {
         newIndex = max(0, min(newIndex, state.annotations.count - 1))
 
         if newIndex != fromIndex {
-            state.moveAnnotation(id: fromId, toIndex: newIndex)
+            withAnimation(DSAnimation.springQuick) {
+                state.moveAnnotation(id: fromId, toIndex: newIndex)
+            }
         }
     }
 
@@ -185,7 +187,9 @@ struct LayerPanelView: View {
         }
 
         if fromIndex != 0 {
-            state.moveAnnotation(id: fromId, toIndex: 0)
+            withAnimation(DSAnimation.springQuick) {
+                state.moveAnnotation(id: fromId, toIndex: 0)
+            }
         }
     }
 }
@@ -214,7 +218,7 @@ struct DraggableLayerRow: View {
     var onDragStarted: (() -> Void)? = nil
     var onDragEnded: (() -> Void)? = nil
 
-    private static let hoverDelay: TimeInterval = 0.12
+    private static let hoverDelay: TimeInterval = 0.05
 
     @State private var hoverDelayToken = UUID()
     @State private var isHovered = false
