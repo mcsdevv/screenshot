@@ -144,7 +144,7 @@ struct AnnotationCanvas: View {
                     if showTextInput {
                         TextInputOverlay(
                             text: $textInput,
-                            position: textPosition,
+                            position: $textPosition,
                             imageSize: scaledImageSize,
                             color: state.currentColor,
                             fontSize: state.currentFontSize,
@@ -669,6 +669,16 @@ struct AnnotationCanvas: View {
                 annotation.fontSize = state.currentFontSize
                 annotation.fontName = state.currentFontName
                 annotation.color = CodableColor(state.currentColor)
+                // Update position from dragged location
+                let paddingOffset: CGFloat = 12
+                let newPosition = CGPoint(
+                    x: textPosition.x + paddingOffset,
+                    y: textPosition.y + paddingOffset
+                )
+                annotation.rect = CodableRect(CGRect(
+                    origin: clampToImageBounds(gestureLocationToImageCoords(newPosition)),
+                    size: annotation.cgRect.size
+                ))
                 state.updateAnnotation(annotation)
             }
             editingAnnotationId = nil
@@ -1536,7 +1546,7 @@ struct CropOverlay: View {
 
 struct TextInputOverlay: View {
     @Binding var text: String
-    let position: CGPoint
+    @Binding var position: CGPoint
     let imageSize: CGSize
     let color: Color
     let fontSize: CGFloat
@@ -1545,7 +1555,6 @@ struct TextInputOverlay: View {
     let onCancel: () -> Void
 
     // Committed state - persists after gestures end
-    @State private var committedOffset: CGSize = .zero
     @State private var committedWidth: CGFloat = 0
     @State private var committedHeight: CGFloat = 0
 
@@ -1586,10 +1595,17 @@ struct TextInputOverlay: View {
         return base
     }
 
+    private func clampTopLeft(_ point: CGPoint, width: CGFloat, height: CGFloat) -> CGPoint {
+        CGPoint(
+            x: min(max(point.x, 4), imageSize.width - width - 4),
+            y: min(max(point.y, 4), imageSize.height - height - 4)
+        )
+    }
+
     // Current position including any active drag or resize gesture
     private var currentTopLeft: CGPoint {
-        var x = position.x + committedOffset.width + dragTranslation.width
-        var y = position.y + committedOffset.height + dragTranslation.height
+        var x = position.x + dragTranslation.width
+        var y = position.y + dragTranslation.height
 
         // Apply position offset from resize (for left/top edge drags)
         if let resize = resizeState {
@@ -1598,10 +1614,7 @@ struct TextInputOverlay: View {
         }
 
         // Constrain to image bounds
-        x = min(max(x, 4), imageSize.width - currentWidth - 4)
-        y = min(max(y, 4), imageSize.height - currentHeight - 4)
-
-        return CGPoint(x: x, y: y)
+        return clampTopLeft(CGPoint(x: x, y: y), width: currentWidth, height: currentHeight)
     }
 
     var body: some View {
@@ -1684,9 +1697,16 @@ struct TextInputOverlay: View {
                             .onEnded { value in
                                 isDragging = false
                                 NSCursor.pop()
-                                // Commit the final drag offset
-                                committedOffset.width += value.translation.width
-                                committedOffset.height += value.translation.height
+                                // Sync final position back to parent (replaces local committedOffset)
+                                let newTopLeft = clampTopLeft(
+                                    CGPoint(
+                                        x: position.x + value.translation.width,
+                                        y: position.y + value.translation.height
+                                    ),
+                                    width: currentWidth,
+                                    height: currentHeight
+                                )
+                                position = newTopLeft
                                 if isHoveringBorder {
                                     NSCursor.openHand.push()
                                 }
@@ -1737,10 +1757,20 @@ struct TextInputOverlay: View {
                                     minWidth: minWidth,
                                     minHeight: minHeight
                                 )
-                                committedWidth = max(minWidth, (committedWidth > 0 ? committedWidth : defaultWidth) + finalResize.widthDelta)
-                                committedHeight = max(minHeight, (committedHeight > 0 ? committedHeight : defaultHeight) + finalResize.heightDelta)
-                                committedOffset.width += finalResize.xOffset
-                                committedOffset.height += finalResize.yOffset
+                                let newWidth = max(minWidth, (committedWidth > 0 ? committedWidth : defaultWidth) + finalResize.widthDelta)
+                                let newHeight = max(minHeight, (committedHeight > 0 ? committedHeight : defaultHeight) + finalResize.heightDelta)
+                                committedWidth = newWidth
+                                committedHeight = newHeight
+                                // Sync position offset to parent (for left/top edge resizes)
+                                let newTopLeft = clampTopLeft(
+                                    CGPoint(
+                                        x: position.x + finalResize.xOffset,
+                                        y: position.y + finalResize.yOffset
+                                    ),
+                                    width: newWidth,
+                                    height: newHeight
+                                )
+                                position = newTopLeft
 
                                 if hoveredCorner != nil {
                                     // Cursor already set from hover
