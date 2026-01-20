@@ -31,8 +31,9 @@ class MenuBarController: NSObject {
     private func setupVisibilityMonitor() {
         // Periodically ensure the status item remains visible
         visibilityTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            guard let strongSelf = self else { return }
             Task { @MainActor in
-                self?.ensureVisible()
+                strongSelf.ensureVisible()
             }
         }
     }
