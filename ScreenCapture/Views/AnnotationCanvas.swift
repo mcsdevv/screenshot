@@ -449,6 +449,11 @@ struct AnnotationCanvas: View {
     private func handleTap(at location: CGPoint) {
         let unscaledLocation = clampToImageBounds(gestureLocationToImageCoords(location))
 
+        // Clean up any active text editing before handling the tap
+        if showTextInput {
+            commitTextAnnotation()
+        }
+
         // First, try to select an annotation at this point (regardless of tool)
         // Search in reverse to select topmost annotation
         var hitAnnotation: Annotation? = nil
