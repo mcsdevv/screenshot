@@ -1041,6 +1041,7 @@ struct StrokeWidthButton: View {
     var onStrokeChange: ((CGFloat) -> Void)? = nil
     @State private var showPicker = false
     @State private var isHovered = false
+    @State private var hoveredWidth: Int?
 
     var body: some View {
         Button(action: { showPicker.toggle() }) {
@@ -1083,10 +1084,19 @@ struct StrokeWidthButton: View {
                         .padding(.horizontal, DSSpacing.sm)
                         .background(
                             RoundedRectangle(cornerRadius: DSRadius.xs)
-                                .fill(Int(strokeWidth) == width ? Color.dsAccent.opacity(0.1) : Color.clear)
+                                .fill(
+                                    Int(strokeWidth) == width ? Color.dsAccent.opacity(0.1) :
+                                    (hoveredWidth == width ? Color.white.opacity(0.08) : Color.clear)
+                                )
                         )
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .onHover { hovering in
+                        withAnimation(DSAnimation.quick) {
+                            hoveredWidth = hovering ? width : nil
+                        }
+                    }
                 }
             }
             .padding(DSSpacing.sm)
