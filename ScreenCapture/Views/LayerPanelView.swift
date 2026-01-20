@@ -218,9 +218,6 @@ struct DraggableLayerRow: View {
     var onDragStarted: (() -> Void)? = nil
     var onDragEnded: (() -> Void)? = nil
 
-    private static let hoverDelay: TimeInterval = 0.05
-
-    @State private var hoverDelayToken = UUID()
     @State private var isHovered = false
     @State private var isEditingNumber = false
     @State private var editedNumber: String = ""
@@ -325,18 +322,15 @@ struct DraggableLayerRow: View {
         .background(rowBackground)
         .overlay(rowBorder)
         .contentShape(Rectangle())
-        .onHover { hovering in
-            let token = UUID()
-            hoverDelayToken = token
-
-            if hovering {
-                DispatchQueue.main.asyncAfter(deadline: .now() + Self.hoverDelay) {
-                    guard hoverDelayToken == token else { return }
+        .onContinuousHover { phase in
+            switch phase {
+            case .active:
+                if !isHovered {
                     withAnimation(DSAnimation.quick) {
                         isHovered = true
                     }
                 }
-            } else {
+            case .ended:
                 withAnimation(DSAnimation.quick) {
                     isHovered = false
                 }
