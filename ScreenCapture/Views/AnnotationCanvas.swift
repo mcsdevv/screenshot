@@ -1639,45 +1639,19 @@ struct TextInputOverlay: View {
                     onCommit: onCommit
                 )
                 .frame(minHeight: 24, maxHeight: .infinity)
-
-                // Minimal action buttons - positioned at bottom right
-                HStack(spacing: 6) {
-                    Spacer()
-
-                    Button(action: onCancel) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 20, height: 20)
-                    .background(Color(nsColor: .windowBackgroundColor).opacity(0.8))
-                    .clipShape(Circle())
-
-                    Button(action: onCommit) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 20, height: 20)
-                    .background(Color.accentColor)
-                    .clipShape(Circle())
-                }
             }
-            .padding(8)
+            .padding(4)
             .frame(width: currentWidth, height: currentHeight, alignment: .topLeading)
             .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color(nsColor: .windowBackgroundColor).opacity(0.85))
-                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(.ultraThinMaterial)
             )
             .overlay(
                 // Border with drag gesture and hover cursor
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(color.opacity(0.3), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(color.opacity(0.15), lineWidth: 1)
                     .contentShape(
-                        RoundedRectangle(cornerRadius: 6)
+                        RoundedRectangle(cornerRadius: 4)
                             .stroke(lineWidth: 12) // Thicker hit area for dragging
                     )
                     .onHover { hovering in
