@@ -1910,6 +1910,7 @@ struct AnnotationTextView: NSViewRepresentable {
         textView.isEditable = true
         textView.isSelectable = true
         textView.textContainerInset = NSSize(width: 4, height: 4)
+        textView.textContainer?.lineFragmentPadding = 0
         textView.onCommit = onCommit
 
         scrollView.documentView = textView
