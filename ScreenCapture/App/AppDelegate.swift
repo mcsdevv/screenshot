@@ -473,6 +473,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        storageManager.saveHistory()
         keyboardShortcuts.unregisterAll()
     }
 

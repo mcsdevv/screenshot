@@ -4,7 +4,7 @@ import Observation
 
 // MARK: - Annotation Tools
 
-enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
+enum AnnotationTool: String, CaseIterable, Identifiable, Codable, Sendable {
     case select = "Select"
     case crop = "Crop"
     case rectangleOutline = "Rectangle"
@@ -57,7 +57,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
 
 // MARK: - Annotation Type
 
-enum AnnotationType: Equatable, Codable {
+enum AnnotationType: Equatable, Codable, Sendable {
     case rectangleOutline
     case rectangleSolid
     case circleOutline
@@ -81,7 +81,7 @@ enum AnnotationType: Equatable, Codable {
 
 // MARK: - Annotation Model
 
-struct Annotation: Identifiable, Equatable, Codable {
+struct Annotation: Identifiable, Equatable, Codable, Sendable {
     let id: UUID
     var type: AnnotationType
     var rect: CodableRect
@@ -152,7 +152,7 @@ struct Annotation: Identifiable, Equatable, Codable {
 
 // MARK: - Codable Wrappers for Core Graphics Types
 
-struct CodableRect: Codable, Equatable {
+struct CodableRect: Codable, Equatable, Sendable {
     var x: CGFloat
     var y: CGFloat
     var width: CGFloat
@@ -170,7 +170,7 @@ struct CodableRect: Codable, Equatable {
     }
 }
 
-struct CodablePoint: Codable, Equatable {
+struct CodablePoint: Codable, Equatable, Sendable {
     var x: CGFloat
     var y: CGFloat
 
@@ -184,7 +184,7 @@ struct CodablePoint: Codable, Equatable {
     }
 }
 
-struct CodableColor: Codable, Equatable {
+struct CodableColor: Codable, Equatable, Sendable {
     var red: CGFloat
     var green: CGFloat
     var blue: CGFloat
@@ -590,7 +590,7 @@ class AnnotationState {
 
 // MARK: - Annotation Document (for sidecar file persistence)
 
-struct AnnotationDocument: Codable {
+struct AnnotationDocument: Codable, Sendable {
     static let fileExtension = "screencapture-annotations"
     static let currentVersion = 1
 
@@ -668,7 +668,7 @@ extension Color {
 
 // MARK: - Font Options
 
-struct FontOption: Identifiable, Hashable {
+struct FontOption: Identifiable, Hashable, Sendable {
     let id = UUID()
     let name: String
     let displayName: String

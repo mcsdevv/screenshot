@@ -257,6 +257,7 @@ struct SliderOption: View {
     }
 }
 
+@MainActor
 class BackgroundToolWindow {
     private static var currentWindow: NSWindow?
 
@@ -267,16 +268,16 @@ class BackgroundToolWindow {
         let view = BackgroundToolView(
             image: image,
             onSave: { exportedImage in
-                let capture = storageManager.saveCapture(image: exportedImage, type: .screenshot)
-                NotificationCenter.default.post(name: .captureCompleted, object: capture)
-                // Defer close to avoid deallocating view during callback
-                DispatchQueue.main.async {
+                Task { @MainActor in
+                    let capture = storageManager.saveCapture(image: exportedImage, type: .screenshot)
+                    NotificationCenter.default.post(name: .captureCompleted, object: capture)
+                    // Defer close to avoid deallocating view during callback
                     closeWindow()
                 }
             },
             onCancel: {
-                // Defer close to avoid deallocating view during callback
-                DispatchQueue.main.async {
+                Task { @MainActor in
+                    // Defer close to avoid deallocating view during callback
                     closeWindow()
                 }
             }
@@ -305,10 +306,7 @@ class BackgroundToolWindow {
         currentWindow = nil
 
         windowToClose.orderOut(nil)
-
-        DispatchQueue.main.async {
-            windowToClose.contentView = nil
-            windowToClose.close()
-        }
+        windowToClose.contentView = nil
+        windowToClose.close()
     }
 }

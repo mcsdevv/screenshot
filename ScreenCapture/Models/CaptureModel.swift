@@ -1,7 +1,7 @@
 import Foundation
 import AppKit
 
-struct CaptureItem: Identifiable, Codable, Equatable {
+struct CaptureItem: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     let type: CaptureType
     let filename: String
@@ -43,7 +43,7 @@ struct CaptureItem: Identifiable, Codable, Equatable {
     }
 }
 
-enum CaptureType: String, Codable, CaseIterable {
+enum CaptureType: String, Codable, CaseIterable, Sendable {
     case screenshot = "Screenshot"
     case scrollingCapture = "Scrolling"
     case recording = "Recording"
@@ -77,7 +77,7 @@ enum CaptureType: String, Codable, CaseIterable {
     }
 }
 
-struct CaptureMetadata: Codable {
+struct CaptureMetadata: Codable, Sendable {
     var width: Int
     var height: Int
     var duration: TimeInterval?

@@ -2,7 +2,7 @@ import Foundation
 import AppKit
 import Combine
 
-struct StorageConfig {
+struct StorageConfig: @unchecked Sendable {
     let baseDirectory: URL
     let userDefaults: UserDefaults
     let fileManager: FileManager
@@ -20,6 +20,7 @@ struct StorageConfig {
     }
 }
 
+@MainActor
 class StorageManager: ObservableObject {
     @Published var history: CaptureHistory
     @Published var storageVerified: Bool = false
@@ -66,7 +67,7 @@ class StorageManager: ObservableObject {
         verifyStoragePermissions()
     }
 
-    static func defaultBaseDirectory() -> URL {
+    nonisolated static func defaultBaseDirectory() -> URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         return appSupport.appendingPathComponent("ScreenCapture", isDirectory: true)
     }
@@ -175,10 +176,8 @@ class StorageManager: ObservableObject {
             storageVerified = false
             errorLog("StorageManager: Storage permission verification failed", error: error)
 
-            // Show alert on main thread
-            DispatchQueue.main.async {
-                self.showStoragePermissionAlert()
-            }
+            // Already on main actor, call directly
+            showStoragePermissionAlert()
         }
     }
 
@@ -199,7 +198,9 @@ class StorageManager: ObservableObject {
 
     private func setupAutoSave() {
         autoSaveTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            self?.saveHistory()
+            Task { @MainActor in
+                self?.saveHistory()
+            }
         }
     }
 
@@ -347,7 +348,7 @@ class StorageManager: ObservableObject {
         try? config.fileManager.removeItem(at: url)
     }
 
-    private func saveHistory() {
+    func saveHistory() {
         if let data = try? JSONEncoder().encode(history) {
             try? data.write(to: historyFile)
         }
@@ -432,6 +433,7 @@ class StorageManager: ObservableObject {
 
     deinit {
         autoSaveTimer?.invalidate()
-        saveHistory()
+        // Note: Cannot call @MainActor-isolated saveHistory() from deinit.
+        // Auto-save timer handles periodic saves; final save happens in AppDelegate termination hook.
     }
 }

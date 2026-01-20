@@ -3,6 +3,28 @@ import ImageIO
 import UniformTypeIdentifiers
 
 class GIFEncoder {
+    // MARK: - Async/Await API
+
+    /// Create a GIF from an array of frames
+    func createGIF(from frames: [CGImage], outputURL: URL, frameDelay: Double) async -> Bool {
+        await withCheckedContinuation { continuation in
+            createGIF(from: frames, outputURL: outputURL, frameDelay: frameDelay) { success in
+                continuation.resume(returning: success)
+            }
+        }
+    }
+
+    /// Optimize an existing GIF with the specified quality
+    func optimizeGIF(at url: URL, quality: GIFQuality) async -> URL? {
+        await withCheckedContinuation { continuation in
+            optimizeGIF(at: url, quality: quality) { result in
+                continuation.resume(returning: result)
+            }
+        }
+    }
+
+    // MARK: - Completion Handler API (for backwards compatibility)
+
     func createGIF(from frames: [CGImage], outputURL: URL, frameDelay: Double, completion: @escaping (Bool) -> Void) {
         guard !frames.isEmpty else {
             completion(false)
@@ -196,7 +218,7 @@ class GIFEncoder {
     }
 }
 
-enum GIFQuality: String, CaseIterable {
+enum GIFQuality: String, CaseIterable, Sendable {
     case low = "Low"
     case medium = "Medium"
     case high = "High"

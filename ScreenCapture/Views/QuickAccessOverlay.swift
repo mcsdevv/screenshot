@@ -10,6 +10,7 @@ class FirstMouseView: NSView {
 }
 
 // Use a class to safely manage the overlay's actions and lifecycle
+@MainActor
 class QuickAccessOverlayController: ObservableObject {
     let capture: CaptureItem
     let storageManager: StorageManager
@@ -41,11 +42,7 @@ class QuickAccessOverlayController: ObservableObject {
     }
 
     func dismiss() {
-        // Ensure we're on main thread for UI updates
-        if !Thread.isMainThread {
-            DispatchQueue.main.async { self.dismiss() }
-            return
-        }
+        // Already on main actor - no thread check needed
         guard isVisible else { return }
         // Mark as not visible but DON'T trigger @Published updates yet
         // Setting @Published properties while SwiftUI is rendering causes crashes
@@ -141,7 +138,7 @@ class QuickAccessOverlayController: ObservableObject {
 
         let ocrService = OCRService()
         ocrService.recognizeText(in: cgImage) { [weak self] result in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 switch result {
                 case .success(let text):
                     debugLog("QuickAccess: OCR successful, extracted \(text.count) characters")
