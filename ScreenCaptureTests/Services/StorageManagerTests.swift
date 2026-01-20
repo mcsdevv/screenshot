@@ -3,6 +3,7 @@ import CoreVideo
 import XCTest
 @testable import ScreenCapture
 
+@MainActor
 final class StorageManagerTests: XCTestCase {
 
     var storageManager: StorageManager!

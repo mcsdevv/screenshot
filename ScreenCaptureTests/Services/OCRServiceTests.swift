@@ -28,8 +28,7 @@ final class OCRServiceTests: XCTestCase {
     }
 
     func testOCRErrorRecognitionFailedDescription() {
-        let underlyingError = NSError(domain: "TestDomain", code: 1, userInfo: [NSLocalizedDescriptionKey: "Test error"])
-        let error = OCRService.OCRError.recognitionFailed(underlyingError)
+        let error = OCRService.OCRError.recognitionFailed("Test error")
         XCTAssertTrue(error.errorDescription?.contains("Test error") ?? false)
     }
 
@@ -270,6 +269,7 @@ final class OCRServiceTests: XCTestCase {
 
     // MARK: - Static Method Tests
 
+    @MainActor
     func testRecognizeAndCopyDoesNotCrashWithValidImage() throws {
         let env = ProcessInfo.processInfo.environment
         if env["CI"] != nil || env["GITHUB_ACTIONS"] != nil {

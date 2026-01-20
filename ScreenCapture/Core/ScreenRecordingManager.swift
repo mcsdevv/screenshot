@@ -4,6 +4,33 @@ import ScreenCaptureKit
 import AVFoundation
 import Combine
 
+/// Thread-safe actor for collecting GIF frames from the capture stream
+actor GIFFrameCollector {
+    private var frames: [CGImage] = []
+    private var frameCount: Int = 0
+
+    func addFrame(_ frame: CGImage) {
+        frames.append(frame)
+        frameCount += 1
+    }
+
+    func getFramesAndReset() -> [CGImage] {
+        let collectedFrames = frames
+        frames = []
+        frameCount = 0
+        return collectedFrames
+    }
+
+    func reset() {
+        frames = []
+        frameCount = 0
+    }
+
+    var count: Int {
+        frameCount
+    }
+}
+
 @MainActor
 class ScreenRecordingManager: NSObject, ObservableObject {
     private let storageManager: StorageManager
@@ -25,8 +52,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     private var recordingStartTime: Date?
     private var recordingTimer: Timer?
     private var recordingRect: CGRect?
-    private var gifFrames: [CGImage] = []
-    private var gifFrameCount = 0
+    private let gifFrameCollector = GIFFrameCollector()
 
     private var controlWindow: NSWindow?
     private var selectionWindow: NSWindow?
@@ -118,7 +144,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         // Hide window immediately but defer all cleanup to next run loop
         windowToClose.orderOut(nil)
 
-        DispatchQueue.main.async {
+        Task { @MainActor in
             windowToClose.contentView = nil
             windowToClose.close()
         }
@@ -247,10 +273,10 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     }
 
     private func startGIFRecording(in rect: CGRect?) {
-        gifFrames = []
-        gifFrameCount = 0
-
         Task {
+            // Reset the frame collector
+            await gifFrameCollector.reset()
+
             do {
                 let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
                 guard let display = content.displays.first else { return }
@@ -266,9 +292,12 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                 config.showsCursor = true
                 config.minimumFrameInterval = CMTime(value: 1, timescale: 15)
 
-                streamOutput = GIFCaptureOutput { [weak self] frame in
-                    self?.gifFrames.append(frame)
-                    self?.gifFrameCount += 1
+                // Capture reference to collector for use in callback
+                let collector = self.gifFrameCollector
+                streamOutput = GIFCaptureOutput { frame in
+                    Task {
+                        await collector.addFrame(frame)
+                    }
                 }
 
                 stream = SCStream(filter: filter, configuration: config, delegate: nil)
@@ -296,6 +325,9 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                 try await stream?.stopCapture()
                 stream = nil
 
+                // Get all collected frames from the actor
+                let gifFrames = await gifFrameCollector.getFramesAndReset()
+
                 let encoder = GIFEncoder()
                 let outputURL = storageManager.generateGIFURL()
 
@@ -308,15 +340,13 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                     NotificationCenter.default.post(name: .recordingStopped, object: nil)
                 }
 
-                encoder.createGIF(from: gifFrames, outputURL: outputURL, frameDelay: 1.0/15.0) { [weak self] success in
-                    guard let self = self else { return }
+                // Use async API for GIF creation
+                let success = await encoder.createGIF(from: gifFrames, outputURL: outputURL, frameDelay: 1.0/15.0)
 
-                    DispatchQueue.main.async {
-                        if success {
-                            let capture = self.storageManager.saveGIF(url: outputURL)
-                            NotificationCenter.default.post(name: .recordingCompleted, object: capture)
-                        }
-                        self.gifFrames = []
+                if success {
+                    await MainActor.run {
+                        let capture = self.storageManager.saveGIF(url: outputURL)
+                        NotificationCenter.default.post(name: .recordingCompleted, object: capture)
                     }
                 }
             } catch {
@@ -327,7 +357,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
     private func startRecordingTimer() {
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard let self = self, let startTime = self.recordingStartTime else { return }
                 self.recordingDuration = Date().timeIntervalSince(startTime)
             }
@@ -391,7 +421,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         // Hide window immediately but defer all cleanup to next run loop
         windowToClose.orderOut(nil)
 
-        DispatchQueue.main.async {
+        Task { @MainActor in
             windowToClose.contentView = nil
             windowToClose.close()
         }

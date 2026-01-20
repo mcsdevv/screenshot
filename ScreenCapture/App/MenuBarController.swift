@@ -31,7 +31,9 @@ class MenuBarController: NSObject {
     private func setupVisibilityMonitor() {
         // Periodically ensure the status item remains visible
         visibilityTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            self?.ensureVisible()
+            Task { @MainActor in
+                self?.ensureVisible()
+            }
         }
     }
 
@@ -164,51 +166,35 @@ class MenuBarController: NSObject {
     }
 
     @objc private func captureArea() {
-        Task { @MainActor in
-            screenshotManager.captureArea()
-        }
+        screenshotManager.captureArea()
     }
 
     @objc private func captureWindow() {
-        Task { @MainActor in
-            screenshotManager.captureWindow()
-        }
+        screenshotManager.captureWindow()
     }
 
     @objc private func captureFullscreen() {
-        Task { @MainActor in
-            screenshotManager.captureFullscreen()
-        }
+        screenshotManager.captureFullscreen()
     }
 
     @objc private func captureScrolling() {
-        Task { @MainActor in
-            screenshotManager.captureScrolling()
-        }
+        screenshotManager.captureScrolling()
     }
 
     @objc private func toggleRecording() {
-        Task { @MainActor in
-            screenRecordingManager.toggleRecording()
-        }
+        screenRecordingManager.toggleRecording()
     }
 
     @objc private func recordGIF() {
-        Task { @MainActor in
-            screenRecordingManager.toggleGIFRecording()
-        }
+        screenRecordingManager.toggleGIFRecording()
     }
 
     @objc private func captureOCR() {
-        Task { @MainActor in
-            screenshotManager.captureForOCR()
-        }
+        screenshotManager.captureForOCR()
     }
 
     @objc private func pinScreenshot() {
-        Task { @MainActor in
-            screenshotManager.captureForPinning()
-        }
+        screenshotManager.captureForPinning()
     }
 
     @objc private func showHistory() {

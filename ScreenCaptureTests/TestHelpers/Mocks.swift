@@ -4,20 +4,28 @@ import Foundation
 // MARK: - Notification Observer Helper
 
 /// Helper class for observing and capturing notifications in tests
+/// @MainActor ensures thread-safe access to receivedNotifications
+@MainActor
 class NotificationObserver {
     private(set) var receivedNotifications: [Notification] = []
-    private var observers: [NSObjectProtocol] = []
+    // Nonisolated storage with a lock so observers can be removed in deinit.
+    nonisolated(unsafe) private let observersLock = NSLock()
+    nonisolated(unsafe) private var observers: [NSObjectProtocol] = []
 
     /// Start observing a notification name
-    func observe(_ name: Notification.Name, object: Any? = nil) {
+    nonisolated func observe(_ name: Notification.Name, object: Any? = nil) {
         let observer = NotificationCenter.default.addObserver(
             forName: name,
             object: object,
             queue: .main
         ) { [weak self] notification in
-            self?.receivedNotifications.append(notification)
+            Task { @MainActor in
+                self?.receivedNotifications.append(notification)
+            }
         }
+        observersLock.lock()
         observers.append(observer)
+        observersLock.unlock()
     }
 
     /// Check if a specific notification was received
@@ -35,8 +43,19 @@ class NotificationObserver {
         receivedNotifications.removeAll()
     }
 
+    nonisolated func removeAllObservers() {
+        observersLock.lock()
+        let currentObservers = observers
+        observers.removeAll()
+        observersLock.unlock()
+
+        for observer in currentObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
     deinit {
-        observers.forEach { NotificationCenter.default.removeObserver($0) }
+        removeAllObservers()
     }
 }
 
@@ -78,7 +97,23 @@ struct TestError: Error, LocalizedError {
 
 // MARK: - Async Test Helpers
 
-/// Wait for a condition to become true
+/// Wait for a condition to become true (async version)
+func waitForAsync(
+    timeout: TimeInterval = 5.0,
+    pollingInterval: TimeInterval = 0.1,
+    condition: @escaping () async -> Bool
+) async -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+        if await condition() {
+            return true
+        }
+        try? await Task.sleep(nanoseconds: UInt64(pollingInterval * 1_000_000_000))
+    }
+    return false
+}
+
+/// Wait for a condition to become true (callback version for backwards compatibility)
 func waitFor(
     timeout: TimeInterval = 5.0,
     condition: @escaping () -> Bool,

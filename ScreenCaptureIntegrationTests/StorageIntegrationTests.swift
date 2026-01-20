@@ -1,6 +1,7 @@
 import XCTest
 @testable import ScreenCapture
 
+@MainActor
 final class StorageIntegrationTests: XCTestCase {
 
     var storageManager: StorageManager!
