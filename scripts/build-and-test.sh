@@ -10,6 +10,8 @@ PROJECT_FILE="$PROJECT_DIR/ScreenCapture.xcodeproj"
 SCHEME="ScreenCapture"
 CONFIGURATION="Debug"
 DERIVED_DATA="$HOME/Library/Developer/Xcode/DerivedData"
+# Code signing identity - update this if your certificate changes
+CODE_SIGN_IDENTITY="Apple Development: mail@mcs.dev (7VSG4PC9P5)"
 
 # Colors for output
 RED='\033[0;31m'
@@ -130,6 +132,9 @@ if [ "$VERBOSE" = true ]; then
     xcodebuild -project "$PROJECT_FILE" \
         -scheme "$SCHEME" \
         -configuration "$CONFIGURATION" \
+        CODE_SIGN_IDENTITY=- \
+        CODE_SIGNING_REQUIRED=NO \
+        CODE_SIGNING_ALLOWED=NO \
         build 2>&1
     BUILD_EXIT=$?
 else
@@ -137,6 +142,9 @@ else
     BUILD_OUTPUT=$(xcodebuild -project "$PROJECT_FILE" \
         -scheme "$SCHEME" \
         -configuration "$CONFIGURATION" \
+        CODE_SIGN_IDENTITY=- \
+        CODE_SIGNING_REQUIRED=NO \
+        CODE_SIGNING_ALLOWED=NO \
         build 2>&1)
     BUILD_EXIT=$?
 
@@ -168,13 +176,21 @@ fi
 
 print_success "Build succeeded in ${BUILD_TIME}s"
 
-# Find the built app
-APP_PATH=$(find "$DERIVED_DATA" -name "ScreenCapture.app" -path "*/$CONFIGURATION/*" -type d 2>/dev/null | head -1)
+# Find the built app (exclude Index.noindex which has incomplete bundles)
+APP_PATH=$(find "$DERIVED_DATA" -name "ScreenCapture.app" -path "*/Build/Products/$CONFIGURATION/*" -not -path "*/Index.noindex/*" -type d 2>/dev/null | xargs ls -td 2>/dev/null | head -1)
 
 if [ -z "$APP_PATH" ]; then
     print_warning "Could not find built app path"
 else
     print_status "Built app: $APP_PATH"
+
+    # Sign the app with development certificate (for consistent permissions)
+    print_status "Signing app with development certificate..."
+    if codesign --force --deep --sign "$CODE_SIGN_IDENTITY" "$APP_PATH" 2>&1; then
+        print_success "App signed successfully"
+    else
+        print_warning "Signing failed - app may require permission re-grant after each build"
+    fi
 fi
 
 # Run the app if requested
