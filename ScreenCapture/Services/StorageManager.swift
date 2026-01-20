@@ -198,8 +198,9 @@ class StorageManager: ObservableObject {
 
     private func setupAutoSave() {
         autoSaveTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            guard let strongSelf = self else { return }
             Task { @MainActor in
-                self?.saveHistory()
+                strongSelf.saveHistory()
             }
         }
     }
