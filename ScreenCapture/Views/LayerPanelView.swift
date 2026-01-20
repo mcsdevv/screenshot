@@ -17,6 +17,9 @@ struct LayerPanelView: View {
     @State private var draggedAnnotationId: UUID?
     @State private var isDragTargeted = false
 
+    // Track which annotation is currently being renamed (nil = none)
+    @State private var editingNameAnnotationId: UUID?
+
     // Get reversed annotations for display (top layers first)
     private var reversedAnnotations: [Annotation] {
         Array(state.annotations.reversed())
@@ -79,7 +82,8 @@ struct LayerPanelView: View {
                             },
                             onDragEnded: {
                                 draggedAnnotationId = nil
-                            }
+                            },
+                            editingNameAnnotationId: $editingNameAnnotationId
                         )
                         .onDrop(of: [.text], delegate: ReorderDropDelegate(
                             targetId: annotation.id,
@@ -151,6 +155,16 @@ struct LayerPanelView: View {
                 .frame(width: 1),
             alignment: .leading
         )
+        // Background tap gesture to dismiss editing when clicking empty areas
+        .background {
+            if editingNameAnnotationId != nil {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        editingNameAnnotationId = nil
+                    }
+            }
+        }
     }
 
     /// Performs move when dragging over a target row - moves immediately for responsive feedback
@@ -217,13 +231,46 @@ struct DraggableLayerRow: View {
     var onRename: ((String?) -> Void)? = nil
     var onDragStarted: (() -> Void)? = nil
     var onDragEnded: (() -> Void)? = nil
+    @Binding var editingNameAnnotationId: UUID?
 
     @State private var isHovered = false
     @State private var isEditingNumber = false
     @State private var editedNumber: String = ""
-    @State private var isEditingName = false
     @State private var editedName: String = ""
+    @State private var shouldSaveOnEditEnd: Bool = true
     @FocusState private var isNameFieldFocused: Bool
+
+    /// Whether this row is currently editing its name (derived from parent binding)
+    private var isEditingName: Bool {
+        editingNameAnnotationId == annotation.id
+    }
+
+    /// Commits the current name edit and exits editing mode
+    /// Note: The actual save happens in onChange when editingNameAnnotationId changes
+    private func commitNameEdit() {
+        guard isEditingName else { return }
+        // Setting this to nil triggers onChange which saves the edit
+        editingNameAnnotationId = nil
+        isNameFieldFocused = false
+    }
+
+    /// Cancels editing without saving
+    private func cancelNameEdit() {
+        shouldSaveOnEditEnd = false
+        editingNameAnnotationId = nil
+        isNameFieldFocused = false
+    }
+
+    /// Starts editing the name field
+    private func startNameEditing() {
+        editedName = annotation.name ?? typeName
+        shouldSaveOnEditEnd = true
+        editingNameAnnotationId = annotation.id
+        // Delay focus slightly to ensure TextField is rendered
+        DispatchQueue.main.async {
+            isNameFieldFocused = true
+        }
+    }
 
     private var typeIcon: String {
         switch annotation.type {
@@ -307,6 +354,16 @@ struct DraggableLayerRow: View {
                 Color.clear.frame(width: 1, height: 1)
             }
             .contextMenu { contextMenuContent }
+            .onChange(of: editingNameAnnotationId) { oldValue, newValue in
+                // If we were editing this annotation and now we're not, save the edit
+                if oldValue == annotation.id && newValue != annotation.id {
+                    if shouldSaveOnEditEnd {
+                        onRename?(editedName.isEmpty ? nil : editedName)
+                    }
+                    isNameFieldFocused = false
+                    shouldSaveOnEditEnd = true // Reset for next time
+                }
+            }
     }
 
     // MARK: - Extracted Subviews
@@ -362,7 +419,13 @@ struct DraggableLayerRow: View {
             Spacer()
         }
         .contentShape(Rectangle())
-        .onTapGesture { onSelect() }
+        .onTapGesture {
+            if isEditingName {
+                // Clicking outside the text field ends editing
+                editingNameAnnotationId = nil
+            }
+            onSelect()
+        }
     }
 
     private var typeIconView: some View {
@@ -407,15 +470,11 @@ struct DraggableLayerRow: View {
                 .textFieldStyle(.plain)
                 .frame(height: DSRowHeight.labelSmall)
                 .focused($isNameFieldFocused)
-                .onSubmit {
-                    onRename?(editedName.isEmpty ? nil : editedName)
-                    isEditingName = false
-                }
-                .onExitCommand { isEditingName = false }
+                .onSubmit { commitNameEdit() }
+                .onExitCommand { cancelNameEdit() }
                 .onChange(of: isNameFieldFocused) { _, isFocused in
                     if !isFocused && isEditingName {
-                        onRename?(editedName.isEmpty ? nil : editedName)
-                        isEditingName = false
+                        commitNameEdit()
                     }
                 }
         } else {
@@ -423,11 +482,7 @@ struct DraggableLayerRow: View {
                 .font(DSTypography.labelSmall)
                 .foregroundColor(isVisible ? .dsTextPrimary : .dsTextTertiary)
                 .frame(height: DSRowHeight.labelSmall)
-                .onTapGesture(count: 2) {
-                    editedName = annotation.name ?? typeName
-                    isEditingName = true
-                    isNameFieldFocused = true
-                }
+                .onTapGesture(count: 2) { startNameEditing() }
         }
     }
 
@@ -590,11 +645,7 @@ struct DraggableLayerRow: View {
         }
         .keyboardShortcut("d", modifiers: .command)
 
-        Button {
-            editedName = annotation.name ?? typeName
-            isEditingName = true
-            isNameFieldFocused = true
-        } label: {
+        Button { startNameEditing() } label: {
             Label("Rename", systemImage: "pencil")
         }
 
