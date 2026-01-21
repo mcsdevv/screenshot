@@ -488,8 +488,8 @@ struct AnnotationCanvas: View {
                 textInput = annotation.text ?? ""
                 // Position the text input at the annotation's location (scaled)
                 textPosition = CGPoint(
-                    x: annotation.cgRect.origin.x * zoom - 12, // Account for padding offset
-                    y: annotation.cgRect.origin.y * zoom - 12
+                    x: annotation.cgRect.origin.x * zoom - 8, // Account for padding offset
+                    y: annotation.cgRect.origin.y * zoom - 8
                 )
                 showTextInput = true
             }
@@ -682,7 +682,7 @@ struct AnnotationCanvas: View {
                 annotation.fontName = state.currentFontName
                 annotation.color = CodableColor(state.currentColor)
                 // Update position from dragged location
-                let paddingOffset: CGFloat = 12
+                let paddingOffset: CGFloat = 8
                 let newPosition = CGPoint(
                     x: textPosition.x + paddingOffset,
                     y: textPosition.y + paddingOffset
@@ -705,9 +705,9 @@ struct AnnotationCanvas: View {
             return
         }
 
-        // Account for text box padding (8pt) + text container inset (4pt) = 12pt offset
+        // Account for text box padding (4pt) + text container inset (4pt) = 8pt offset
         // This ensures text renders at the same position as shown in the input overlay
-        let paddingOffset: CGFloat = 12
+        let paddingOffset: CGFloat = 8
         let adjustedPosition = CGPoint(
             x: textPosition.x + paddingOffset,
             y: textPosition.y + paddingOffset
