@@ -523,11 +523,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         }
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
-        storageManager.saveHistory()
-        keyboardShortcuts.unregisterAll()
-    }
-
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         return true
     }
