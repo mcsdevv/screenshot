@@ -302,6 +302,7 @@ struct GeneralPreferencesView: View {
     @AppStorage("playSound") private var playSound = true
     @AppStorage("showQuickAccess") private var showQuickAccess = true
     @AppStorage("quickAccessDuration") private var quickAccessDuration = 5.0
+    @AppStorage("popupCorner") private var popupCorner = ScreenCorner.bottomLeft.rawValue
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xl) {
@@ -337,6 +338,20 @@ struct GeneralPreferencesView: View {
                         .frame(width: 130)
                         .tint(.dsAccent)
                     }
+                }
+
+                DSDivider()
+
+                PreferenceRow("Popup position", subtitle: "Corner for Quick Access and pinned screenshots") {
+                    Picker("", selection: $popupCorner) {
+                        ForEach(ScreenCorner.allCases, id: \.rawValue) { corner in
+                            Label(corner.rawValue, systemImage: corner.icon)
+                                .tag(corner.rawValue)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 150)
+                    .tint(.dsAccent)
                 }
             }
 

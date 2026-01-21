@@ -77,6 +77,60 @@ enum CaptureType: String, Codable, CaseIterable, Sendable {
     }
 }
 
+/// Screen corner positions for popup windows
+enum ScreenCorner: String, Codable, CaseIterable, Sendable {
+    case topLeft = "Top Left"
+    case topRight = "Top Right"
+    case bottomLeft = "Bottom Left"
+    case bottomRight = "Bottom Right"
+
+    /// System image icon for UI picker
+    var icon: String {
+        switch self {
+        case .topLeft: return "arrow.up.left.square"
+        case .topRight: return "arrow.up.right.square"
+        case .bottomLeft: return "arrow.down.left.square"
+        case .bottomRight: return "arrow.down.right.square"
+        }
+    }
+
+    /// Calculate window origin for given screen and window size
+    func windowOrigin(screenFrame: CGRect, windowSize: NSSize, padding: CGFloat = 20) -> CGPoint {
+        switch self {
+        case .topLeft:
+            return CGPoint(
+                x: screenFrame.minX + padding,
+                y: screenFrame.maxY - windowSize.height - padding
+            )
+        case .topRight:
+            return CGPoint(
+                x: screenFrame.maxX - windowSize.width - padding,
+                y: screenFrame.maxY - windowSize.height - padding
+            )
+        case .bottomLeft:
+            return CGPoint(
+                x: screenFrame.minX + padding,
+                y: screenFrame.minY + padding
+            )
+        case .bottomRight:
+            return CGPoint(
+                x: screenFrame.maxX - windowSize.width - padding,
+                y: screenFrame.minY + padding
+            )
+        }
+    }
+
+    /// Animation offset direction for entrance animation
+    var entranceOffset: CGSize {
+        switch self {
+        case .topLeft:     return CGSize(width: -30, height: 30)
+        case .topRight:    return CGSize(width: 30, height: 30)
+        case .bottomLeft:  return CGSize(width: -30, height: -30)
+        case .bottomRight: return CGSize(width: 30, height: -30)
+        }
+    }
+}
+
 struct CaptureMetadata: Codable, Sendable {
     var width: Int
     var height: Int
