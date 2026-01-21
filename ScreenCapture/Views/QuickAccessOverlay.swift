@@ -71,7 +71,7 @@ class QuickAccessOverlayController: ObservableObject {
     }
 
     func saveToConfiguredLocation() {
-        debugLog("QuickAccess: Save button clicked")
+        debugLog("QuickAccess: Reveal button clicked")
         // The file is already saved to screenshotsDirectory when captured
         let fileURL = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
 
@@ -169,14 +169,6 @@ class QuickAccessOverlayController: ObservableObject {
         dismiss()
     }
 
-    func openInFinder() {
-        debugLog("QuickAccess: Open button clicked")
-        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        NSWorkspace.shared.activateFileViewerSelecting([url])
-        debugLog("QuickAccess: Opened in Finder: \(url.path)")
-        ToastManager.shared.show(.open)
-        dismiss()
-    }
 }
 
 // MARK: - Main Quick Access Overlay
@@ -335,8 +327,8 @@ struct QuickAccessOverlay: View {
             )
 
             QuickAccessCompactAction(
-                icon: "square.and.arrow.down",
-                title: "Save",
+                icon: "folder",
+                title: "Reveal",
                 action: controller.saveToConfiguredLocation
             )
 
@@ -356,12 +348,6 @@ struct QuickAccessOverlay: View {
                 icon: "text.viewfinder",
                 title: "OCR",
                 action: controller.performOCR
-            )
-
-            QuickAccessCompactAction(
-                icon: "folder",
-                title: "Open",
-                action: controller.openInFinder
             )
 
             QuickAccessCompactAction(
@@ -519,10 +505,6 @@ struct KeyboardShortcutHandler: NSViewRepresentable {
                 case "t":
                     debugLog("KeyboardShortcutHandler: Cmd+T pressed")
                     controller.performOCR()
-                    return
-                case "o":
-                    debugLog("KeyboardShortcutHandler: Cmd+O pressed")
-                    controller.openInFinder()
                     return
                 default:
                     break

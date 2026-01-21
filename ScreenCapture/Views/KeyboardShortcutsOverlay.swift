@@ -65,11 +65,10 @@ struct KeyboardShortcutsOverlay: View {
                 icon: "bolt.fill",
                 shortcuts: [
                     ShortcutItem(keys: "⌘C", description: "Copy to Clipboard"),
-                    ShortcutItem(keys: "⌘S", description: "Save to File"),
+                    ShortcutItem(keys: "⌘S", description: "Reveal in Finder"),
                     ShortcutItem(keys: "⌘E", description: "Edit / Annotate"),
                     ShortcutItem(keys: "⌘P", description: "Pin Screenshot"),
                     ShortcutItem(keys: "⌘T", description: "Extract Text (OCR)"),
-                    ShortcutItem(keys: "⌘O", description: "Open in Finder"),
                     ShortcutItem(keys: "⌘⌫", description: "Delete"),
                     ShortcutItem(keys: "⎋", description: "Dismiss"),
                 ]
