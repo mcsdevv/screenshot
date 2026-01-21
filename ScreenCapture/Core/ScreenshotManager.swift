@@ -16,6 +16,7 @@ class ScreenshotManager: NSObject, ObservableObject {
     private var pendingAction: PendingAction = .save
     private var currentCaptureTask: Process?
     private var currentTempFile: URL?
+    private var scrollingCapture: ScrollingCapture?
 
     enum PendingAction {
         case save, ocr, pin
@@ -54,8 +55,8 @@ class ScreenshotManager: NSObject, ObservableObject {
     func captureScrolling() {
         debugLog("captureScrolling() called")
         pendingAction = .save
-        let scrollingCapture = ScrollingCapture(storageManager: storageManager)
-        scrollingCapture.start()
+        scrollingCapture = ScrollingCapture(storageManager: storageManager)
+        scrollingCapture?.start()
     }
 
     func captureForOCR() {
