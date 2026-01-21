@@ -7,6 +7,7 @@ DerivedData/
 xcuserdata/
 TestResults/
 *.xcresult
+buildServer.json
 
 # Swift Package Manager
 .build/
