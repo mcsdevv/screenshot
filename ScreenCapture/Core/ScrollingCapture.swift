@@ -5,14 +5,16 @@ import SwiftUI
 @MainActor
 class ScrollingCapture: NSObject {
     private let storageManager: StorageManager
+    private let onComplete: () -> Void
     private var capturedImages: [NSImage] = []
     private var controlWindow: NSWindow?
     private var isCapturing = false
     private var scrollTimer: Timer?
     private var lastCaptureY: CGFloat = 0
 
-    init(storageManager: StorageManager) {
+    init(storageManager: StorageManager, onComplete: @escaping () -> Void) {
         self.storageManager = storageManager
+        self.onComplete = onComplete
         super.init()
     }
 
@@ -160,7 +162,10 @@ class ScrollingCapture: NSObject {
         isCapturing = false
         closeControlWindow()
 
-        guard !capturedImages.isEmpty else { return }
+        guard !capturedImages.isEmpty else {
+            onComplete()
+            return
+        }
 
         if capturedImages.count == 1 {
             let capture = storageManager.saveCapture(image: capturedImages[0], type: .screenshot)
@@ -168,6 +173,7 @@ class ScrollingCapture: NSObject {
         } else {
             stitchImages()
         }
+        onComplete()
     }
 
     private func stitchImages() {
@@ -184,6 +190,7 @@ class ScrollingCapture: NSObject {
         isCapturing = false
         closeControlWindow()
         capturedImages = []
+        onComplete()
     }
 }
 

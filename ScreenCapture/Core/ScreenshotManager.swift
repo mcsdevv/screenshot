@@ -55,7 +55,9 @@ class ScreenshotManager: NSObject, ObservableObject {
     func captureScrolling() {
         debugLog("captureScrolling() called")
         pendingAction = .save
-        scrollingCapture = ScrollingCapture(storageManager: storageManager)
+        scrollingCapture = ScrollingCapture(storageManager: storageManager) { [weak self] in
+            self?.scrollingCapture = nil
+        }
         scrollingCapture?.start()
     }
 
