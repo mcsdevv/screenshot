@@ -252,6 +252,7 @@ struct ScrollingCaptureInstructionsView: View {
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal)
 
             HStack(spacing: 16) {
