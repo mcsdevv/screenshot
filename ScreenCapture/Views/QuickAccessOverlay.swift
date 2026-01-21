@@ -201,7 +201,7 @@ struct QuickAccessOverlay: View {
                 // Actions overlaid at bottom
                 actionsSection
                     .padding(.horizontal, DSSpacing.sm)
-                    .padding(.bottom, DSSpacing.sm)
+                    .padding(.bottom, DSSpacing.md)
             }
             .padding(.horizontal, DSSpacing.lg)
             .padding(.bottom, DSSpacing.lg)
@@ -359,16 +359,6 @@ struct QuickAccessOverlay: View {
                 action: controller.deleteCapture
             )
         }
-        .padding(.horizontal, DSSpacing.sm)
-        .padding(.vertical, DSSpacing.xs)
-        .background(
-            VisualEffectView(material: .hudWindow, blendingMode: .withinWindow)
-                .clipShape(RoundedRectangle(cornerRadius: DSRadius.lg))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DSRadius.lg)
-                .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-        )
     }
 }
 
@@ -393,46 +383,24 @@ struct QuickAccessCompactAction: View {
                 action()
             }
         }) {
-            VStack(spacing: 2) {
-                // Icon circle - compact size
-                ZStack {
-                    Circle()
-                        .fill(
-                            isHovered ?
-                            (isDestructive ? Color.dsDanger.opacity(0.2) : Color.dsAccent.opacity(0.2)) :
-                            Color.white.opacity(0.06)
-                        )
-                        .frame(width: 24, height: 24)
-                        .overlay(
-                            Circle()
-                                .strokeBorder(
-                                    isHovered ?
-                                    (isDestructive ? Color.dsDanger.opacity(0.5) : Color.dsAccent.opacity(0.5)) :
-                                    Color.white.opacity(0.08),
-                                    lineWidth: 1
-                                )
-                        )
+            ZStack {
+                Circle()
+                    .fill(
+                        isHovered ?
+                        (isDestructive ? Color.dsDanger.opacity(0.3) : Color.dsAccent.opacity(0.3)) :
+                        Color.black.opacity(0.5)
+                    )
+                    .frame(width: 32, height: 32)
 
-                    Image(systemName: icon)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(
-                            isDestructive ?
-                            (isHovered ? .dsDanger : .dsDanger.opacity(0.7)) :
-                            (isHovered ? .dsAccent : .dsTextPrimary)
-                        )
-                }
-
-                // Title
-                Text(title)
-                    .font(.system(size: 9, weight: .medium))
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundColor(
                         isDestructive ?
-                        (isHovered ? .dsDanger : .dsDanger.opacity(0.7)) :
-                        (isHovered ? .dsTextPrimary : .dsTextTertiary)
+                        (isHovered ? .dsDanger : .white) :
+                        (isHovered ? .dsAccent : .white)
                     )
             }
-            .frame(width: 36, height: 42)
-            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .scaleEffect(isPressed ? 0.9 : 1.0)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
