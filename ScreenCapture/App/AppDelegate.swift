@@ -17,6 +17,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     var annotationWindow: NSWindow?
     var keyboardShortcutsWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
+    private var terminationHandled = false
+    private var userInitiatedQuit = false
+    private var terminationReplyPending = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -35,6 +38,33 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         }
 
         debugLog("Application finished launching")
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let reason = userInitiatedQuit ? "user-initiated quit" : "system termination request"
+
+        if terminationReplyPending {
+            return .terminateLater
+        }
+
+        if screenRecordingManager.isRecording || screenRecordingManager.isGIFRecording {
+            terminationReplyPending = true
+            performTerminationCleanup(reason: reason) { [weak self] in
+                guard let self = self else { return }
+                if self.terminationReplyPending {
+                    self.terminationReplyPending = false
+                    NSApp.reply(toApplicationShouldTerminate: true)
+                }
+            }
+            return .terminateLater
+        }
+
+        performTerminationCleanup(reason: reason)
+        return .terminateNow
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        performTerminationCleanup(reason: "applicationWillTerminate")
     }
 
     private func setupMainMenu() {
@@ -96,6 +126,27 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
         NSApp.mainMenu = mainMenu
         NSApp.windowsMenu = windowMenu
+    }
+
+    func requestQuit() {
+        userInitiatedQuit = true
+        debugLog("User requested quit")
+        NSApp.terminate(nil)
+    }
+
+    private func performTerminationCleanup(reason: String, completion: (() -> Void)? = nil) {
+        guard !terminationHandled else {
+            completion?()
+            return
+        }
+        terminationHandled = true
+        debugLog("Termination cleanup started (\(reason))")
+        screenshotManager.cancelPendingCapture(reason: reason)
+        screenRecordingManager.stopActiveRecordingIfNeeded(reason: reason) {
+            completion?()
+        }
+        webcamManager?.hideWebcam()
+        DebugLogger.shared.flush()
     }
 
     private func setupKeyboardShortcuts() {

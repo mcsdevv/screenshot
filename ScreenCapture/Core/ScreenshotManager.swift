@@ -14,6 +14,8 @@ class KeyableWindow: NSWindow {
 class ScreenshotManager: NSObject, ObservableObject {
     private let storageManager: StorageManager
     private var pendingAction: PendingAction = .save
+    private var currentCaptureTask: Process?
+    private var currentTempFile: URL?
 
     enum PendingAction {
         case save, ocr, pin
@@ -68,12 +70,31 @@ class ScreenshotManager: NSObject, ObservableObject {
         captureWithNativeScreencapture(interactive: true)
     }
 
+    func cancelPendingCapture(reason: String) {
+        guard let task = currentCaptureTask else { return }
+        debugLog("Cancelling screencapture task (\(reason))")
+        if task.isRunning {
+            task.terminate()
+        }
+        currentCaptureTask = nil
+        if let tempFile = currentTempFile {
+            try? FileManager.default.removeItem(at: tempFile)
+        }
+        currentTempFile = nil
+    }
+
     // MARK: - Native Screencapture
 
     private func captureWithNativeScreencapture(interactive: Bool = true, windowMode: Bool = false) {
         debugLog("captureWithNativeScreencapture(interactive: \(interactive), windowMode: \(windowMode))")
 
+        if let runningTask = currentCaptureTask, runningTask.isRunning {
+            debugLog("Previous screencapture task still running, terminating before starting a new one")
+            cancelPendingCapture(reason: "new capture started")
+        }
+
         let tempFile = FileManager.default.temporaryDirectory.appendingPathComponent("capture_\(UUID().uuidString).png")
+        currentTempFile = tempFile
 
         var arguments = ["-o", tempFile.path]  // -o: no shadow
 
@@ -89,13 +110,27 @@ class ScreenshotManager: NSObject, ObservableObject {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
         task.arguments = arguments
+        currentCaptureTask = task
 
         debugLog("Running: screencapture \(arguments.joined(separator: " "))")
 
         task.terminationHandler = { [weak self] process in
             DispatchQueue.main.async {
+                guard let self = self else { return }
+                let isCurrentTask = self.currentCaptureTask === task
+                if isCurrentTask {
+                    self.currentCaptureTask = nil
+                    self.currentTempFile = nil
+                }
+
+                guard isCurrentTask else {
+                    try? FileManager.default.removeItem(at: tempFile)
+                    return
+                }
                 guard process.terminationStatus == 0 else {
-                    debugLog("screencapture cancelled or failed with status: \(process.terminationStatus)")
+                    let reason = process.terminationReason == .uncaughtSignal ? "signal" : "status"
+                    debugLog("screencapture cancelled or failed (\(reason): \(process.terminationStatus))")
+                    try? FileManager.default.removeItem(at: tempFile)
                     return
                 }
 
@@ -110,7 +145,7 @@ class ScreenshotManager: NSObject, ObservableObject {
                 // Clean up temp file
                 try? FileManager.default.removeItem(at: tempFile)
 
-                self?.handleCapturedImage(image)
+                self.handleCapturedImage(image)
             }
         }
 

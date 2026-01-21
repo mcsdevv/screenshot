@@ -171,7 +171,7 @@ struct MenuBarMenuView: View {
 
             Button {
                 debugLog("MenuBar: Quit clicked")
-                NSApplication.shared.terminate(nil)
+                appDelegate.requestQuit()
             } label: {
                 Label("Quit ScreenCapture", systemImage: "power")
             }

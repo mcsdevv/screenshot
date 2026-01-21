@@ -78,6 +78,18 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         }
     }
 
+    func stopActiveRecordingIfNeeded(reason: String = "termination", completion: (() -> Void)? = nil) {
+        if isGIFRecording {
+            debugLog("Stopping GIF recording due to \(reason)")
+            stopGIFRecording(completion: completion)
+        } else if isRecording {
+            debugLog("Stopping screen recording due to \(reason)")
+            stopRecording(completion: completion)
+        } else {
+            completion?()
+        }
+    }
+
     private func startRecordingWithSelection() {
         showAreaSelection { [weak self] rect in
             self?.startRecording(in: rect)
@@ -232,7 +244,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         }
     }
 
-    private func stopRecording() {
+    private func stopRecording(completion: (() -> Void)? = nil) {
         Task {
             do {
                 try await stream?.stopCapture()
@@ -268,6 +280,12 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                 }
             } catch {
                 print("Stop recording error: \(error)")
+            }
+
+            if let completion = completion {
+                await MainActor.run {
+                    completion()
+                }
             }
         }
     }
@@ -319,7 +337,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         }
     }
 
-    private func stopGIFRecording() {
+    private func stopGIFRecording(completion: (() -> Void)? = nil) {
         Task {
             do {
                 try await stream?.stopCapture()
@@ -351,6 +369,12 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                 }
             } catch {
                 print("Stop GIF recording error: \(error)")
+            }
+
+            if let completion = completion {
+                await MainActor.run {
+                    completion()
+                }
             }
         }
     }
