@@ -95,3 +95,15 @@ docs/content/docs/
 ### Keeping FEATURES.md in Sync
 
 When updating documentation, also update `FEATURES.md` in the root to keep it as the source of truth for feature specifications.
+
+## Mandatory Documentation Checklist
+
+**CRITICAL: Every PR that adds/modifies user-facing features MUST include documentation updates.**
+
+Before marking work complete:
+- [ ] Update relevant MDX file in `docs/content/docs/`
+- [ ] Update `FEATURES.md` if feature spec changed
+- [ ] Run `cd docs && pnpm build` to verify
+- [ ] Commit docs with code changes
+
+If you skip this, you MUST create a follow-up task for documentation.

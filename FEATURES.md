@@ -106,11 +106,16 @@ Record screen as animated GIF.
 | Circle | Draw unfilled circle |
 | Line | Draw straight line |
 | Arrow | Draw directional arrow |
-| Text | Add text labels (7 fonts, 4-100pt) |
+| Text | Add text labels (7 fonts, 4-100pt, frosted glass styling) |
 | Blur | Blur sensitive areas (radius: 10) |
 | Pencil | Freehand drawing |
 | Highlighter | Semi-transparent highlighting |
 | Numbered Step | Sequential numbered markers |
+
+### Text Tool Features
+- **Styling:** Frosted glass background with native macOS appearance
+- **Selection:** Dashed border when selected, 8 resize handles (corners + edges)
+- **Persistence:** Size preserved after deselection, auto-saves on tool switch
 
 ### Features
 - **Color Picker:** 10 presets (Red, Orange, Yellow, Green, Blue, Purple, Pink, White, Black, Gray) + custom HSB
@@ -138,6 +143,12 @@ Appears after capture with action buttons. Auto-dismisses based on preferences.
 | Close | `Esc` | Dismiss overlay |
 
 **Auto-dismiss options:** 3s, 5s, 10s, or Never
+
+### Toast Notifications
+Actions display confirmation toasts (e.g., "Copied to clipboard", "Pinned screenshot").
+
+### Position Configuration
+Overlay position configurable: Near Capture (default), Top Left, Top Right, Bottom Left, Bottom Right.
 
 ---
 
@@ -174,12 +185,17 @@ Vision framework-based text recognition.
 
 Floating always-on-top windows for reference screenshots.
 
-### Controls (hover-activated)
-- **Zoom:** 0.5x to 3.0x scale
-- **Lock/Unlock:** Prevent accidental interactions
-- **Opacity:** 100%, 80%, 60%, 40%, 20%
-- **Copy:** Copy to clipboard
-- **Close:** Dismiss window
+### Toolbar (hover-activated)
+Compact single-row toolbar with tooltips and keyboard shortcuts:
+
+| Control | Shortcut | Description |
+|---------|----------|-------------|
+| Zoom In | `Cmd++` | Increase scale (up to 3.0x) |
+| Zoom Out | `Cmd+-` | Decrease scale (down to 0.5x) |
+| Lock/Unlock | `Cmd+L` | Toggle interaction lock |
+| Opacity | - | Cycle: 100%, 80%, 60%, 40%, 20% |
+| Copy | `Cmd+C` | Copy to clipboard |
+| Close | `Cmd+W` | Dismiss window |
 
 ### Features
 - Pinch-to-zoom gesture
@@ -375,6 +391,9 @@ When adding or modifying features, document changes here:
 | Date | Version | Change | Files Modified |
 |------|---------|--------|----------------|
 | 2025-01-19 | 1.0.0 | Initial feature documentation | FEATURES.md |
+| 2026-01-21 | 1.1.0 | Added Quick Access toast notifications and position config | FEATURES.md, quick-access.mdx |
+| 2026-01-21 | 1.1.0 | Added Text tool styling (frosted glass, resize handles, persistence) | FEATURES.md, tools.mdx |
+| 2026-01-21 | 1.1.0 | Added Pinned Screenshots toolbar details and shortcuts | FEATURES.md, pinned.mdx |
 
 ### Guidelines for Updating
 

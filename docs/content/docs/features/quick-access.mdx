@@ -33,8 +33,35 @@ The overlay can automatically dismiss after a set time.
 
 Configure auto-dismiss timing in [Settings > General](/docs/settings).
 
+## Toast Notifications
+
+When you perform an action, a toast notification confirms the result:
+
+| Action | Toast Message |
+|--------|---------------|
+| Copy | "Copied to clipboard" |
+| Save | "Saved to [location]" |
+| Pin | "Pinned screenshot" |
+| OCR | "Text copied to clipboard" |
+| Delete | "Screenshot deleted" |
+
+Toasts appear briefly and dismiss automatically.
+
+## Position Configuration
+
+Configure the overlay position in [Settings > General](/docs/settings):
+
+| Position | Description |
+|----------|-------------|
+| Near Capture | Appears adjacent to the captured area (default) |
+| Top Left | Fixed position at top-left corner |
+| Top Right | Fixed position at top-right corner |
+| Bottom Left | Fixed position at bottom-left corner |
+| Bottom Right | Fixed position at bottom-right corner |
+
 ## Behavior
 
-- **Position:** Appears near the captured area
+- **Position:** Configurable (defaults to near captured area)
 - **Interaction:** Click actions or use keyboard shortcuts
 - **Persistence:** Stays visible until dismissed or action taken
+- **Feedback:** Toast notifications confirm completed actions
