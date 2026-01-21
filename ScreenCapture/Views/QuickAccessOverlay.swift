@@ -196,8 +196,8 @@ struct QuickAccessOverlay: View {
 
             // Thumbnail preview with overlaid actions
             thumbnailSection
-                .padding(.horizontal, DSSpacing.lg)
-                .padding(.bottom, DSSpacing.lg)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
         }
         .frame(width: 360)
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.xl))
