@@ -65,10 +65,10 @@ final class ToastWindowController {
     // MARK: - Private
 
     private func positionWindow(_ window: NSWindow) {
-        guard let screen = NSScreen.main else { return }
+        guard let screen = NSScreen.screens.first ?? NSScreen.main else { return }
 
         let screenFrame = screen.visibleFrame
-        let windowWidth: CGFloat = 300
+        let windowWidth = window.frame.width
         let topOffset: CGFloat = 60
 
         // Center horizontally, position from top

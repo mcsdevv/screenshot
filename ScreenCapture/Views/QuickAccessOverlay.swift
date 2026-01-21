@@ -159,9 +159,13 @@ class QuickAccessOverlayController: ObservableObject {
 
     func deleteCapture() {
         debugLog("QuickAccess: Delete button clicked")
-        storageManager.deleteCapture(capture)
-        debugLog("QuickAccess: Capture deleted")
-        ToastManager.shared.show(.delete)
+        let deleted = storageManager.deleteCapture(capture)
+        if deleted {
+            debugLog("QuickAccess: Capture deleted")
+            ToastManager.shared.show(.delete)
+        } else {
+            errorLog("QuickAccess: Failed to delete capture \(capture.filename)")
+        }
         dismiss()
     }
 
