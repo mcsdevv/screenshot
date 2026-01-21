@@ -194,15 +194,17 @@ struct QuickAccessOverlay: View {
             .padding(.top, DSSpacing.md)
             .padding(.bottom, DSSpacing.xs)
 
-            // Thumbnail preview
-            thumbnailSection
-                .padding(.horizontal, DSSpacing.lg)
+            // Thumbnail preview with overlaid actions
+            ZStack(alignment: .bottom) {
+                thumbnailSection
 
-            // Actions
-            actionsSection
-                .padding(.top, DSSpacing.md)
-                .padding(.horizontal, DSSpacing.lg)
-                .padding(.bottom, DSSpacing.lg)
+                // Actions overlaid at bottom
+                actionsSection
+                    .padding(.horizontal, DSSpacing.sm)
+                    .padding(.bottom, DSSpacing.sm)
+            }
+            .padding(.horizontal, DSSpacing.lg)
+            .padding(.bottom, DSSpacing.lg)
         }
         .frame(width: 360)
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.xl))
@@ -357,6 +359,16 @@ struct QuickAccessOverlay: View {
                 action: controller.deleteCapture
             )
         }
+        .padding(.horizontal, DSSpacing.sm)
+        .padding(.vertical, DSSpacing.xs)
+        .background(
+            VisualEffectView(material: .hudWindow, blendingMode: .withinWindow)
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.lg))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.lg)
+                .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+        )
     }
 }
 
