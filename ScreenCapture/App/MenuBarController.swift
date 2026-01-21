@@ -220,7 +220,11 @@ class MenuBarController: NSObject {
     }
 
     @objc private func quitApp() {
-        NSApp.terminate(nil)
+        if let appDelegate = NSApp.delegate as? AppDelegate {
+            appDelegate.requestQuit()
+        } else {
+            NSApp.terminate(nil)
+        }
     }
 
     @objc private func recordingDidStart() {
