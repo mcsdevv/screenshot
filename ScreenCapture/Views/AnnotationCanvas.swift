@@ -490,8 +490,8 @@ struct AnnotationCanvas: View {
                 textInput = annotation.text ?? ""
                 // Position the text input at the annotation's location (scaled)
                 textPosition = CGPoint(
-                    x: annotation.cgRect.origin.x * zoom - 8, // Account for padding offset
-                    y: annotation.cgRect.origin.y * zoom - 8
+                    x: annotation.cgRect.origin.x * zoom - 4, // Account for text container inset
+                    y: annotation.cgRect.origin.y * zoom - 4
                 )
                 showTextInput = true
             }
@@ -696,7 +696,7 @@ struct AnnotationCanvas: View {
                 annotation.fontName = state.currentFontName
                 annotation.color = CodableColor(state.currentColor)
                 // Update position from dragged location
-                let paddingOffset: CGFloat = 8
+                let paddingOffset: CGFloat = 4
                 let newPosition = CGPoint(
                     x: textPosition.x + paddingOffset,
                     y: textPosition.y + paddingOffset
@@ -721,9 +721,8 @@ struct AnnotationCanvas: View {
             return
         }
 
-        // Account for text box padding (4pt) + text container inset (4pt) = 8pt offset
-        // This ensures text renders at the same position as shown in the input overlay
-        let paddingOffset: CGFloat = 8
+        // Account for text container inset (4pt) so text renders at the same position
+        let paddingOffset: CGFloat = 4
         let adjustedPosition = CGPoint(
             x: textPosition.x + paddingOffset,
             y: textPosition.y + paddingOffset
@@ -1595,6 +1594,7 @@ struct TextInputOverlay: View {
     @State private var hoveredCorner: TextBoxCorner? = nil
     @State private var isDragging: Bool = false
     @State private var isResizing: Bool = false
+    @State private var isHoveringEdge: Bool = false
 
     private let handleSize: CGFloat = 8
     private let minWidth: CGFloat = 80
@@ -1656,33 +1656,20 @@ struct TextInputOverlay: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             // Main text box content
-            VStack(alignment: .leading, spacing: 4) {
-                // Text input area using NSTextView for proper keyboard shortcut support
-                AnnotationTextView(
-                    text: $text,
-                    font: fontName == ".AppleSystemUIFont"
-                        ? NSFont.systemFont(ofSize: fontSize, weight: .medium)
-                        : NSFont(name: fontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize),
-                    textColor: NSColor(color),
-                    onCommit: onCommit
-                )
-                .frame(minHeight: 24, maxHeight: .infinity)
-            }
-            .padding(4)
+            AnnotationTextView(
+                text: $text,
+                font: fontName == ".AppleSystemUIFont"
+                    ? NSFont.systemFont(ofSize: fontSize, weight: .medium)
+                    : NSFont(name: fontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize),
+                textColor: NSColor(color),
+                onCommit: onCommit
+            )
             .frame(width: currentWidth, height: currentHeight, alignment: .topLeading)
             .overlay(
                 Rectangle()
                     .stroke(color, style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
                     .allowsHitTesting(false)
             )
-            .position(x: baseTopLeft.x + currentWidth / 2, y: baseTopLeft.y + currentHeight / 2)
-
-            // Cursor overlay for reliable hover cursor within the text box
-            TextBoxCursorOverlay(
-                size: CGSize(width: currentWidth, height: currentHeight),
-                cursor: .openHand
-            )
-            .frame(width: currentWidth, height: currentHeight)
             .position(x: baseTopLeft.x + currentWidth / 2, y: baseTopLeft.y + currentHeight / 2)
 
             // Border drag areas (4 edges)
@@ -1798,7 +1785,7 @@ struct TextInputOverlay: View {
 
     @ViewBuilder
     private func edgeDragArea(for edge: Edge) -> some View {
-        let edgeWidth: CGFloat = 12
+        let edgeHoverWidth: CGFloat = 12
         let cornerInset: CGFloat = handleSize / 2 + 4 // Avoid overlap with corner handles
         let topLeft = baseTopLeft
 
@@ -1807,29 +1794,29 @@ struct TextInputOverlay: View {
             case .top:
                 return CGRect(
                     x: topLeft.x + cornerInset,
-                    y: topLeft.y - edgeWidth / 2,
+                    y: topLeft.y - edgeHoverWidth / 2,
                     width: currentWidth - cornerInset * 2,
-                    height: edgeWidth
+                    height: edgeHoverWidth
                 )
             case .bottom:
                 return CGRect(
                     x: topLeft.x + cornerInset,
-                    y: topLeft.y + currentHeight - edgeWidth / 2,
+                    y: topLeft.y + currentHeight - edgeHoverWidth / 2,
                     width: currentWidth - cornerInset * 2,
-                    height: edgeWidth
+                    height: edgeHoverWidth
                 )
             case .leading:
                 return CGRect(
-                    x: topLeft.x - edgeWidth / 2,
+                    x: topLeft.x - edgeHoverWidth / 2,
                     y: topLeft.y + cornerInset,
-                    width: edgeWidth,
+                    width: edgeHoverWidth,
                     height: currentHeight - cornerInset * 2
                 )
             case .trailing:
                 return CGRect(
-                    x: topLeft.x + currentWidth - edgeWidth / 2,
+                    x: topLeft.x + currentWidth - edgeHoverWidth / 2,
                     y: topLeft.y + cornerInset,
-                    width: edgeWidth,
+                    width: edgeHoverWidth,
                     height: currentHeight - cornerInset * 2
                 )
             }
@@ -1839,6 +1826,14 @@ struct TextInputOverlay: View {
             .fill(Color.white.opacity(0.001))
             .frame(width: max(rect.width, 1), height: max(rect.height, 1))
             .position(x: rect.midX, y: rect.midY)
+            .onHover { hovering in
+                isHoveringEdge = hovering
+                if hovering {
+                    NSCursor.openHand.push()
+                } else if !isDragging {
+                    NSCursor.pop()
+                }
+            }
             .highPriorityGesture(
                 DragGesture(minimumDistance: 1)
                     .updating($dragTranslation) { value, state, _ in
@@ -1853,6 +1848,10 @@ struct TextInputOverlay: View {
                     .onEnded { value in
                         isDragging = false
                         NSCursor.pop()
+                        // Restore openHand if still hovering edge
+                        if isHoveringEdge {
+                            NSCursor.openHand.push()
+                        }
                         let newTopLeft = clampTopLeft(
                             CGPoint(
                                 x: baseTopLeft.x + value.translation.width,
@@ -1864,47 +1863,6 @@ struct TextInputOverlay: View {
                         position = newTopLeft
                     }
             )
-    }
-}
-
-// MARK: - Cursor Overlay for Text Box
-
-struct TextBoxCursorOverlay: NSViewRepresentable {
-    let size: CGSize
-    let cursor: NSCursor
-    var isActive: Bool = true
-
-    func makeNSView(context: Context) -> TextBoxCursorOverlayView {
-        let view = TextBoxCursorOverlayView()
-        view.cursor = cursor
-        view.isActive = isActive
-        return view
-    }
-
-    func updateNSView(_ nsView: TextBoxCursorOverlayView, context: Context) {
-        nsView.cursor = cursor
-        nsView.isActive = isActive
-        nsView.window?.invalidateCursorRects(for: nsView)
-    }
-}
-
-final class TextBoxCursorOverlayView: NSView {
-    var cursor: NSCursor = .openHand
-    var isActive: Bool = true
-
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        nil
-    }
-
-    override func resetCursorRects() {
-        discardCursorRects()
-        guard isActive else { return }
-        addCursorRect(bounds, cursor: cursor)
-    }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        window?.invalidateCursorRects(for: self)
     }
 }
 
@@ -2030,7 +1988,7 @@ struct AnnotationTextView: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSScrollView()
+        let scrollView = AnnotationTextScrollView()
         let textView = AnnotationNSTextView()
 
         textView.delegate = context.coordinator
@@ -2110,6 +2068,13 @@ class AnnotationNSTextView: NSTextView {
         super.keyDown(with: event)
     }
 
+    override func resetCursorRects() {
+        discardCursorRects()
+        addCursorRect(bounds, cursor: .openHand)
+    }
+}
+
+final class AnnotationTextScrollView: NSScrollView {
     override func resetCursorRects() {
         discardCursorRects()
         addCursorRect(bounds, cursor: .openHand)
