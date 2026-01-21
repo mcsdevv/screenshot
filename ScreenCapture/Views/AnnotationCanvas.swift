@@ -58,14 +58,18 @@ struct AnnotationCanvas: View {
         )
     }
 
-    // Check if a point is over any visible annotation (for hover cursor)
-    private func isPointOverAnnotation(_ point: CGPoint) -> Bool {
+    private func annotationAtPoint(_ point: CGPoint) -> Annotation? {
         for annotation in state.annotations.reversed() {
             if state.isAnnotationVisible(annotation.id) && hitTest(annotation: annotation, at: point) {
-                return true
+                return annotation
             }
         }
-        return false
+        return nil
+    }
+
+    // Check if a point is over any visible annotation (for hover cursor)
+    private func isPointOverAnnotation(_ point: CGPoint) -> Bool {
+        annotationAtPoint(point) != nil
     }
 
     private var isDrawingGestureActive: Bool {
@@ -85,9 +89,12 @@ struct AnnotationCanvas: View {
                     Canvas { context, size in
                         for annotation in state.annotations {
                             // Skip hidden annotations
-                            if state.isAnnotationVisible(annotation.id) {
-                                drawAnnotation(annotation, in: context, size: size)
+                            guard state.isAnnotationVisible(annotation.id) else { continue }
+                            // Skip text annotation being edited (TextInputOverlay shows it instead)
+                            if annotation.type == .text && annotation.id == editingAnnotationId {
+                                continue
                             }
+                            drawAnnotation(annotation, in: context, size: size)
                         }
                     }
                     .frame(width: scaledImageSize.width, height: scaledImageSize.height)
@@ -105,10 +112,11 @@ struct AnnotationCanvas: View {
                         .allowsHitTesting(false)
                     }
 
-                    // Selection handles for selected annotation
+                    // Selection handles for selected annotation (not for text being edited)
                     ForEach(state.annotations) { annotation in
                         if annotation.id == state.selectedAnnotationId,
-                           state.isAnnotationVisible(annotation.id) {
+                           state.isAnnotationVisible(annotation.id),
+                           !(annotation.type == .text && editingAnnotationId != nil) {
                             AnnotationSelectionOverlay(
                                 annotation: annotation,
                                 zoom: zoom,
@@ -129,10 +137,10 @@ struct AnnotationCanvas: View {
                     AnnotationHoverTracker(
                         state: state,
                         zoom: zoom,
-                        hitTest: { point in isPointOverAnnotation(point) }
+                        annotationAtPoint: { point in annotationAtPoint(point) },
+                        isEnabled: state.currentTool == .select && !showTextInput
                     )
                     .frame(width: scaledImageSize.width, height: scaledImageSize.height)
-                    .allowsHitTesting(false)
 
                     // Crop overlay
                     if state.currentTool == .crop {
@@ -473,13 +481,7 @@ struct AnnotationCanvas: View {
 
         // First, try to select an annotation at this point (regardless of tool)
         // Search in reverse to select topmost annotation
-        var hitAnnotation: Annotation? = nil
-        for annotation in state.annotations.reversed() {
-            if state.isAnnotationVisible(annotation.id) && hitTest(annotation: annotation, at: unscaledLocation) {
-                hitAnnotation = annotation
-                break
-            }
-        }
+        let hitAnnotation = annotationAtPoint(unscaledLocation)
 
         // If we hit an annotation, select it
         if let annotation = hitAnnotation {
@@ -493,8 +495,8 @@ struct AnnotationCanvas: View {
                 textInput = annotation.text ?? ""
                 // Position the text input at the annotation's location (scaled)
                 textPosition = CGPoint(
-                    x: annotation.cgRect.origin.x * zoom - 8, // Account for padding offset
-                    y: annotation.cgRect.origin.y * zoom - 8
+                    x: annotation.cgRect.origin.x * zoom - 4, // Account for text container inset
+                    y: annotation.cgRect.origin.y * zoom - 4
                 )
                 // Initialize textbox size from stored annotation size (scaled)
                 textBoxSize = CGSize(
@@ -581,6 +583,18 @@ struct AnnotationCanvas: View {
         let projY = start.y + t * dy
 
         return hypot(point.x - projX, point.y - projY)
+    }
+
+    private func measureTextSize(text: String, fontSize: CGFloat, fontName: String) -> CGSize {
+        let font: NSFont
+        if fontName == ".AppleSystemUIFont" {
+            font = NSFont.systemFont(ofSize: fontSize, weight: .medium)
+        } else {
+            font = NSFont(name: fontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize)
+        }
+        let attributes: [NSAttributedString.Key: Any] = [.font: font]
+        let attributedString = NSAttributedString(string: text, attributes: attributes)
+        return attributedString.size()
     }
 
     private func handleDragChanged(_ value: DragGesture.Value) {
@@ -693,7 +707,7 @@ struct AnnotationCanvas: View {
                 annotation.fontName = state.currentFontName
                 annotation.color = CodableColor(state.currentColor)
                 // Update position from dragged location
-                let paddingOffset: CGFloat = 8
+                let paddingOffset: CGFloat = 4
                 let newPosition = CGPoint(
                     x: textPosition.x + paddingOffset,
                     y: textPosition.y + paddingOffset
@@ -722,9 +736,8 @@ struct AnnotationCanvas: View {
             return
         }
 
-        // Account for text box padding (4pt) + text container inset (4pt) = 8pt offset
-        // This ensures text renders at the same position as shown in the input overlay
-        let paddingOffset: CGFloat = 8
+        // Account for text container inset (4pt) so text renders at the same position
+        let paddingOffset: CGFloat = 4
         let adjustedPosition = CGPoint(
             x: textPosition.x + paddingOffset,
             y: textPosition.y + paddingOffset
@@ -1602,10 +1615,10 @@ struct TextInputOverlay: View {
     @GestureState private var resizeState: ResizeState? = nil
 
     // UI state
-    @State private var isHoveringBorder: Bool = false
     @State private var hoveredCorner: TextBoxCorner? = nil
     @State private var isDragging: Bool = false
     @State private var isResizing: Bool = false
+    @State private var isHoveringEdge: Bool = false
 
     private let handleSize: CGFloat = 8
     private let minWidth: CGFloat = 80
@@ -1667,70 +1680,26 @@ struct TextInputOverlay: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             // Main text box content
-            VStack(alignment: .leading, spacing: 4) {
-                // Text input area using NSTextView for proper keyboard shortcut support
-                AnnotationTextView(
-                    text: $text,
-                    font: fontName == ".AppleSystemUIFont"
-                        ? NSFont.systemFont(ofSize: fontSize, weight: .medium)
-                        : NSFont(name: fontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize),
-                    textColor: NSColor(color),
-                    onCommit: onCommit
-                )
-                .frame(minHeight: 24, maxHeight: .infinity)
-            }
-            .padding(4)
+            AnnotationTextView(
+                text: $text,
+                font: fontName == ".AppleSystemUIFont"
+                    ? NSFont.systemFont(ofSize: fontSize, weight: .medium)
+                    : NSFont(name: fontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize),
+                textColor: NSColor(color),
+                onCommit: onCommit
+            )
             .frame(width: currentWidth, height: currentHeight, alignment: .topLeading)
             .overlay(
-                // Dashed border with drag gesture and hover cursor
                 Rectangle()
                     .stroke(color, style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
-                    .contentShape(
-                        Rectangle()
-                            .stroke(lineWidth: 12) // Thicker hit area for dragging
-                    )
-                    .onHover { hovering in
-                        if hoveredCorner == nil && !isResizing {
-                            isHoveringBorder = hovering
-                            if hovering && !isDragging {
-                                NSCursor.openHand.push()
-                            } else if !hovering && !isDragging {
-                                NSCursor.pop()
-                            }
-                        }
-                    }
-                    .highPriorityGesture(
-                        DragGesture(minimumDistance: 1)
-                            .updating($dragTranslation) { value, state, _ in
-                                state = value.translation
-                            }
-                            .onChanged { _ in
-                                if !isDragging {
-                                    isDragging = true
-                                    NSCursor.pop()
-                                    NSCursor.closedHand.push()
-                                }
-                            }
-                            .onEnded { value in
-                                isDragging = false
-                                NSCursor.pop()
-                                // Sync final position back to parent (replaces local committedOffset)
-                                let newTopLeft = clampTopLeft(
-                                    CGPoint(
-                                        x: baseTopLeft.x + value.translation.width,
-                                        y: baseTopLeft.y + value.translation.height
-                                    ),
-                                    width: currentWidth,
-                                    height: currentHeight
-                                )
-                                position = newTopLeft
-                                if isHoveringBorder {
-                                    NSCursor.openHand.push()
-                                }
-                            }
-                    )
+                    .allowsHitTesting(false)
             )
             .position(x: baseTopLeft.x + currentWidth / 2, y: baseTopLeft.y + currentHeight / 2)
+
+            // Border drag areas (4 edges)
+            ForEach(Edge.allCases, id: \.self) { edge in
+                edgeDragArea(for: edge)
+            }
 
             // Corner resize handles
             ForEach(TextBoxCorner.allCases, id: \.self) { corner in
@@ -1739,10 +1708,6 @@ struct TextInputOverlay: View {
                     .onHover { hovering in
                         hoveredCorner = hovering ? corner : nil
                         if hovering {
-                            if isHoveringBorder {
-                                NSCursor.pop()
-                                isHoveringBorder = false
-                            }
                             corner.nsCursor.push()
                         } else if !isResizing {
                             NSCursor.pop()
@@ -1847,6 +1812,93 @@ struct TextInputOverlay: View {
         case .bottomRight:
             return CGPoint(x: topLeft.x + currentWidth, y: topLeft.y + currentHeight)
         }
+    }
+
+    // Edge enum for border drag areas
+    private enum Edge: CaseIterable {
+        case top, bottom, leading, trailing
+    }
+
+    @ViewBuilder
+    private func edgeDragArea(for edge: Edge) -> some View {
+        let edgeHoverWidth: CGFloat = 12
+        let cornerInset: CGFloat = handleSize / 2 + 4 // Avoid overlap with corner handles
+        let topLeft = baseTopLeft
+
+        let rect: CGRect = {
+            switch edge {
+            case .top:
+                return CGRect(
+                    x: topLeft.x + cornerInset,
+                    y: topLeft.y - edgeHoverWidth / 2,
+                    width: currentWidth - cornerInset * 2,
+                    height: edgeHoverWidth
+                )
+            case .bottom:
+                return CGRect(
+                    x: topLeft.x + cornerInset,
+                    y: topLeft.y + currentHeight - edgeHoverWidth / 2,
+                    width: currentWidth - cornerInset * 2,
+                    height: edgeHoverWidth
+                )
+            case .leading:
+                return CGRect(
+                    x: topLeft.x - edgeHoverWidth / 2,
+                    y: topLeft.y + cornerInset,
+                    width: edgeHoverWidth,
+                    height: currentHeight - cornerInset * 2
+                )
+            case .trailing:
+                return CGRect(
+                    x: topLeft.x + currentWidth - edgeHoverWidth / 2,
+                    y: topLeft.y + cornerInset,
+                    width: edgeHoverWidth,
+                    height: currentHeight - cornerInset * 2
+                )
+            }
+        }()
+
+        Rectangle()
+            .fill(Color.white.opacity(0.001))
+            .frame(width: max(rect.width, 1), height: max(rect.height, 1))
+            .position(x: rect.midX, y: rect.midY)
+            .onHover { hovering in
+                isHoveringEdge = hovering
+                if hovering {
+                    NSCursor.openHand.push()
+                } else if !isDragging {
+                    NSCursor.pop()
+                }
+            }
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 1)
+                    .updating($dragTranslation) { value, state, _ in
+                        state = value.translation
+                    }
+                    .onChanged { _ in
+                        if !isDragging {
+                            isDragging = true
+                            NSCursor.closedHand.push()
+                        }
+                    }
+                    .onEnded { value in
+                        isDragging = false
+                        NSCursor.pop()
+                        // Restore openHand if still hovering edge
+                        if isHoveringEdge {
+                            NSCursor.openHand.push()
+                        }
+                        let newTopLeft = clampTopLeft(
+                            CGPoint(
+                                x: baseTopLeft.x + value.translation.width,
+                                y: baseTopLeft.y + value.translation.height
+                            ),
+                            width: currentWidth,
+                            height: currentHeight
+                        )
+                        position = newTopLeft
+                    }
+            )
     }
 }
 
@@ -1972,7 +2024,7 @@ struct AnnotationTextView: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSScrollView()
+        let scrollView = AnnotationTextScrollView()
         let textView = AnnotationNSTextView()
 
         textView.delegate = context.coordinator
@@ -2050,6 +2102,18 @@ class AnnotationNSTextView: NSTextView {
             return
         }
         super.keyDown(with: event)
+    }
+
+    override func resetCursorRects() {
+        discardCursorRects()
+        addCursorRect(bounds, cursor: .openHand)
+    }
+}
+
+final class AnnotationTextScrollView: NSScrollView {
+    override func resetCursorRects() {
+        discardCursorRects()
+        addCursorRect(bounds, cursor: .openHand)
     }
 }
 
@@ -2239,32 +2303,46 @@ class AnnotationKeyboardHandlerView: NSView {
 struct AnnotationHoverTracker: NSViewRepresentable {
     let state: AnnotationState
     let zoom: CGFloat
-    let hitTest: (CGPoint) -> Bool
+    let annotationAtPoint: (CGPoint) -> Annotation?
+    let isEnabled: Bool
 
     func makeNSView(context: Context) -> HoverTrackingView {
         let view = HoverTrackingView()
-        view.hitTest = hitTest
+        view.annotationAtPoint = annotationAtPoint
         view.state = state
         view.zoom = zoom
+        view.isEnabled = isEnabled
         return view
     }
 
     func updateNSView(_ nsView: HoverTrackingView, context: Context) {
-        nsView.hitTest = hitTest
+        nsView.annotationAtPoint = annotationAtPoint
         nsView.state = state
         nsView.zoom = zoom
-        if state.currentTool != .select {
+        nsView.isEnabled = isEnabled
+        if !isEnabled || state.currentTool != .select {
             nsView.resetCursor()
         }
     }
 }
 
 class HoverTrackingView: NSView {
-    var hitTest: ((CGPoint) -> Bool)?
+    var annotationAtPoint: ((CGPoint) -> Annotation?)?
     var state: AnnotationState?
     var zoom: CGFloat = 1.0
+    var isEnabled: Bool = true
     private var trackingArea: NSTrackingArea?
-    private var isCursorOverAnnotation = false
+    private var currentCursorKind: CursorKind = .none
+
+    private enum CursorKind {
+        case none
+        case pointingHand
+        case openHand
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -2283,7 +2361,7 @@ class HoverTrackingView: NSView {
     }
 
     override func mouseMoved(with event: NSEvent) {
-        guard state?.currentTool == .select else {
+        guard isEnabled, state?.currentTool == .select else {
             resetCursor()
             return
         }
@@ -2293,14 +2371,30 @@ class HoverTrackingView: NSView {
         // Note: SwiftUI flips Y, but NSView also has flipped coordinates when inside SwiftUI
         let imageCoords = CGPoint(x: locationInView.x / zoom, y: locationInView.y / zoom)
 
-        let isOverAnnotation = hitTest?(imageCoords) ?? false
+        let annotation = annotationAtPoint?(imageCoords)
+        let desiredCursor: CursorKind
 
-        if isOverAnnotation && !isCursorOverAnnotation {
-            NSCursor.pointingHand.push()
-            isCursorOverAnnotation = true
-        } else if !isOverAnnotation && isCursorOverAnnotation {
-            NSCursor.pop()
-            isCursorOverAnnotation = false
+        if let annotation = annotation {
+            desiredCursor = annotation.type == .text ? .openHand : .pointingHand
+        } else {
+            desiredCursor = .none
+        }
+
+        if desiredCursor != currentCursorKind {
+            if currentCursorKind != .none {
+                NSCursor.pop()
+            }
+
+            switch desiredCursor {
+            case .pointingHand:
+                NSCursor.pointingHand.push()
+            case .openHand:
+                NSCursor.openHand.push()
+            case .none:
+                break
+            }
+
+            currentCursorKind = desiredCursor
         }
     }
 
@@ -2309,9 +2403,9 @@ class HoverTrackingView: NSView {
     }
 
     func resetCursor() {
-        if isCursorOverAnnotation {
+        if currentCursorKind != .none {
             NSCursor.pop()
-            isCursorOverAnnotation = false
+            currentCursorKind = .none
         }
     }
 }
