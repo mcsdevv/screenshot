@@ -240,38 +240,65 @@ struct ScrollingCaptureInstructionsView: View {
     let onCancel: () -> Void
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: DSSpacing.lg) {
             Image(systemName: "scroll")
-                .font(.system(size: 40))
-                .foregroundColor(.accentColor)
+                .font(.system(size: 40, weight: .light))
+                .foregroundColor(.dsAccent)
 
             Text("Scrolling Capture")
-                .font(.title2.bold())
+                .font(DSTypography.displaySmall)
+                .foregroundColor(.dsTextPrimary)
 
             Text("Scroll through the content you want to capture. Click 'Capture' after each scroll, then click 'Done' when finished.")
-                .font(.body)
-                .foregroundColor(.secondary)
+                .font(DSTypography.bodyMedium)
+                .foregroundColor(.dsTextSecondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal)
+                .padding(.horizontal, DSSpacing.sm)
 
-            HStack(spacing: 16) {
-                Button("Cancel") {
-                    onCancel()
-                }
-                .buttonStyle(.bordered)
-
-                Button("Start Capture") {
-                    onStart()
-                }
-                .buttonStyle(.borderedProminent)
+            HStack(spacing: DSSpacing.md) {
+                DSSecondaryButton("Cancel", action: onCancel)
+                DSPrimaryButton("Start Capture", action: onStart)
             }
         }
-        .padding(24)
+        .padding(DSSpacing.xl)
         .frame(width: 400)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
+        .background(scrollingCaptureBackground)
+        .clipShape(RoundedRectangle(cornerRadius: DSRadius.xl))
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.xl)
+                .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.25), radius: 20, x: 0, y: 10)
+    }
+
+    private var scrollingCaptureBackground: some View {
+        ZStack {
+            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.08),
+                    Color.white.opacity(0.02),
+                    Color.black.opacity(0.05)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            VStack {
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.15),
+                        Color.white.opacity(0.0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 80)
+                Spacer()
+            }
+        }
     }
 }
 
@@ -282,32 +309,40 @@ struct ScrollingCaptureControlsView: View {
     let onCancel: () -> Void
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: DSSpacing.md) {
             Text("\(captureCount) captured")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.primary)
+                .font(DSTypography.bodyMedium)
+                .foregroundColor(.dsTextPrimary)
 
             Spacer()
 
-            Button(action: onCapture) {
-                Label("Capture", systemImage: "camera")
-            }
-            .buttonStyle(.bordered)
-
-            Button(action: onFinish) {
-                Label("Done", systemImage: "checkmark")
-            }
-            .buttonStyle(.borderedProminent)
-
-            Button(action: onCancel) {
-                Image(systemName: "xmark")
-            }
-            .buttonStyle(.bordered)
+            DSSecondaryButton("Capture", icon: "camera", action: onCapture)
+            DSPrimaryButton("Done", icon: "checkmark", action: onFinish)
+            DSIconButton(icon: "xmark", action: onCancel)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .background(.ultraThinMaterial)
+        .padding(.horizontal, DSSpacing.lg)
+        .padding(.vertical, DSSpacing.md)
+        .background(controlsBackground)
         .clipShape(Capsule())
+        .overlay(
+            Capsule()
+                .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+        )
         .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
+    }
+
+    private var controlsBackground: some View {
+        ZStack {
+            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.08),
+                    Color.white.opacity(0.02)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
     }
 }
