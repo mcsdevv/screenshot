@@ -40,6 +40,36 @@ class PinnedScreenshotWindow {
             },
             onLockChanged: { [weak newWindow] isLocked in
                 newWindow?.isMovableByWindowBackground = !isLocked
+            },
+            onResize: { [weak newWindow] newSize, corner in
+                guard let window = newWindow else { return }
+                let currentFrame = window.frame
+
+                // Calculate new origin based on which corner is being dragged
+                // The opposite corner should stay anchored
+                var newOrigin = currentFrame.origin
+                let deltaWidth = newSize.width - currentFrame.width
+                let deltaHeight = newSize.height - currentFrame.height
+
+                switch corner {
+                case .topLeft:
+                    // Bottom-right stays anchored
+                    newOrigin.x -= deltaWidth
+                    // In macOS, y=0 is at bottom, so no y adjustment needed
+                case .topRight:
+                    // Bottom-left stays anchored (origin stays same)
+                    break
+                case .bottomLeft:
+                    // Top-right stays anchored
+                    newOrigin.x -= deltaWidth
+                    newOrigin.y -= deltaHeight
+                case .bottomRight:
+                    // Top-left stays anchored
+                    newOrigin.y -= deltaHeight
+                }
+
+                let newFrame = NSRect(origin: newOrigin, size: NSSize(width: newSize.width, height: newSize.height))
+                window.setFrame(newFrame, display: true, animate: false)
             }
         )
 
@@ -99,11 +129,16 @@ class PinnedWindow: NSWindow {
     override var canBecomeMain: Bool { true }
 }
 
+enum ResizeCorner {
+    case topLeft, topRight, bottomLeft, bottomRight
+}
+
 struct PinnedScreenshotView: View {
     let image: NSImage
     let initialSize: NSSize
     let onClose: () -> Void
     let onLockChanged: (Bool) -> Void
+    let onResize: (CGSize, ResizeCorner) -> Void
 
     @State private var opacity: Double = 1.0
     @State private var isLocked = false
@@ -111,16 +146,22 @@ struct PinnedScreenshotView: View {
     @State private var currentSize: CGSize
     @State private var showOpacityMenu = false
 
-    init(image: NSImage, initialSize: NSSize, onClose: @escaping () -> Void, onLockChanged: @escaping (Bool) -> Void) {
+    private let minSize: CGFloat = 100
+    private let maxScale: CGFloat = 3.0
+    private let aspectRatio: CGFloat
+
+    init(image: NSImage, initialSize: NSSize, onClose: @escaping () -> Void, onLockChanged: @escaping (Bool) -> Void, onResize: @escaping (CGSize, ResizeCorner) -> Void) {
         self.image = image
         self.initialSize = initialSize
         self.onClose = onClose
         self.onLockChanged = onLockChanged
+        self.onResize = onResize
         self._currentSize = State(initialValue: CGSize(width: initialSize.width, height: initialSize.height))
+        self.aspectRatio = initialSize.width / initialSize.height
     }
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack {
             Image(nsImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
@@ -129,8 +170,18 @@ struct PinnedScreenshotView: View {
                 .cornerRadius(8)
                 .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
 
+            // Corner resize handles
+            cornerHandles
+
+            // Controls overlay (top-right)
             if showControls {
-                controlsOverlay
+                VStack {
+                    HStack {
+                        Spacer()
+                        controlsOverlay
+                    }
+                    Spacer()
+                }
             }
         }
         .frame(width: currentSize.width, height: currentSize.height)
@@ -148,6 +199,71 @@ struct PinnedScreenshotView: View {
                 }
         )
         .background(keyboardShortcuts)
+    }
+
+    // MARK: - Corner Handles
+
+    @ViewBuilder
+    private var cornerHandles: some View {
+        ZStack {
+            // Top-left
+            CornerResizeHandle(corner: .topLeft) { delta in
+                handleResize(delta: delta, corner: .topLeft)
+            }
+            .position(x: 0, y: 0)
+
+            // Top-right
+            CornerResizeHandle(corner: .topRight) { delta in
+                handleResize(delta: delta, corner: .topRight)
+            }
+            .position(x: currentSize.width, y: 0)
+
+            // Bottom-left
+            CornerResizeHandle(corner: .bottomLeft) { delta in
+                handleResize(delta: delta, corner: .bottomLeft)
+            }
+            .position(x: 0, y: currentSize.height)
+
+            // Bottom-right
+            CornerResizeHandle(corner: .bottomRight) { delta in
+                handleResize(delta: delta, corner: .bottomRight)
+            }
+            .position(x: currentSize.width, y: currentSize.height)
+        }
+    }
+
+    private func handleResize(delta: CGSize, corner: ResizeCorner) {
+        // Calculate new size maintaining aspect ratio
+        let deltaX = delta.width
+        let deltaY = delta.height
+
+        // Use the larger delta to determine resize amount (maintaining aspect ratio)
+        let primaryDelta: CGFloat
+        switch corner {
+        case .topLeft:
+            primaryDelta = max(-deltaX, -deltaY)
+        case .topRight:
+            primaryDelta = max(deltaX, -deltaY)
+        case .bottomLeft:
+            primaryDelta = max(-deltaX, deltaY)
+        case .bottomRight:
+            primaryDelta = max(deltaX, deltaY)
+        }
+
+        let newWidth = currentSize.width + primaryDelta
+
+        // Enforce min/max constraints
+        let maxWidth = initialSize.width * maxScale
+        let minWidth = minSize
+        let constrainedWidth = min(max(newWidth, minWidth), maxWidth)
+        let constrainedHeight = constrainedWidth / aspectRatio
+
+        let newSize = CGSize(width: constrainedWidth, height: constrainedHeight)
+
+        if newSize.width != currentSize.width {
+            currentSize = newSize
+            onResize(newSize, corner)
+        }
     }
 
     // MARK: - Keyboard Shortcuts
@@ -280,6 +396,99 @@ struct PinnedControlButton: View {
             isHovered = hovering
         }
         .help(tooltip)
+    }
+}
+
+struct CornerResizeHandle: View {
+    let corner: ResizeCorner
+    let onDrag: (CGSize) -> Void
+
+    @State private var isHovered = false
+    @GestureState private var dragOffset: CGSize = .zero
+
+    private let handleSize: CGFloat = 20
+    private let visualSize: CGFloat = 8
+
+    var body: some View {
+        ZStack {
+            // Invisible hit area
+            Color.clear
+                .frame(width: handleSize, height: handleSize)
+
+            // Subtle visual indicator - diagonal corner lines
+            cornerLines
+        }
+        .frame(width: handleSize, height: handleSize)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            isHovered = hovering
+            if hovering {
+                NSCursor.crosshair.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+        .gesture(
+            DragGesture(minimumDistance: 1)
+                .updating($dragOffset) { value, state, _ in
+                    state = value.translation
+                }
+                .onChanged { value in
+                    onDrag(value.translation)
+                }
+        )
+    }
+
+    @ViewBuilder
+    private var cornerLines: some View {
+        Canvas { context, size in
+            let lineLength: CGFloat = visualSize
+            let lineWidth: CGFloat = 1.5
+            let opacity: Double = isHovered ? 0.8 : 0.4
+
+            var path = Path()
+
+            switch corner {
+            case .topLeft:
+                // Horizontal line going right
+                path.move(to: CGPoint(x: size.width / 2, y: size.height / 2))
+                path.addLine(to: CGPoint(x: size.width / 2 + lineLength, y: size.height / 2))
+                // Vertical line going down
+                path.move(to: CGPoint(x: size.width / 2, y: size.height / 2))
+                path.addLine(to: CGPoint(x: size.width / 2, y: size.height / 2 + lineLength))
+
+            case .topRight:
+                // Horizontal line going left
+                path.move(to: CGPoint(x: size.width / 2, y: size.height / 2))
+                path.addLine(to: CGPoint(x: size.width / 2 - lineLength, y: size.height / 2))
+                // Vertical line going down
+                path.move(to: CGPoint(x: size.width / 2, y: size.height / 2))
+                path.addLine(to: CGPoint(x: size.width / 2, y: size.height / 2 + lineLength))
+
+            case .bottomLeft:
+                // Horizontal line going right
+                path.move(to: CGPoint(x: size.width / 2, y: size.height / 2))
+                path.addLine(to: CGPoint(x: size.width / 2 + lineLength, y: size.height / 2))
+                // Vertical line going up
+                path.move(to: CGPoint(x: size.width / 2, y: size.height / 2))
+                path.addLine(to: CGPoint(x: size.width / 2, y: size.height / 2 - lineLength))
+
+            case .bottomRight:
+                // Horizontal line going left
+                path.move(to: CGPoint(x: size.width / 2, y: size.height / 2))
+                path.addLine(to: CGPoint(x: size.width / 2 - lineLength, y: size.height / 2))
+                // Vertical line going up
+                path.move(to: CGPoint(x: size.width / 2, y: size.height / 2))
+                path.addLine(to: CGPoint(x: size.width / 2, y: size.height / 2 - lineLength))
+            }
+
+            context.stroke(
+                path,
+                with: .color(.white.opacity(opacity)),
+                lineWidth: lineWidth
+            )
+        }
+        .frame(width: handleSize, height: handleSize)
     }
 }
 
