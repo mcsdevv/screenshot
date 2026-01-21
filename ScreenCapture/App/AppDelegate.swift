@@ -65,6 +65,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
     func applicationWillTerminate(_ notification: Notification) {
         performTerminationCleanup(reason: "applicationWillTerminate")
+        storageManager.saveHistory()
+        keyboardShortcuts.unregisterAll()
     }
 
     private func setupMainMenu() {

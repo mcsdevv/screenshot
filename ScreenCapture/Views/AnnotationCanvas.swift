@@ -1079,7 +1079,7 @@ struct AnnotationSelectionOverlay: View {
     private var standardOverlay: some View {
         // Selection border with move gesture
         Rectangle()
-            .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
+            .stroke(annotation.color.color, style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
             .frame(width: max(displayRect.width, 10), height: max(displayRect.height, 10))
             .position(x: displayRect.midX, y: displayRect.midY)
             .contentShape(Rectangle())
@@ -1090,7 +1090,7 @@ struct AnnotationSelectionOverlay: View {
             Circle()
                 .fill(Color.white)
                 .frame(width: handleSize, height: handleSize)
-                .overlay(Circle().stroke(Color.accentColor, lineWidth: 1))
+                .overlay(Circle().stroke(annotation.color.color, lineWidth: 1.5))
                 .position(handlePoint(for: position, in: displayRect))
                 .gesture(resizeGesture(for: position))
         }
@@ -1119,7 +1119,7 @@ struct AnnotationSelectionOverlay: View {
             path.move(to: start)
             path.addLine(to: end)
         }
-        .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [5, 3]))
+        .stroke(annotation.color.color, style: StrokeStyle(lineWidth: 2, dash: [5, 3]))
         .contentShape(
             Path { path in
                 path.move(to: start)
@@ -1132,7 +1132,7 @@ struct AnnotationSelectionOverlay: View {
         Circle()
             .fill(Color.white)
             .frame(width: handleSize, height: handleSize)
-            .overlay(Circle().stroke(Color.accentColor, lineWidth: 1))
+            .overlay(Circle().stroke(annotation.color.color, lineWidth: 1.5))
             .position(start)
             .gesture(endpointGesture(index: 0))
 
@@ -1140,7 +1140,7 @@ struct AnnotationSelectionOverlay: View {
         Circle()
             .fill(Color.white)
             .frame(width: handleSize, height: handleSize)
-            .overlay(Circle().stroke(Color.accentColor, lineWidth: 1))
+            .overlay(Circle().stroke(annotation.color.color, lineWidth: 1.5))
             .position(end)
             .gesture(endpointGesture(index: 1))
     }
@@ -1153,7 +1153,7 @@ struct AnnotationSelectionOverlay: View {
         let bounds = computeFreeformBounds()
 
         Rectangle()
-            .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
+            .stroke(annotation.color.color, style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
             .frame(width: bounds.width, height: bounds.height)
             .position(
                 x: bounds.midX + dragOffset.width,
@@ -1166,7 +1166,7 @@ struct AnnotationSelectionOverlay: View {
         Circle()
             .fill(Color.white)
             .frame(width: handleSize, height: handleSize)
-            .overlay(Circle().stroke(Color.accentColor, lineWidth: 1))
+            .overlay(Circle().stroke(annotation.color.color, lineWidth: 1.5))
             .position(
                 x: bounds.midX + dragOffset.width,
                 y: bounds.midY + dragOffset.height
@@ -1639,13 +1639,6 @@ struct TextInputOverlay: View {
         return CGSize(width: clamped.x - baseTopLeft.x, height: clamped.y - baseTopLeft.y)
     }
 
-    private var textBoxBackgroundStyle: AnyShapeStyle {
-        if isDragging || isResizing {
-            return AnyShapeStyle(Color.white.opacity(0.9))
-        }
-        return AnyShapeStyle(.ultraThinMaterial)
-    }
-
     var body: some View {
         ZStack(alignment: .topLeading) {
             // Main text box content
@@ -1663,16 +1656,12 @@ struct TextInputOverlay: View {
             }
             .padding(4)
             .frame(width: currentWidth, height: currentHeight, alignment: .topLeading)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(textBoxBackgroundStyle)
-            )
             .overlay(
-                // Border with drag gesture and hover cursor
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(color.opacity(0.15), lineWidth: 1)
+                // Dashed border with drag gesture and hover cursor
+                Rectangle()
+                    .stroke(color, style: StrokeStyle(lineWidth: 1, dash: [5, 3]))
                     .contentShape(
-                        RoundedRectangle(cornerRadius: 4)
+                        Rectangle()
                             .stroke(lineWidth: 12) // Thicker hit area for dragging
                     )
                     .onHover { hovering in
@@ -1720,7 +1709,7 @@ struct TextInputOverlay: View {
 
             // Corner resize handles
             ForEach(TextBoxCorner.allCases, id: \.self) { corner in
-                ResizeHandle(corner: corner, handleSize: handleSize)
+                ResizeHandle(handleSize: handleSize, color: color)
                     .position(cornerPosition(for: corner))
                     .onHover { hovering in
                         hoveredCorner = hovering ? corner : nil
@@ -1783,6 +1772,17 @@ struct TextInputOverlay: View {
                             }
                     )
             }
+
+            // Edge midpoint handles (non-interactive, visual only)
+            let topLeft = baseTopLeft
+            ResizeHandle(handleSize: handleSize, color: color)
+                .position(x: topLeft.x + currentWidth / 2, y: topLeft.y)
+            ResizeHandle(handleSize: handleSize, color: color)
+                .position(x: topLeft.x + currentWidth / 2, y: topLeft.y + currentHeight)
+            ResizeHandle(handleSize: handleSize, color: color)
+                .position(x: topLeft.x, y: topLeft.y + currentHeight / 2)
+            ResizeHandle(handleSize: handleSize, color: color)
+                .position(x: topLeft.x + currentWidth, y: topLeft.y + currentHeight / 2)
         }
         .offset(clampedDragOffset)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -1825,8 +1825,8 @@ struct ResizeState: Equatable {
 // MARK: - Resize Handle View
 
 struct ResizeHandle: View {
-    let corner: TextBoxCorner
     let handleSize: CGFloat
+    let color: Color
 
     var body: some View {
         Circle()
@@ -1834,9 +1834,8 @@ struct ResizeHandle: View {
             .frame(width: handleSize, height: handleSize)
             .overlay(
                 Circle()
-                    .stroke(Color.accentColor, lineWidth: 1.5)
+                    .stroke(color, lineWidth: 1.5)
             )
-            .shadow(color: .black.opacity(0.15), radius: 1, x: 0, y: 1)
     }
 }
 
