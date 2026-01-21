@@ -260,49 +260,55 @@ struct QuickAccessOverlay: View {
     // MARK: - Thumbnail Section
 
     private var thumbnailSection: some View {
-        ZStack {
+        Group {
             if let thumbnail = controller.thumbnail {
-                Image(nsImage: thumbnail)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 320, maxHeight: 180)
-                    .clipShape(RoundedRectangle(cornerRadius: DSRadius.lg))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: DSRadius.lg)
-                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-                    )
-                    .shadow(color: .black.opacity(0.3), radius: 16, x: 0, y: 8)
-            } else {
-                RoundedRectangle(cornerRadius: DSRadius.lg)
-                    .fill(Color.dsBackgroundSecondary)
-                    .frame(height: 180)
-                    .overlay(
-                        VStack(spacing: DSSpacing.sm) {
-                            Image(systemName: controller.capture.type.icon)
-                                .font(.system(size: 40, weight: .light))
-                                .foregroundColor(.dsTextTertiary)
-                            Text("Loading...")
-                                .font(DSTypography.caption)
-                                .foregroundColor(.dsTextTertiary)
-                        }
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: DSRadius.lg)
-                            .strokeBorder(Color.dsBorder, lineWidth: 1)
-                    )
-            }
+                ZStack(alignment: .topTrailing) {
+                    Image(nsImage: thumbnail)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
 
-            // Type badge
-            VStack {
-                HStack {
-                    Spacer()
                     DSBadge(
                         text: controller.capture.type.rawValue.uppercased(),
                         style: .accent
                     )
-                    .padding(DSSpacing.sm)
+                    .padding(.top, DSSpacing.sm)
+                    .padding(.trailing, DSSpacing.sm)
                 }
-                Spacer()
+                .frame(maxWidth: 320, maxHeight: 180)
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.lg))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DSRadius.lg)
+                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.3), radius: 16, x: 0, y: 8)
+            } else {
+                ZStack(alignment: .topTrailing) {
+                    RoundedRectangle(cornerRadius: DSRadius.lg)
+                        .fill(Color.dsBackgroundSecondary)
+                        .overlay(
+                            VStack(spacing: DSSpacing.sm) {
+                                Image(systemName: controller.capture.type.icon)
+                                    .font(.system(size: 40, weight: .light))
+                                    .foregroundColor(.dsTextTertiary)
+                                Text("Loading...")
+                                    .font(DSTypography.caption)
+                                    .foregroundColor(.dsTextTertiary)
+                            }
+                        )
+
+                    DSBadge(
+                        text: controller.capture.type.rawValue.uppercased(),
+                        style: .accent
+                    )
+                    .padding(.top, DSSpacing.sm)
+                    .padding(.trailing, DSSpacing.sm)
+                }
+                .frame(height: 180)
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.lg))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DSRadius.lg)
+                        .strokeBorder(Color.dsBorder, lineWidth: 1)
+                )
             }
         }
     }
