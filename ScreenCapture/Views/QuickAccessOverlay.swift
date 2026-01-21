@@ -71,7 +71,7 @@ class QuickAccessOverlayController: ObservableObject {
     }
 
     func saveToConfiguredLocation() {
-        debugLog("QuickAccess: Save button clicked")
+        debugLog("QuickAccess: Reveal button clicked")
         // The file is already saved to screenshotsDirectory when captured
         let fileURL = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
 
@@ -169,14 +169,6 @@ class QuickAccessOverlayController: ObservableObject {
         dismiss()
     }
 
-    func openInFinder() {
-        debugLog("QuickAccess: Open button clicked")
-        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        NSWorkspace.shared.activateFileViewerSelecting([url])
-        debugLog("QuickAccess: Opened in Finder: \(url.path)")
-        ToastManager.shared.show(.open)
-        dismiss()
-    }
 }
 
 // MARK: - Main Quick Access Overlay
@@ -202,15 +194,10 @@ struct QuickAccessOverlay: View {
             .padding(.top, DSSpacing.md)
             .padding(.bottom, DSSpacing.xs)
 
-            // Thumbnail preview
+            // Thumbnail preview with overlaid actions
             thumbnailSection
-                .padding(.horizontal, DSSpacing.lg)
-
-            // Actions
-            actionsSection
-                .padding(.top, DSSpacing.md)
-                .padding(.horizontal, DSSpacing.lg)
-                .padding(.bottom, DSSpacing.lg)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
         }
         .frame(width: 360)
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.xl))
@@ -277,6 +264,11 @@ struct QuickAccessOverlay: View {
                     Image(nsImage: thumbnail)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
+                        .overlay(alignment: .bottom) {
+                            // Actions overlaid at bottom of image
+                            actionsSection
+                                .padding(.bottom, 8)
+                        }
 
                     DSBadge(
                         text: controller.capture.type.rawValue.uppercased(),
@@ -306,6 +298,11 @@ struct QuickAccessOverlay: View {
                                     .foregroundColor(.dsTextTertiary)
                             }
                         )
+                        .overlay(alignment: .bottom) {
+                            // Actions overlaid at bottom of placeholder
+                            actionsSection
+                                .padding(.bottom, 8)
+                        }
 
                     DSBadge(
                         text: controller.capture.type.rawValue.uppercased(),
@@ -335,8 +332,8 @@ struct QuickAccessOverlay: View {
             )
 
             QuickAccessCompactAction(
-                icon: "square.and.arrow.down",
-                title: "Save",
+                icon: "folder",
+                title: "Reveal",
                 action: controller.saveToConfiguredLocation
             )
 
@@ -356,12 +353,6 @@ struct QuickAccessOverlay: View {
                 icon: "text.viewfinder",
                 title: "OCR",
                 action: controller.performOCR
-            )
-
-            QuickAccessCompactAction(
-                icon: "folder",
-                title: "Open",
-                action: controller.openInFinder
             )
 
             QuickAccessCompactAction(
@@ -395,46 +386,30 @@ struct QuickAccessCompactAction: View {
                 action()
             }
         }) {
-            VStack(spacing: 2) {
-                // Icon circle - compact size
-                ZStack {
-                    Circle()
-                        .fill(
-                            isHovered ?
-                            (isDestructive ? Color.dsDanger.opacity(0.2) : Color.dsAccent.opacity(0.2)) :
-                            Color.white.opacity(0.06)
-                        )
-                        .frame(width: 24, height: 24)
-                        .overlay(
-                            Circle()
-                                .strokeBorder(
-                                    isHovered ?
-                                    (isDestructive ? Color.dsDanger.opacity(0.5) : Color.dsAccent.opacity(0.5)) :
-                                    Color.white.opacity(0.08),
-                                    lineWidth: 1
-                                )
-                        )
+            ZStack {
+                // Frosted glass circle
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 32, height: 32)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(
+                                isHovered ?
+                                (isDestructive ? Color.dsDanger.opacity(0.5) : Color.dsAccent.opacity(0.5)) :
+                                Color.white.opacity(0.15),
+                                lineWidth: 1
+                            )
+                    )
 
-                    Image(systemName: icon)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(
-                            isDestructive ?
-                            (isHovered ? .dsDanger : .dsDanger.opacity(0.7)) :
-                            (isHovered ? .dsAccent : .dsTextPrimary)
-                        )
-                }
-
-                // Title
-                Text(title)
-                    .font(.system(size: 9, weight: .medium))
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundColor(
                         isDestructive ?
-                        (isHovered ? .dsDanger : .dsDanger.opacity(0.7)) :
-                        (isHovered ? .dsTextPrimary : .dsTextTertiary)
+                        (isHovered ? .dsDanger : .dsDanger.opacity(0.8)) :
+                        (isHovered ? .dsAccent : .white)
                     )
             }
-            .frame(width: 36, height: 42)
-            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .scaleEffect(isPressed ? 0.9 : 1.0)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -519,10 +494,6 @@ struct KeyboardShortcutHandler: NSViewRepresentable {
                 case "t":
                     debugLog("KeyboardShortcutHandler: Cmd+T pressed")
                     controller.performOCR()
-                    return
-                case "o":
-                    debugLog("KeyboardShortcutHandler: Cmd+O pressed")
-                    controller.openInFinder()
                     return
                 default:
                     break
