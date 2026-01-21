@@ -146,6 +146,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             completion?()
         }
         webcamManager?.hideWebcam()
+        storageManager.saveHistory()
+        keyboardShortcuts.unregisterAll()
         DebugLogger.shared.flush()
     }
 
@@ -521,11 +523,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             windowToClose.contentView = nil
             windowToClose.close()
         }
-    }
-
-    func applicationWillTerminate(_ notification: Notification) {
-        storageManager.saveHistory()
-        keyboardShortcuts.unregisterAll()
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {

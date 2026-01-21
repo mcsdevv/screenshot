@@ -462,8 +462,10 @@ struct AnnotationCanvas: View {
         let unscaledLocation = clampToImageBounds(gestureLocationToImageCoords(location))
 
         // Clean up any active text editing before handling the tap
+        // Return early to prevent the same click from starting a new text box
         if showTextInput {
             commitTextAnnotation()
+            return
         }
 
         // First, try to select an annotation at this point (regardless of tool)
