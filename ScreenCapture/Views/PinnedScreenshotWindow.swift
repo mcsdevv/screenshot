@@ -19,13 +19,13 @@ class PinnedScreenshotWindow {
         // Create window first so we can reference it in callbacks
         guard let screen = NSScreen.main else { return }
 
-        // Position in bottom-left corner like macOS screenshot preview
-        let padding: CGFloat = 20
-        let posX = screen.visibleFrame.minX + padding
-        let posY = screen.visibleFrame.minY + padding
+        // Use corner preference for initial position
+        let cornerRawValue = UserDefaults.standard.string(forKey: "popupCorner") ?? ScreenCorner.bottomLeft.rawValue
+        let corner = ScreenCorner(rawValue: cornerRawValue) ?? .bottomLeft
+        let origin = corner.windowOrigin(screenFrame: screen.visibleFrame, windowSize: initialSize, padding: 40)
 
         let newWindow = PinnedWindow(
-            contentRect: NSRect(x: posX, y: posY, width: initialSize.width, height: initialSize.height),
+            contentRect: NSRect(origin: origin, size: initialSize),
             styleMask: [.borderless, .resizable],
             backing: .buffered,
             defer: false

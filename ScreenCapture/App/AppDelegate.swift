@@ -262,6 +262,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     func showQuickAccessOverlay(for capture: CaptureItem) {
         closeQuickAccessOverlay()
 
+        // Read corner preference
+        let cornerRawValue = UserDefaults.standard.string(forKey: "popupCorner") ?? ScreenCorner.bottomLeft.rawValue
+        let corner = ScreenCorner(rawValue: cornerRawValue) ?? .bottomLeft
+
         let controller = QuickAccessOverlayController(capture: capture, storageManager: storageManager)
         quickAccessController = controller
 
@@ -271,7 +275,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             }
         }
 
-        let overlayView = QuickAccessOverlay(controller: controller)
+        let overlayView = QuickAccessOverlay(controller: controller, corner: corner)
 
         let windowSize = NSSize(width: 340, height: 340)
         let hostingView = NSHostingView(rootView: overlayView)
@@ -279,21 +283,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
         if let screen = NSScreen.main {
             let screenFrame = screen.visibleFrame
-            let padding: CGFloat = 20
+            let styleMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
 
-            let windowFrame = NSRect(
-                x: screenFrame.minX + padding,
-                y: screenFrame.minY + padding,
-                width: windowSize.width,
-                height: windowSize.height
-            )
+            // Calculate the actual window frame size (includes title bar)
+            let contentRect = NSRect(origin: .zero, size: windowSize)
+            let frameRect = NSWindow.frameRect(forContentRect: contentRect, styleMask: styleMask)
+
+            // Position using the full frame size so title bar doesn't push content down
+            let origin = corner.windowOrigin(screenFrame: screenFrame, windowSize: frameRect.size)
 
             let window = NSWindow(
-                contentRect: windowFrame,
-                styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
+                contentRect: NSRect(origin: .zero, size: windowSize),
+                styleMask: styleMask,
                 backing: .buffered,
                 defer: false
             )
+
+            // Set the actual window frame position
+            window.setFrameOrigin(origin)
 
             // CRITICAL: Prevent double-release crash under ARC
             // NSWindow defaults to isReleasedWhenClosed=true, which causes

@@ -172,7 +172,13 @@ class QuickAccessOverlayController: ObservableObject {
 
 struct QuickAccessOverlay: View {
     @ObservedObject var controller: QuickAccessOverlayController
+    let corner: ScreenCorner
     @State private var isAppearing = false
+
+    init(controller: QuickAccessOverlayController, corner: ScreenCorner = .bottomLeft) {
+        self.controller = controller
+        self.corner = corner
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -199,6 +205,7 @@ struct QuickAccessOverlay: View {
         .background(KeyboardShortcutHandler(controller: controller))
         .opacity(isAppearing ? 1 : 0)
         .scaleEffect(isAppearing ? 1 : 0.95)
+        .offset(isAppearing ? .zero : corner.entranceOffset)
         .onAppear {
             controller.loadThumbnailIfNeeded()
             withAnimation(DSAnimation.spring) {
