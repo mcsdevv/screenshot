@@ -1,6 +1,3 @@
 {
-    "scripts": {
-        "setup": "./scripts/setup.sh",
-        "run": "./scripts/build-and-test.sh --run"
-    }
+    "scripts": {}
 }
