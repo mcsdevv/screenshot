@@ -67,6 +67,10 @@ struct AnnotationCanvas: View {
         return false
     }
 
+    private var isDrawingGestureActive: Bool {
+        !showTextInput && state.currentTool != .select && state.currentTool != .text && state.currentTool != .crop
+    }
+
     var body: some View {
         GeometryReader { geometry in
             ScrollView([.horizontal, .vertical], showsIndicators: true) {
@@ -160,7 +164,7 @@ struct AnnotationCanvas: View {
                 }
                 .frame(width: scaledImageSize.width, height: scaledImageSize.height)
                 .contentShape(Rectangle())
-                .gesture(drawingGesture)
+                .gesture(drawingGesture, including: isDrawingGestureActive ? .all : .none)
                 .onTapGesture { location in
                     handleTap(at: location)
                 }
@@ -1610,19 +1614,34 @@ struct TextInputOverlay: View {
         )
     }
 
-    // Current position including any active drag or resize gesture
-    private var currentTopLeft: CGPoint {
-        var x = position.x + dragTranslation.width
-        var y = position.y + dragTranslation.height
+    // Base position without drag translation (resize offset applied here)
+    private var baseTopLeft: CGPoint {
+        var x = position.x
+        var y = position.y
 
-        // Apply position offset from resize (for left/top edge drags)
         if let resize = resizeState {
             x += resize.xOffset
             y += resize.yOffset
         }
 
-        // Constrain to image bounds
         return clampTopLeft(CGPoint(x: x, y: y), width: currentWidth, height: currentHeight)
+    }
+
+    private var clampedDragOffset: CGSize {
+        guard dragTranslation != .zero else { return .zero }
+        let target = CGPoint(
+            x: baseTopLeft.x + dragTranslation.width,
+            y: baseTopLeft.y + dragTranslation.height
+        )
+        let clamped = clampTopLeft(target, width: currentWidth, height: currentHeight)
+        return CGSize(width: clamped.x - baseTopLeft.x, height: clamped.y - baseTopLeft.y)
+    }
+
+    private var textBoxBackgroundStyle: AnyShapeStyle {
+        if isDragging || isResizing {
+            return AnyShapeStyle(Color.white.opacity(0.9))
+        }
+        return AnyShapeStyle(.ultraThinMaterial)
     }
 
     var body: some View {
@@ -1644,7 +1663,7 @@ struct TextInputOverlay: View {
             .frame(width: currentWidth, height: currentHeight, alignment: .topLeading)
             .background(
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(.ultraThinMaterial)
+                    .fill(textBoxBackgroundStyle)
             )
             .overlay(
                 // Border with drag gesture and hover cursor
@@ -1664,7 +1683,7 @@ struct TextInputOverlay: View {
                             }
                         }
                     }
-                    .gesture(
+                    .highPriorityGesture(
                         DragGesture(minimumDistance: 1)
                             .updating($dragTranslation) { value, state, _ in
                                 state = value.translation
@@ -1682,8 +1701,8 @@ struct TextInputOverlay: View {
                                 // Sync final position back to parent (replaces local committedOffset)
                                 let newTopLeft = clampTopLeft(
                                     CGPoint(
-                                        x: position.x + value.translation.width,
-                                        y: position.y + value.translation.height
+                                        x: baseTopLeft.x + value.translation.width,
+                                        y: baseTopLeft.y + value.translation.height
                                     ),
                                     width: currentWidth,
                                     height: currentHeight
@@ -1695,7 +1714,7 @@ struct TextInputOverlay: View {
                             }
                     )
             )
-            .position(x: currentTopLeft.x + currentWidth / 2, y: currentTopLeft.y + currentHeight / 2)
+            .position(x: baseTopLeft.x + currentWidth / 2, y: baseTopLeft.y + currentHeight / 2)
 
             // Corner resize handles
             ForEach(TextBoxCorner.allCases, id: \.self) { corner in
@@ -1763,6 +1782,7 @@ struct TextInputOverlay: View {
                     )
             }
         }
+        .offset(clampedDragOffset)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onExitCommand { onCancel() }
         .onAppear {
@@ -1776,7 +1796,7 @@ struct TextInputOverlay: View {
     }
 
     private func cornerPosition(for corner: TextBoxCorner) -> CGPoint {
-        let topLeft = currentTopLeft
+        let topLeft = baseTopLeft
 
         switch corner {
         case .topLeft:
@@ -1936,6 +1956,9 @@ struct AnnotationTextView: NSViewRepresentable {
         scrollView.drawsBackground = false
         scrollView.borderType = .noBorder
 
+        context.coordinator.lastFont = font
+        context.coordinator.lastTextColor = textColor
+
         // Make first responder after a brief delay to ensure view is in hierarchy
         // Use weak reference to prevent crash if view is deallocated before async block executes
         DispatchQueue.main.async { [weak textView] in
@@ -1952,12 +1975,20 @@ struct AnnotationTextView: NSViewRepresentable {
         if textView.string != text {
             textView.string = text
         }
-        textView.font = font
-        textView.textColor = textColor
+        if context.coordinator.lastFont != font {
+            textView.font = font
+            context.coordinator.lastFont = font
+        }
+        if context.coordinator.lastTextColor != textColor {
+            textView.textColor = textColor
+            context.coordinator.lastTextColor = textColor
+        }
     }
 
     class Coordinator: NSObject, NSTextViewDelegate {
         var parent: AnnotationTextView
+        var lastFont: NSFont?
+        var lastTextColor: NSColor?
 
         init(_ parent: AnnotationTextView) {
             self.parent = parent
