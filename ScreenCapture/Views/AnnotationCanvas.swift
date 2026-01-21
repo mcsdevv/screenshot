@@ -17,6 +17,7 @@ struct AnnotationCanvas: View {
     @State private var textPosition: CGPoint = .zero
     @State private var dragStartLocation: CGPoint = .zero
     @State private var editingAnnotationId: UUID? = nil  // Track which annotation is being edited (for text)
+    @State private var textBoxSize: CGSize = .zero  // Track current textbox dimensions for persistence
 
     // For blur caching - only cache committed blur annotations, not during drag
     @State private var cachedBlurImage: NSImage?
@@ -161,12 +162,16 @@ struct AnnotationCanvas: View {
                             color: state.currentColor,
                             fontSize: state.currentFontSize,
                             fontName: state.currentFontName,
+                            initialWidth: textBoxSize.width,
+                            initialHeight: textBoxSize.height,
                             onCommit: { commitTextAnnotation() },
                             onCancel: {
                                 showTextInput = false
                                 editingAnnotationId = nil
                                 textInput = ""
-                            }
+                                textBoxSize = .zero
+                            },
+                            onSizeChange: { textBoxSize = $0 }
                         )
                     }
                 }
@@ -493,6 +498,11 @@ struct AnnotationCanvas: View {
                     x: annotation.cgRect.origin.x * zoom - 4, // Account for text container inset
                     y: annotation.cgRect.origin.y * zoom - 4
                 )
+                // Initialize textbox size from stored annotation size (scaled)
+                textBoxSize = CGSize(
+                    width: annotation.cgRect.width * zoom,
+                    height: annotation.cgRect.height * zoom
+                )
                 showTextInput = true
             }
             // Show layer panel when selection made (unless manually hidden)
@@ -516,6 +526,7 @@ struct AnnotationCanvas: View {
             // Store position in scaled coordinates (where user clicked)
             textPosition = location
             textInput = ""
+            textBoxSize = .zero  // Reset to use defaults for new text annotation
             showTextInput = true
 
         case .numberedStep:
@@ -701,17 +712,21 @@ struct AnnotationCanvas: View {
                     x: textPosition.x + paddingOffset,
                     y: textPosition.y + paddingOffset
                 )
-                // Recalculate text size in case text or font changed
-                let textSize = measureTextSize(text: textInput, fontSize: state.currentFontSize, fontName: state.currentFontName)
+                // Convert textBoxSize from screen coordinates to image coordinates
+                let unscaledSize = CGSize(
+                    width: textBoxSize.width / zoom,
+                    height: textBoxSize.height / zoom
+                )
                 annotation.rect = CodableRect(CGRect(
                     origin: clampToImageBounds(gestureLocationToImageCoords(newPosition)),
-                    size: textSize
+                    size: unscaledSize
                 ))
                 state.updateAnnotation(annotation)
             }
             editingAnnotationId = nil
             showTextInput = false
             textInput = ""
+            textBoxSize = .zero
             return
         }
 
@@ -730,10 +745,14 @@ struct AnnotationCanvas: View {
 
         // Convert from scaled position to image coordinates
         let unscaledPosition = clampToImageBounds(gestureLocationToImageCoords(adjustedPosition))
-        let textSize = measureTextSize(text: textInput, fontSize: state.currentFontSize, fontName: state.currentFontName)
+        // Convert textBoxSize from screen coordinates to image coordinates
+        let unscaledSize = CGSize(
+            width: textBoxSize.width / zoom,
+            height: textBoxSize.height / zoom
+        )
         let annotation = Annotation(
             type: .text,
-            rect: CGRect(origin: unscaledPosition, size: textSize),
+            rect: CGRect(origin: unscaledPosition, size: unscaledSize),
             color: state.currentColor,
             text: textInput,
             fontSize: state.currentFontSize,
@@ -742,6 +761,7 @@ struct AnnotationCanvas: View {
         state.addAnnotation(annotation)
         showTextInput = false
         textInput = ""
+        textBoxSize = .zero
     }
 
     private func makeRect(from start: CGPoint, to end: CGPoint) -> CGRect {
@@ -1579,12 +1599,16 @@ struct TextInputOverlay: View {
     let color: Color
     let fontSize: CGFloat
     let fontName: String
+    let initialWidth: CGFloat
+    let initialHeight: CGFloat
     let onCommit: () -> Void
     let onCancel: () -> Void
+    let onSizeChange: (CGSize) -> Void
 
     // Committed state - persists after gestures end
     @State private var committedWidth: CGFloat = 0
     @State private var committedHeight: CGFloat = 0
+    @State private var hasInitializedSize: Bool = false
 
     // Gesture state - auto-resets when gesture ends
     @GestureState private var dragTranslation: CGSize = .zero
@@ -1729,6 +1753,8 @@ struct TextInputOverlay: View {
                                     height: newHeight
                                 )
                                 position = newTopLeft
+                                // Report size change to parent
+                                onSizeChange(CGSize(width: newWidth, height: newHeight))
 
                                 if hoveredCorner != nil {
                                     // Cursor already set from hover
@@ -1754,11 +1780,21 @@ struct TextInputOverlay: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onExitCommand { onCancel() }
         .onAppear {
-            if committedWidth == 0 {
-                committedWidth = defaultWidth
-            }
-            if committedHeight == 0 {
-                committedHeight = defaultHeight
+            // Initialize from provided initial values (for existing annotation) or use defaults
+            if !hasInitializedSize {
+                hasInitializedSize = true
+                if initialWidth > 0 {
+                    committedWidth = initialWidth
+                } else if committedWidth == 0 {
+                    committedWidth = defaultWidth
+                }
+                if initialHeight > 0 {
+                    committedHeight = initialHeight
+                } else if committedHeight == 0 {
+                    committedHeight = defaultHeight
+                }
+                // Report initial size to parent
+                onSizeChange(CGSize(width: committedWidth, height: committedHeight))
             }
         }
     }
