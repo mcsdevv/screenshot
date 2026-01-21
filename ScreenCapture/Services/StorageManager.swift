@@ -212,7 +212,7 @@ class StorageManager: ObservableObject {
         history.items.removeAll { item in
             if item.isFavorite { return false }
             if item.createdAt < cutoffDate {
-                deleteFile(named: item.filename)
+                _ = deleteFile(named: item.filename)
                 return true
             }
             return false
@@ -301,10 +301,12 @@ class StorageManager: ObservableObject {
         history.items.first { $0.id == id }
     }
 
-    func deleteCapture(_ capture: CaptureItem) {
-        deleteFile(named: capture.filename)
+    @discardableResult
+    func deleteCapture(_ capture: CaptureItem) -> Bool {
+        let deleted = deleteFile(named: capture.filename)
         history.remove(id: capture.id)
         saveHistory()
+        return deleted
     }
 
     func toggleFavorite(_ capture: CaptureItem) {
@@ -344,9 +346,19 @@ class StorageManager: ObservableObject {
         return "\(type.prefix) \(dateString).\(ext)"
     }
 
-    private func deleteFile(named filename: String) {
+    private func deleteFile(named filename: String) -> Bool {
         let url = screenshotsDirectory.appendingPathComponent(filename)
-        try? config.fileManager.removeItem(at: url)
+        guard config.fileManager.fileExists(atPath: url.path) else {
+            return true
+        }
+
+        do {
+            try config.fileManager.removeItem(at: url)
+            return true
+        } catch {
+            errorLog("StorageManager: Failed to delete file at \(url.path)", error: error)
+            return false
+        }
     }
 
     func saveHistory() {

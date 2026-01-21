@@ -63,6 +63,7 @@ class QuickAccessOverlayController: ObservableObject {
             pasteboard.writeObjects([image])
             debugLog("QuickAccess: Image copied to clipboard successfully")
             NSSound(named: "Pop")?.play()
+            ToastManager.shared.show(.copy)
         } else {
             errorLog("QuickAccess: Failed to load image for clipboard")
         }
@@ -80,6 +81,7 @@ class QuickAccessOverlayController: ObservableObject {
         if FileManager.default.fileExists(atPath: fileURL.path) {
             debugLog("File found, revealing in Finder")
             NSSound(named: "Pop")?.play()
+            ToastManager.shared.show(.save)
             NSWorkspace.shared.activateFileViewerSelecting([fileURL])
         } else {
             // Try the default directory as fallback (in case settings changed after capture)
@@ -89,6 +91,7 @@ class QuickAccessOverlayController: ObservableObject {
             if FileManager.default.fileExists(atPath: fallbackURL.path) {
                 debugLog("File found at default location, revealing in Finder")
                 NSSound(named: "Pop")?.play()
+                ToastManager.shared.show(.save)
                 NSWorkspace.shared.activateFileViewerSelecting([fallbackURL])
             } else {
                 errorLog("File not found at: \(fileURL.path) or \(fallbackURL.path)")
@@ -120,6 +123,7 @@ class QuickAccessOverlayController: ObservableObject {
             // Use the manager to retain the window reference
             _ = PinnedScreenshotManager.shared.pin(image: image)
             debugLog("QuickAccess: Screenshot pinned successfully")
+            ToastManager.shared.show(.pin)
         } else {
             errorLog("QuickAccess: Failed to load image for pinning")
         }
@@ -144,6 +148,7 @@ class QuickAccessOverlayController: ObservableObject {
                     debugLog("QuickAccess: OCR successful, extracted \(text.count) characters")
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(text, forType: .string)
+                    ToastManager.shared.show(.ocr)
                 case .failure(let error):
                     errorLog("QuickAccess: OCR failed: \(error)")
                 }
@@ -154,8 +159,13 @@ class QuickAccessOverlayController: ObservableObject {
 
     func deleteCapture() {
         debugLog("QuickAccess: Delete button clicked")
-        storageManager.deleteCapture(capture)
-        debugLog("QuickAccess: Capture deleted")
+        let deleted = storageManager.deleteCapture(capture)
+        if deleted {
+            debugLog("QuickAccess: Capture deleted")
+            ToastManager.shared.show(.delete)
+        } else {
+            errorLog("QuickAccess: Failed to delete capture \(capture.filename)")
+        }
         dismiss()
     }
 
@@ -164,6 +174,7 @@ class QuickAccessOverlayController: ObservableObject {
         let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
         NSWorkspace.shared.activateFileViewerSelecting([url])
         debugLog("QuickAccess: Opened in Finder: \(url.path)")
+        ToastManager.shared.show(.open)
         dismiss()
     }
 }
