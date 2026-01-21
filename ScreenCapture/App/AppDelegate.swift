@@ -65,6 +65,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
     func applicationWillTerminate(_ notification: Notification) {
         performTerminationCleanup(reason: "applicationWillTerminate")
+        storageManager.saveHistory()
+        keyboardShortcuts.unregisterAll()
     }
 
     private func setupMainMenu() {
@@ -521,11 +523,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             windowToClose.contentView = nil
             windowToClose.close()
         }
-    }
-
-    func applicationWillTerminate(_ notification: Notification) {
-        storageManager.saveHistory()
-        keyboardShortcuts.unregisterAll()
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
