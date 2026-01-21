@@ -16,6 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     var settingsWindow: NSWindow?
     var annotationWindow: NSWindow?
     var keyboardShortcutsWindow: NSWindow?
+    private var toastController: ToastWindowController?
     private var cancellables = Set<AnyCancellable>()
     private var terminationHandled = false
     private var userInitiatedQuit = false
@@ -31,6 +32,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         setupKeyboardShortcuts()
         setupNotifications()
         setupMainMenu()
+        setupToastWindow()
 
         // Show shortcut remapping prompt on first launch
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -148,6 +150,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             completion?()
         }
         webcamManager?.hideWebcam()
+        toastController?.teardown()
         storageManager.saveHistory()
         keyboardShortcuts.unregisterAll()
         DebugLogger.shared.flush()
@@ -215,6 +218,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         }
 
         debugLog("AppDelegate: All keyboard shortcuts registered")
+    }
+
+    private func setupToastWindow() {
+        toastController = ToastWindowController()
+        toastController?.setup()
+        debugLog("AppDelegate: Toast window initialized")
     }
 
     private func setupNotifications() {
