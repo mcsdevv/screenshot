@@ -201,7 +201,7 @@ struct QuickAccessOverlay: View {
                 // Actions overlaid at bottom
                 actionsSection
                     .padding(.horizontal, DSSpacing.sm)
-                    .padding(.bottom, DSSpacing.md)
+                    .padding(.bottom, 8)
             }
             .padding(.horizontal, DSSpacing.lg)
             .padding(.bottom, DSSpacing.lg)
@@ -384,19 +384,25 @@ struct QuickAccessCompactAction: View {
             }
         }) {
             ZStack {
+                // Frosted glass circle
                 Circle()
-                    .fill(
-                        isHovered ?
-                        (isDestructive ? Color.dsDanger.opacity(0.3) : Color.dsAccent.opacity(0.3)) :
-                        Color.black.opacity(0.5)
-                    )
+                    .fill(.ultraThinMaterial)
                     .frame(width: 32, height: 32)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(
+                                isHovered ?
+                                (isDestructive ? Color.dsDanger.opacity(0.5) : Color.dsAccent.opacity(0.5)) :
+                                Color.white.opacity(0.15),
+                                lineWidth: 1
+                            )
+                    )
 
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(
                         isDestructive ?
-                        (isHovered ? .dsDanger : .white) :
+                        (isHovered ? .dsDanger : .dsDanger.opacity(0.8)) :
                         (isHovered ? .dsAccent : .white)
                     )
             }
