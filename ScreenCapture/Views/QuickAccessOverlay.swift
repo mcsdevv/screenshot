@@ -195,16 +195,9 @@ struct QuickAccessOverlay: View {
             .padding(.bottom, DSSpacing.xs)
 
             // Thumbnail preview with overlaid actions
-            ZStack(alignment: .bottom) {
-                thumbnailSection
-
-                // Actions overlaid at bottom
-                actionsSection
-                    .padding(.horizontal, DSSpacing.sm)
-                    .padding(.bottom, 8)
-            }
-            .padding(.horizontal, DSSpacing.lg)
-            .padding(.bottom, DSSpacing.lg)
+            thumbnailSection
+                .padding(.horizontal, DSSpacing.lg)
+                .padding(.bottom, DSSpacing.lg)
         }
         .frame(width: 360)
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.xl))
@@ -271,6 +264,11 @@ struct QuickAccessOverlay: View {
                     Image(nsImage: thumbnail)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
+                        .overlay(alignment: .bottom) {
+                            // Actions overlaid at bottom of image
+                            actionsSection
+                                .padding(.bottom, 8)
+                        }
 
                     DSBadge(
                         text: controller.capture.type.rawValue.uppercased(),
@@ -300,6 +298,11 @@ struct QuickAccessOverlay: View {
                                     .foregroundColor(.dsTextTertiary)
                             }
                         )
+                        .overlay(alignment: .bottom) {
+                            // Actions overlaid at bottom of placeholder
+                            actionsSection
+                                .padding(.bottom, 8)
+                        }
 
                     DSBadge(
                         text: controller.capture.type.rawValue.uppercased(),
