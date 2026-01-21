@@ -188,17 +188,9 @@ struct QuickAccessOverlay: View {
             thumbnailSection
                 .padding(.horizontal, DSSpacing.lg)
 
-            // Primary actions
-            primaryActionsSection
-                .padding(.top, DSSpacing.lg)
-                .padding(.horizontal, DSSpacing.lg)
-
-            DSDivider()
-                .padding(.horizontal, DSSpacing.xl)
-                .padding(.vertical, DSSpacing.md)
-
-            // Secondary actions
-            secondaryActionsSection
+            // Actions
+            actionsSection
+                .padding(.top, DSSpacing.md)
                 .padding(.horizontal, DSSpacing.lg)
                 .padding(.bottom, DSSpacing.lg)
         }
@@ -302,181 +294,59 @@ struct QuickAccessOverlay: View {
         }
     }
 
-    // MARK: - Primary Actions
+    // MARK: - Actions
 
-    private var primaryActionsSection: some View {
-        HStack(spacing: DSSpacing.sm) {
-            QuickAccessActionCard(
+    private var actionsSection: some View {
+        HStack(spacing: DSSpacing.xs) {
+            QuickAccessCompactAction(
                 icon: "doc.on.clipboard",
                 title: "Copy",
-                shortcut: "C",
                 action: controller.copyToClipboard
             )
 
-            QuickAccessActionCard(
+            QuickAccessCompactAction(
                 icon: "square.and.arrow.down",
                 title: "Save",
-                shortcut: "S",
                 action: controller.saveToConfiguredLocation
             )
 
-            QuickAccessActionCard(
+            QuickAccessCompactAction(
                 icon: "pencil.tip.crop.circle",
                 title: "Edit",
-                shortcut: "E",
                 action: controller.openAnnotationEditor
             )
 
-            QuickAccessActionCard(
+            QuickAccessCompactAction(
                 icon: "pin.fill",
                 title: "Pin",
-                shortcut: "P",
                 action: controller.pinScreenshot
             )
-        }
-    }
 
-    // MARK: - Secondary Actions
-
-    private var secondaryActionsSection: some View {
-        HStack(spacing: DSSpacing.lg) {
-            QuickAccessSecondaryAction(
+            QuickAccessCompactAction(
                 icon: "text.viewfinder",
                 title: "OCR",
                 action: controller.performOCR
             )
 
-            QuickAccessSecondaryAction(
+            QuickAccessCompactAction(
                 icon: "folder",
-                title: "Reveal",
+                title: "Open",
                 action: controller.openInFinder
             )
 
-            QuickAccessSecondaryAction(
+            QuickAccessCompactAction(
                 icon: "trash",
                 title: "Delete",
                 isDestructive: true,
                 action: controller.deleteCapture
             )
-
-            Spacer()
-
-            // Dismiss hint
-            HStack(spacing: DSSpacing.xxs) {
-                Text("esc")
-                    .font(DSTypography.monoSmall)
-                    .foregroundColor(.dsTextTertiary)
-                    .padding(.horizontal, DSSpacing.xs)
-                    .padding(.vertical, DSSpacing.xxxs)
-                    .background(
-                        RoundedRectangle(cornerRadius: DSRadius.xs)
-                            .fill(Color.white.opacity(0.05))
-                    )
-                Text("to close")
-                    .font(DSTypography.caption)
-                    .foregroundColor(.dsTextTertiary)
-            }
         }
     }
 }
 
-// MARK: - Quick Access Action Card
+// MARK: - Quick Access Compact Action
 
-struct QuickAccessActionCard: View {
-    let icon: String
-    let title: String
-    let shortcut: String
-    let action: () -> Void
-
-    @State private var isHovered = false
-    @State private var isPressed = false
-
-    var body: some View {
-        Button(action: {
-            withAnimation(DSAnimation.springQuick) {
-                isPressed = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isPressed = false
-                action()
-            }
-        }) {
-            VStack(spacing: DSSpacing.sm) {
-                // Icon with glow effect
-                ZStack {
-                    // Glow background
-                    if isHovered {
-                        Circle()
-                            .fill(Color.dsAccent.opacity(0.2))
-                            .frame(width: 48, height: 48)
-                            .blur(radius: 8)
-                    }
-
-                    // Icon circle
-                    Circle()
-                        .fill(
-                            isHovered ?
-                            Color.dsAccent.opacity(0.2) :
-                            Color.white.opacity(0.06)
-                        )
-                        .frame(width: 44, height: 44)
-                        .overlay(
-                            Circle()
-                                .strokeBorder(
-                                    isHovered ? Color.dsAccent.opacity(0.5) : Color.white.opacity(0.08),
-                                    lineWidth: 1
-                                )
-                        )
-
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(isHovered ? .dsAccent : .dsTextPrimary)
-                }
-
-                // Title
-                Text(title)
-                    .font(DSTypography.labelSmall)
-                    .foregroundColor(isHovered ? .dsTextPrimary : .dsTextSecondary)
-
-                // Shortcut hint
-                Text("⌘\(shortcut)")
-                    .font(DSTypography.monoSmall)
-                    .foregroundColor(.dsTextTertiary)
-                    .padding(.horizontal, DSSpacing.xs)
-                    .padding(.vertical, 2)
-                    .background(
-                        RoundedRectangle(cornerRadius: DSRadius.xs)
-                            .fill(Color.white.opacity(0.04))
-                    )
-                    .opacity(isHovered ? 1 : 0.6)
-            }
-            .frame(width: 76, height: 100)
-            .background(
-                RoundedRectangle(cornerRadius: DSRadius.lg)
-                    .fill(isHovered ? Color.white.opacity(0.04) : Color.clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DSRadius.lg)
-                    .strokeBorder(
-                        isHovered ? Color.white.opacity(0.1) : Color.clear,
-                        lineWidth: 1
-                    )
-            )
-            .scaleEffect(isPressed ? 0.95 : 1.0)
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            withAnimation(DSAnimation.quick) {
-                isHovered = hovering
-            }
-        }
-        .help("\(title) (⌘\(shortcut))")
-    }
-}
-
-// MARK: - Quick Access Secondary Action
-
-struct QuickAccessSecondaryAction: View {
+struct QuickAccessCompactAction: View {
     let icon: String
     let title: String
     var isDestructive: Bool = false
@@ -495,23 +365,45 @@ struct QuickAccessSecondaryAction: View {
                 action()
             }
         }) {
-            HStack(spacing: DSSpacing.xs) {
-                Image(systemName: icon)
-                    .font(.system(size: 11, weight: .medium))
+            VStack(spacing: 2) {
+                // Icon circle - compact size
+                ZStack {
+                    Circle()
+                        .fill(
+                            isHovered ?
+                            (isDestructive ? Color.dsDanger.opacity(0.2) : Color.dsAccent.opacity(0.2)) :
+                            Color.white.opacity(0.06)
+                        )
+                        .frame(width: 24, height: 24)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(
+                                    isHovered ?
+                                    (isDestructive ? Color.dsDanger.opacity(0.5) : Color.dsAccent.opacity(0.5)) :
+                                    Color.white.opacity(0.08),
+                                    lineWidth: 1
+                                )
+                        )
+
+                    Image(systemName: icon)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(
+                            isDestructive ?
+                            (isHovered ? .dsDanger : .dsDanger.opacity(0.7)) :
+                            (isHovered ? .dsAccent : .dsTextPrimary)
+                        )
+                }
+
+                // Title
                 Text(title)
-                    .font(DSTypography.labelSmall)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(
+                        isDestructive ?
+                        (isHovered ? .dsDanger : .dsDanger.opacity(0.7)) :
+                        (isHovered ? .dsTextPrimary : .dsTextTertiary)
+                    )
             }
-            .foregroundColor(
-                isDestructive ?
-                (isHovered ? .dsDanger : .dsDanger.opacity(0.7)) :
-                (isHovered ? .dsTextPrimary : .dsTextTertiary)
-            )
-            .padding(.horizontal, DSSpacing.sm)
-            .padding(.vertical, DSSpacing.xs)
-            .background(
-                RoundedRectangle(cornerRadius: DSRadius.sm)
-                    .fill(isHovered ? Color.white.opacity(0.06) : Color.clear)
-            )
+            .frame(width: 36, height: 42)
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)
@@ -520,6 +412,7 @@ struct QuickAccessSecondaryAction: View {
                 isHovered = hovering
             }
         }
+        .help(title)
     }
 }
 
