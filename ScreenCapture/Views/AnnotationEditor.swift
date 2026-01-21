@@ -996,8 +996,7 @@ struct ColorPickerGrid: View {
     @Binding var showPicker: Bool
     var onColorChange: ((Color) -> Void)? = nil
 
-    // Local state to buffer ColorPicker updates and prevent crash from rapid binding updates
-    @State private var pickerColor: Color = .red
+    @State private var showCustomPicker = false
 
     private let colors = Color.annotationColors
 
@@ -1019,17 +1018,23 @@ struct ColorPickerGrid: View {
 
             DSDivider()
 
-            ColorPicker("Custom", selection: $pickerColor)
-                .labelsHidden()
-                .onChange(of: pickerColor) { _, newColor in
-                    selectedColor = newColor
-                    onColorChange?(newColor)
+            Button(action: { showCustomPicker = true }) {
+                HStack {
+                    Image(systemName: "eyedropper")
+                    Text("Custom Color")
                 }
+                .font(.system(size: 12))
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
         }
         .padding(DSSpacing.md)
         .background(Color.dsBackgroundElevated)
-        .onAppear {
-            pickerColor = selectedColor
+        .sheet(isPresented: $showCustomPicker) {
+            CustomColorPicker(selectedColor: $selectedColor)
+                .onChange(of: selectedColor) { _, newColor in
+                    onColorChange?(newColor)
+                }
         }
     }
 }

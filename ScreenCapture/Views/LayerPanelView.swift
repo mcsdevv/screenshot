@@ -238,8 +238,7 @@ struct DraggableLayerRow: View {
     @State private var editedNumber: String = ""
     @State private var editedName: String = ""
     @State private var shouldSaveOnEditEnd: Bool = true
-    // Local state to buffer ColorPicker updates and prevent crash from rapid binding updates
-    @State private var pickerColor: Color = .red
+    @State private var showColorPicker = false
     @FocusState private var isNameFieldFocused: Bool
 
     /// Whether this row is currently editing its name (derived from parent binding)
@@ -433,26 +432,26 @@ struct DraggableLayerRow: View {
     private var typeIconView: some View {
         Group {
             if annotation.type != .blur {
-                // Use simple Circle during drag to prevent ColorPicker state corruption
-                if isDragActive {
+                // Use button + popover instead of native ColorPicker to avoid NSColorWell crash
+                Button(action: { showColorPicker.toggle() }) {
                     Circle()
                         .fill(annotation.swiftUIColor)
                         .frame(width: 14, height: 14)
-                } else {
-                    // Use stable @State binding to prevent crash from binding invalidation during popover animation
-                    ColorPicker("", selection: $pickerColor)
-                        .labelsHidden()
-                        .frame(width: 14, height: 14)
-                        .clipShape(Circle())
-                        .onChange(of: pickerColor) { _, newColor in
-                            onColorChange?(newColor)
-                        }
-                        .onAppear {
-                            pickerColor = annotation.swiftUIColor
-                        }
-                        .onChange(of: annotation.swiftUIColor) { _, newColor in
-                            pickerColor = newColor
-                        }
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(isDragActive)
+                .popover(isPresented: $showColorPicker) {
+                    ColorPickerView(
+                        selectedColor: Binding(
+                            get: { annotation.swiftUIColor },
+                            set: { onColorChange?($0) }
+                        ),
+                        colors: Color.annotationColors
+                    )
                 }
             } else {
                 Image(systemName: typeIcon)
