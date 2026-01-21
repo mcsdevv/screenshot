@@ -1,109 +1,80 @@
 # Screenshot App - Project Instructions
 
-## Project Overview
+macOS screenshot/screen capture app. Swift + SwiftUI + ScreenCaptureKit.
 
-This is a macOS screenshot/screen capture application built with Swift and SwiftUI.
+## Build Commands
 
-## Conductor Commands
-
-Configuration is in `conductor.json`. Available commands:
-
-| Command | Script | Description |
-|---------|--------|-------------|
-| Setup | `./scripts/setup.sh` | Verify environment is ready |
-| Run | `./scripts/build-and-test.sh --run` | Build and launch app |
-| Build | `./scripts/build-and-test.sh` | Build only |
-| Test | `./scripts/build-and-test.sh --verbose` | Build with full output |
-
-## Setup
-
-Run once to verify the environment:
 ```bash
-./scripts/setup.sh
+./scripts/build-and-test.sh          # Build only
+./scripts/build-and-test.sh --run    # Build and launch
+./scripts/build-and-test.sh --clean  # Clean build
 ```
 
-## Build & Verify
+## Skill Overrides (stricter than global)
 
-**Always run the build script after making changes:**
-```bash
-./scripts/build-and-test.sh
+- **Any UI change**: MUST use `frontend-design` skill. This app has a design system (`DesignSystem.swift`)—never use raw SwiftUI styling.
+- **Any crash/unexpected behavior**: MUST use `systematic-debugging`. This app has complex window lifecycle issues.
+
+## Project-Specific Anti-Patterns (CRITICAL)
+
+These are battle scars from this codebase. Violating them causes real crashes.
+
+### NSWindow Double-Release (EXC_BAD_ACCESS)
+
+**Problem:** Programmatic NSWindows crash on close due to ARC + AppKit double-release.
+
+**Rule:** ALWAYS set `isReleasedWhenClosed = false` immediately after creating any NSWindow.
+
+```swift
+// CORRECT
+let window = NSWindow(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
+window.isReleasedWhenClosed = false  // CRITICAL - prevents crash
+
+// WRONG - will crash when window closes
+let window = NSWindow(...)
+// missing isReleasedWhenClosed = false
 ```
 
-Options:
-- `--run` - Build and launch the app to test changes
-- `--clean` - Clean build first
-- `--open-xcode` - Open project in Xcode
-- `--verbose` - Show full build output
-- `--release` - Build release configuration
+**Files that create windows (check all when adding new windows):**
+- `AppDelegate.swift` - QuickAccessOverlay, AllInOneMenu
+- `ScreenRecordingManager.swift` - selection window, control window
+- `ScrollingCapture.swift` - instructions window, controls window
+- `PinnedScreenshotWindow.swift` - pinned screenshot window
 
-Example workflow after code changes:
-```bash
-./scripts/build-and-test.sh --run   # Build and launch to verify
+### Design System Consistency
+
+**Problem:** New UI uses raw SwiftUI (`.accentColor`, `.bordered`) instead of design system.
+
+**Rule:** Always use `DS*` components and colors:
+- Colors: `.dsAccent`, `.dsTextPrimary`, `.dsTextSecondary`
+- Buttons: `DSPrimaryButton`, `DSSecondaryButton`, `DSIconButton`
+- Spacing: `DSSpacing.*`, `DSRadius.*`
+- Typography: `DSTypography.*`
+
+```swift
+// CORRECT
+Text("Title").font(DSTypography.title).foregroundColor(.dsTextPrimary)
+DSPrimaryButton("Save") { save() }
+
+// WRONG - breaks visual consistency
+Text("Title").font(.title).foregroundColor(.primary)
+Button("Save") { save() }.buttonStyle(.borderedProminent)
 ```
 
-Or use the raw xcodebuild command:
-```bash
-xcodebuild -project ScreenCapture.xcodeproj -scheme ScreenCapture build
-```
+### Keyboard Shortcut Conflicts
 
-## Skills to Use
+**Problem:** `Cmd+Shift+3/4/5` conflicts with macOS Screenshot.app.
 
-- **UI changes**: Always use `frontend-design` skill for any UI modifications
-- **Debugging**: Use `systematic-debugging` for any crashes or unexpected behavior
-- **New features**: Use `brainstorming` before implementing new annotation tools or UI elements
+**Rule:** Use `Ctrl+Shift` prefix in Safe Mode (default). See `KeyboardShortcuts.swift` for the pattern.
 
-## Swift/SwiftUI Guidelines
+## Documentation Sync
 
-- Use `@State`, `@Binding`, and `@ObservableObject` appropriately
-- Prefer `guard` statements over force unwrapping
-- Use `async/await` for asynchronous operations
-- Keep views small and composable
-- Use `PreviewProvider` for all views to enable SwiftUI previews
+Docs site: `docs/` (Fumadocs/Next.js). FEATURES.md is source of truth.
 
-## Code Style
+**Every user-facing change requires:**
+1. Update MDX in `docs/content/docs/`
+2. Update `FEATURES.md`
+3. Run `cd docs && pnpm build`
+4. Commit code + docs together
 
-- Follow Swift naming conventions (camelCase for variables/functions, PascalCase for types)
-- Use meaningful variable names
-- Add documentation comments for public APIs
-- Keep functions focused and single-purpose
-
-## Documentation Updates
-
-The documentation site is in `docs/` using Fumadocs (Next.js). When modifying features:
-
-1. Update the relevant MDX file in `docs/content/docs/`
-2. If adding a new feature, create a new MDX file
-3. Update `meta.json` navigation if needed
-4. Run `cd docs && pnpm build` to verify
-5. Commit both code and docs changes together
-
-### Documentation Structure
-
-```
-docs/content/docs/
-├── index.mdx              # Getting Started
-├── capture/               # Screenshot capture modes
-├── recording/             # Video and GIF recording
-├── annotation/            # Annotation tools
-├── features/              # Additional features
-├── shortcuts/             # Keyboard shortcuts
-├── settings/              # App settings
-├── storage/               # File management
-└── system/                # System integration
-```
-
-### Keeping FEATURES.md in Sync
-
-When updating documentation, also update `FEATURES.md` in the root to keep it as the source of truth for feature specifications.
-
-## Mandatory Documentation Checklist
-
-**CRITICAL: Every PR that adds/modifies user-facing features MUST include documentation updates.**
-
-Before marking work complete:
-- [ ] Update relevant MDX file in `docs/content/docs/`
-- [ ] Update `FEATURES.md` if feature spec changed
-- [ ] Run `cd docs && pnpm build` to verify
-- [ ] Commit docs with code changes
-
-If you skip this, you MUST create a follow-up task for documentation.
+**If you skip docs:** Create explicit follow-up todo. Don't leave it implicit.
