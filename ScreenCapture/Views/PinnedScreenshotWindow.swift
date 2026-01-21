@@ -15,39 +15,48 @@ class PinnedScreenshotWindow {
 
     func show() {
         let initialSize = calculateInitialSize()
+
+        // Create window first so we can reference it in callbacks
+        guard let screen = NSScreen.main else { return }
+
+        // Position in bottom-left corner like macOS screenshot preview
+        let padding: CGFloat = 20
+        let posX = screen.visibleFrame.minX + padding
+        let posY = screen.visibleFrame.minY + padding
+
+        let newWindow = PinnedWindow(
+            contentRect: NSRect(x: posX, y: posY, width: initialSize.width, height: initialSize.height),
+            styleMask: [.borderless, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window = newWindow
+
         let pinnedView = PinnedScreenshotView(
             image: image,
             initialSize: initialSize,
             onClose: { [weak self] in
                 self?.close()
+            },
+            onLockChanged: { [weak newWindow] isLocked in
+                newWindow?.isMovableByWindowBackground = !isLocked
             }
         )
 
         let hostingView = NSHostingView(rootView: pinnedView)
         hostingView.frame = NSRect(origin: .zero, size: initialSize)
 
-        guard let screen = NSScreen.main else { return }
-        let centerX = screen.frame.midX - initialSize.width / 2
-        let centerY = screen.frame.midY - initialSize.height / 2
-
-        window = PinnedWindow(
-            contentRect: NSRect(x: centerX, y: centerY, width: initialSize.width, height: initialSize.height),
-            styleMask: [.borderless, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-
         // CRITICAL: Prevent double-release crash under ARC
-        window?.isReleasedWhenClosed = false
+        newWindow.isReleasedWhenClosed = false
 
-        window?.contentView = hostingView
-        window?.isOpaque = false
-        window?.backgroundColor = .clear
-        window?.level = .floating
-        window?.hasShadow = true
-        window?.isMovableByWindowBackground = true
-        window?.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        window?.makeKeyAndOrderFront(nil)
+        newWindow.contentView = hostingView
+        newWindow.isOpaque = false
+        newWindow.backgroundColor = .clear
+        newWindow.level = .floating
+        newWindow.hasShadow = true
+        newWindow.isMovableByWindowBackground = true
+        newWindow.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        newWindow.makeKeyAndOrderFront(nil)
     }
 
     func close() {
@@ -94,16 +103,19 @@ struct PinnedScreenshotView: View {
     let image: NSImage
     let initialSize: NSSize
     let onClose: () -> Void
+    let onLockChanged: (Bool) -> Void
 
     @State private var opacity: Double = 1.0
     @State private var isLocked = false
     @State private var showControls = false
     @State private var currentSize: CGSize
+    @State private var showOpacityMenu = false
 
-    init(image: NSImage, initialSize: NSSize, onClose: @escaping () -> Void) {
+    init(image: NSImage, initialSize: NSSize, onClose: @escaping () -> Void, onLockChanged: @escaping (Bool) -> Void) {
         self.image = image
         self.initialSize = initialSize
         self.onClose = onClose
+        self.onLockChanged = onLockChanged
         self._currentSize = State(initialValue: CGSize(width: initialSize.width, height: initialSize.height))
     }
 
@@ -135,35 +147,81 @@ struct PinnedScreenshotView: View {
                     currentSize = CGSize(width: newWidth, height: newHeight)
                 }
         )
+        .background(keyboardShortcuts)
+    }
+
+    // MARK: - Keyboard Shortcuts
+
+    @ViewBuilder
+    private var keyboardShortcuts: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .background(
+                Group {
+                    Button("") { zoomOut() }
+                        .keyboardShortcut("-", modifiers: .command)
+                    Button("") { zoomIn() }
+                        .keyboardShortcut("=", modifiers: .command)
+                    Button("") { toggleLock() }
+                        .keyboardShortcut("l", modifiers: .command)
+                    Button("") { showOpacityMenu.toggle() }
+                        .keyboardShortcut("o", modifiers: [])
+                    Button("") { copyToClipboard() }
+                        .keyboardShortcut("c", modifiers: .command)
+                    Button("") { onClose() }
+                        .keyboardShortcut(.escape, modifiers: [])
+                }
+                .opacity(0)
+            )
+    }
+
+    // MARK: - Actions
+
+    private func zoomOut() {
+        withAnimation {
+            let scale = max(0.5, currentSize.width / initialSize.width - 0.1)
+            currentSize = CGSize(
+                width: initialSize.width * scale,
+                height: initialSize.height * scale
+            )
+        }
+    }
+
+    private func zoomIn() {
+        withAnimation {
+            let scale = min(3.0, currentSize.width / initialSize.width + 0.1)
+            currentSize = CGSize(
+                width: initialSize.width * scale,
+                height: initialSize.height * scale
+            )
+        }
+    }
+
+    private func copyToClipboard() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([image])
+    }
+
+    private func toggleLock() {
+        isLocked.toggle()
+        onLockChanged(isLocked)
     }
 
     private var controlsOverlay: some View {
         HStack(spacing: 8) {
-            PinnedControlButton(icon: "minus.magnifyingglass") {
-                withAnimation {
-                    let scale = max(0.5, currentSize.width / initialSize.width - 0.1)
-                    currentSize = CGSize(
-                        width: initialSize.width * scale,
-                        height: initialSize.height * scale
-                    )
-                }
+            PinnedControlButton(icon: "minus.magnifyingglass", tooltip: "Zoom Out (⌘-)") {
+                zoomOut()
             }
 
-            PinnedControlButton(icon: "plus.magnifyingglass") {
-                withAnimation {
-                    let scale = min(3.0, currentSize.width / initialSize.width + 0.1)
-                    currentSize = CGSize(
-                        width: initialSize.width * scale,
-                        height: initialSize.height * scale
-                    )
-                }
+            PinnedControlButton(icon: "plus.magnifyingglass", tooltip: "Zoom In (⌘=)") {
+                zoomIn()
             }
 
             Divider()
                 .frame(height: 16)
 
-            PinnedControlButton(icon: isLocked ? "lock.fill" : "lock.open") {
-                isLocked.toggle()
+            PinnedControlButton(icon: isLocked ? "lock.fill" : "lock.open", tooltip: isLocked ? "Unlock Position (⌘L)" : "Lock Position (⌘L)") {
+                toggleLock()
             }
 
             Menu {
@@ -176,19 +234,20 @@ struct PinnedScreenshotView: View {
                 Image(systemName: "circle.lefthalf.filled")
                     .font(.system(size: 12))
                     .foregroundColor(.white)
+                    .frame(width: 24, height: 24)
             }
             .menuStyle(.borderlessButton)
-            .frame(width: 24, height: 24)
+            .menuIndicator(.hidden)
+            .help("Opacity (O)")
 
             Divider()
                 .frame(height: 16)
 
-            PinnedControlButton(icon: "doc.on.clipboard") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.writeObjects([image])
+            PinnedControlButton(icon: "doc.on.clipboard", tooltip: "Copy to Clipboard (⌘C)") {
+                copyToClipboard()
             }
 
-            PinnedControlButton(icon: "xmark") {
+            PinnedControlButton(icon: "xmark", tooltip: "Close (Esc)") {
                 onClose()
             }
         }
@@ -202,6 +261,7 @@ struct PinnedScreenshotView: View {
 
 struct PinnedControlButton: View {
     let icon: String
+    let tooltip: String
     let action: () -> Void
 
     @State private var isHovered = false
@@ -219,6 +279,7 @@ struct PinnedControlButton: View {
         .onHover { hovering in
             isHovered = hovering
         }
+        .help(tooltip)
     }
 }
 
