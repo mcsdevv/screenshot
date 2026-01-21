@@ -187,8 +187,9 @@ struct QuickAccessOverlay: View {
                 DSTrafficLightButtons(onClose: controller.dismiss)
                 Spacer()
             }
-            .frame(height: 32)
-            .padding(.top, DSSpacing.sm)
+            .padding(.leading, DSSpacing.sm)
+            .padding(.top, DSSpacing.md)
+            .padding(.bottom, DSSpacing.xs)
 
             // Thumbnail preview
             thumbnailSection
@@ -201,6 +202,11 @@ struct QuickAccessOverlay: View {
                 .padding(.bottom, DSSpacing.lg)
         }
         .frame(width: 360)
+        .clipShape(RoundedRectangle(cornerRadius: DSRadius.xl))
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.xl)
+                .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+        )
         .background(quickAccessBackground)
         .background(KeyboardShortcutHandler(controller: controller))
         .opacity(isAppearing ? 1 : 0)
