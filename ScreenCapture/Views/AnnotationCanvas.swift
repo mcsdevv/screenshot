@@ -177,11 +177,9 @@ struct AnnotationCanvas: View {
             editingAnnotationId = nil
         }
         .onChange(of: state.currentTool) { _, newTool in
-            // Dismiss text input when switching to a different tool
+            // Commit text input when switching to a different tool
             if newTool != .text && showTextInput {
-                showTextInput = false
-                textInput = ""
-                editingAnnotationId = nil
+                commitTextAnnotation()
             }
             // Deselect annotation when switching tools (unless switching to select)
             if newTool != .select {
