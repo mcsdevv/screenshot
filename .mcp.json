@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "xcode-mcp-server": {
+      "command": "uvx",
+      "args": ["xcode-mcp-server"]
+    }
+  }
+}
