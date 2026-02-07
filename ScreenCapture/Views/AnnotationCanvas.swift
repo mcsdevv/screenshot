@@ -262,7 +262,7 @@ struct AnnotationCanvas: View {
 
         ZStack(alignment: .topLeading) {
             // Show cached blur image if valid, otherwise show original
-            if !cacheKey.isEmpty, let cached = cachedBlurImage, blurCacheKey == cacheKey {
+            if !cacheKey.isEmpty, let cached = cachedBlurImage {
                 Image(nsImage: cached)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
