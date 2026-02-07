@@ -488,7 +488,7 @@ class CaptureOutput: NSObject, SCStreamOutput {
                 if self.videoInput?.isReadyForMoreMediaData == true {
                     self.videoInput?.append(sampleBuffer)
                 }
-            case .audio:
+            case .audio, .microphone:
                 if self.audioInput?.isReadyForMoreMediaData == true {
                     self.audioInput?.append(sampleBuffer)
                 }
