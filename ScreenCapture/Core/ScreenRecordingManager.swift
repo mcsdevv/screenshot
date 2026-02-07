@@ -165,8 +165,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     private func startRecording(in rect: CGRect?) {
         Task {
             do {
-                let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-                guard let display = content.displays.first else { return }
+                let display = try await ScreenCaptureContentProvider.shared.getPrimaryDisplay()
 
                 let filter = SCContentFilter(display: display, excludingWindows: [])
 
@@ -296,8 +295,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             await gifFrameCollector.reset()
 
             do {
-                let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-                guard let display = content.displays.first else { return }
+                let display = try await ScreenCaptureContentProvider.shared.getPrimaryDisplay()
 
                 let filter = SCContentFilter(display: display, excludingWindows: [])
 

@@ -134,8 +134,7 @@ class ScrollingCapture: NSObject {
     private func captureCurrentView() {
         Task {
             do {
-                let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-                guard let display = content.displays.first else { return }
+                let display = try await ScreenCaptureContentProvider.shared.getPrimaryDisplay()
 
                 let filter = SCContentFilter(display: display, excludingWindows: [])
 
