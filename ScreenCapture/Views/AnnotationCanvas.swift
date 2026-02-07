@@ -19,6 +19,10 @@ struct AnnotationCanvas: View {
     @State private var editingAnnotationId: UUID? = nil  // Track which annotation is being edited (for text)
     @State private var textBoxSize: CGSize = .zero  // Track current textbox dimensions for persistence
 
+    // For shift-constrained line/arrow drawing
+    @State private var isShiftHeld = false
+    @State private var shiftMonitor: Any?
+
     // For blur caching - only cache committed blur annotations, not during drag
     @State private var cachedBlurImage: NSImage?
     @State private var blurCacheKey: String = ""
@@ -102,11 +106,10 @@ struct AnnotationCanvas: View {
 
                     // Dynamic canvas - current drawing preview only
                     // Separated to avoid redrawing all annotations during drag
-                    if currentDrawing != nil {
+                    if let current = currentDrawing {
+                        let display = applyShiftConstraint(current)
                         Canvas { context, size in
-                            if let current = currentDrawing {
-                                drawAnnotation(current, in: context, size: size)
-                            }
+                            drawAnnotation(display, in: context, size: size)
                         }
                         .frame(width: scaledImageSize.width, height: scaledImageSize.height)
                         .allowsHitTesting(false)
@@ -120,6 +123,7 @@ struct AnnotationCanvas: View {
                             AnnotationSelectionOverlay(
                                 annotation: annotation,
                                 zoom: zoom,
+                                isShiftHeld: isShiftHeld,
                                 onMove: { delta in
                                     moveSelectedAnnotation(by: delta)
                                 },
@@ -197,6 +201,18 @@ struct AnnotationCanvas: View {
             // Deselect annotation when switching tools (unless switching to select)
             if newTool != .select {
                 state.selectedAnnotationId = nil
+            }
+        }
+        .onAppear {
+            shiftMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
+                isShiftHeld = event.modifierFlags.contains(.shift)
+                return event
+            }
+        }
+        .onDisappear {
+            if let monitor = shiftMonitor {
+                NSEvent.removeMonitor(monitor)
+                shiftMonitor = nil
             }
         }
         // Keyboard shortcuts for annotation manipulation
@@ -681,7 +697,8 @@ struct AnnotationCanvas: View {
     }
 
     private func handleDragEnded(_ value: DragGesture.Value) {
-        if let drawing = currentDrawing {
+        if var drawing = currentDrawing {
+            drawing = applyShiftConstraint(drawing)
             // Only add if it has meaningful size
             let rect = drawing.cgRect
             if rect.width > 5 || rect.height > 5 || !drawing.cgPoints.isEmpty {
@@ -771,6 +788,32 @@ struct AnnotationCanvas: View {
             width: abs(end.x - start.x),
             height: abs(end.y - start.y)
         )
+    }
+
+    /// Constrain endpoint to horizontal or vertical axis relative to start when shift is held.
+    private func constrainToAxis(start: CGPoint, end: CGPoint) -> CGPoint {
+        guard isShiftHeld else { return end }
+        let dx = abs(end.x - start.x)
+        let dy = abs(end.y - start.y)
+        if dx >= dy {
+            return CGPoint(x: end.x, y: start.y)
+        } else {
+            return CGPoint(x: start.x, y: end.y)
+        }
+    }
+
+    /// Apply shift-axis constraint to a line/arrow annotation for display or commit.
+    private func applyShiftConstraint(_ annotation: Annotation) -> Annotation {
+        guard annotation.type == .line || annotation.type == .arrow else { return annotation }
+        let start = annotation.cgRect.origin
+        let rawEnd = CGPoint(x: start.x + annotation.cgRect.size.width, y: start.y + annotation.cgRect.size.height)
+        let constrained = constrainToAxis(start: start, end: rawEnd)
+        var result = annotation
+        result.cgRect = CGRect(
+            origin: start,
+            size: CGSize(width: constrained.x - start.x, height: constrained.y - start.y)
+        )
+        return result
     }
 
     // MARK: - Selection Handling
@@ -1017,6 +1060,7 @@ struct AnnotationCanvas: View {
 struct AnnotationSelectionOverlay: View {
     let annotation: Annotation
     let zoom: CGFloat
+    let isShiftHeld: Bool
     let onMove: (CGSize) -> Void
     let onResize: (CGRect) -> Void
     let onEndpointMove: ((Int, CGPoint) -> Void)?  // For line/arrow endpoints
@@ -1032,12 +1076,14 @@ struct AnnotationSelectionOverlay: View {
     init(
         annotation: Annotation,
         zoom: CGFloat,
+        isShiftHeld: Bool = false,
         onMove: @escaping (CGSize) -> Void,
         onResize: @escaping (CGRect) -> Void,
         onEndpointMove: ((Int, CGPoint) -> Void)? = nil
     ) {
         self.annotation = annotation
         self.zoom = zoom
+        self.isShiftHeld = isShiftHeld
         self.onMove = onMove
         self.onResize = onResize
         self.onEndpointMove = onEndpointMove
@@ -1062,6 +1108,18 @@ struct AnnotationSelectionOverlay: View {
             x: (annotation.cgRect.origin.x + annotation.cgRect.size.width) * zoom,
             y: (annotation.cgRect.origin.y + annotation.cgRect.size.height) * zoom
         )
+    }
+
+    /// Constrain a point to horizontal or vertical axis relative to an anchor when shift is held.
+    private func constrainToAxis(anchor: CGPoint, point: CGPoint) -> CGPoint {
+        guard isShiftHeld else { return point }
+        let dx = abs(point.x - anchor.x)
+        let dy = abs(point.y - anchor.y)
+        if dx >= dy {
+            return CGPoint(x: point.x, y: anchor.y)
+        } else {
+            return CGPoint(x: anchor.x, y: point.y)
+        }
     }
 
     // Compute display rect with active gesture applied
@@ -1132,21 +1190,27 @@ struct AnnotationSelectionOverlay: View {
 
     // MARK: - Line/Arrow Overlay (2 endpoint handles)
 
+    private var lineOverlayEndpoints: (start: CGPoint, end: CGPoint) {
+        if let drag = endpointDrag, drag.index == 0 {
+            let raw = CGPoint(x: scaledLineStart.x + drag.delta.width, y: scaledLineStart.y + drag.delta.height)
+            return (constrainToAxis(anchor: scaledLineEnd, point: raw), scaledLineEnd)
+        } else if let drag = endpointDrag, drag.index == 1 {
+            let raw = CGPoint(x: scaledLineEnd.x + drag.delta.width, y: scaledLineEnd.y + drag.delta.height)
+            return (scaledLineStart, constrainToAxis(anchor: scaledLineStart, point: raw))
+        } else if dragOffset != .zero {
+            return (
+                CGPoint(x: scaledLineStart.x + dragOffset.width, y: scaledLineStart.y + dragOffset.height),
+                CGPoint(x: scaledLineEnd.x + dragOffset.width, y: scaledLineEnd.y + dragOffset.height)
+            )
+        } else {
+            return (scaledLineStart, scaledLineEnd)
+        }
+    }
+
     @ViewBuilder
     private var lineArrowOverlay: some View {
-        let start = endpointDrag?.index == 0
-            ? CGPoint(x: scaledLineStart.x + (endpointDrag?.delta.width ?? 0),
-                      y: scaledLineStart.y + (endpointDrag?.delta.height ?? 0))
-            : (dragOffset != .zero
-                ? CGPoint(x: scaledLineStart.x + dragOffset.width, y: scaledLineStart.y + dragOffset.height)
-                : scaledLineStart)
-
-        let end = endpointDrag?.index == 1
-            ? CGPoint(x: scaledLineEnd.x + (endpointDrag?.delta.width ?? 0),
-                      y: scaledLineEnd.y + (endpointDrag?.delta.height ?? 0))
-            : (dragOffset != .zero
-                ? CGPoint(x: scaledLineEnd.x + dragOffset.width, y: scaledLineEnd.y + dragOffset.height)
-                : scaledLineEnd)
+        let start = lineOverlayEndpoints.start
+        let end = lineOverlayEndpoints.end
 
         // Dashed line showing selection
         Path { path in
@@ -1262,13 +1326,14 @@ struct AnnotationSelectionOverlay: View {
             }
             .onEnded { value in
                 if let callback = onEndpointMove {
-                    // Calculate new endpoint position in image coordinates
                     let originalPoint = index == 0 ? scaledLineStart : scaledLineEnd
-                    let newPoint = CGPoint(
+                    let anchor = index == 0 ? scaledLineEnd : scaledLineStart
+                    let raw = CGPoint(
                         x: originalPoint.x + value.translation.width,
                         y: originalPoint.y + value.translation.height
                     )
-                    callback(index, newPoint)
+                    let constrained = constrainToAxis(anchor: anchor, point: raw)
+                    callback(index, constrained)
                 }
             }
     }
