@@ -109,6 +109,7 @@ class MenuBarController: NSObject {
 
         addMenuItem(title: "Capture Text (OCR)", icon: "text.viewfinder", action: #selector(captureOCR), keyEquivalent: "o", modifiers: [.control, .shift])
         addMenuItem(title: "Pin Screenshot", icon: "pin.fill", action: #selector(pinScreenshot), keyEquivalent: "p", modifiers: [.control, .shift])
+        addMenuItem(title: "Fake Screenshot", icon: "photo.fill", action: #selector(fakeScreenshot), keyEquivalent: "f", modifiers: [.control, .shift])
 
         menu.addItem(NSMenuItem.separator())
 
@@ -196,6 +197,13 @@ class MenuBarController: NSObject {
 
     @objc private func pinScreenshot() {
         screenshotManager.captureForPinning()
+    }
+
+    @objc private func fakeScreenshot() {
+        guard let lastScreenshot = storageManager.history.items.first(where: { $0.type == .screenshot }) else {
+            return
+        }
+        NotificationCenter.default.post(name: .openAnnotationEditor, object: lastScreenshot)
     }
 
     @objc private func showHistory() {
