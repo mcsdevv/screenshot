@@ -488,12 +488,17 @@ class CaptureOutput: NSObject, SCStreamOutput {
                 if self.videoInput?.isReadyForMoreMediaData == true {
                     self.videoInput?.append(sampleBuffer)
                 }
-            case .audio, .microphone:
+            case .audio:
                 if self.audioInput?.isReadyForMoreMediaData == true {
                     self.audioInput?.append(sampleBuffer)
                 }
+            #if compiler(>=6.0)
+            case .microphone:
+                if self.audioInput?.isReadyForMoreMediaData == true {
+                    self.audioInput?.append(sampleBuffer)
+                }
+            #endif
             @unknown default:
-                // Treat unknown outputs as audio to support newer cases like microphone.
                 if self.audioInput?.isReadyForMoreMediaData == true {
                     self.audioInput?.append(sampleBuffer)
                 }
