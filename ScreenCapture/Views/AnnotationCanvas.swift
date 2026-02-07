@@ -132,7 +132,10 @@ struct AnnotationCanvas: View {
                                 },
                                 onEndpointMove: (annotation.type == .line || annotation.type == .arrow) ? { index, position in
                                     moveLineEndpoint(index: index, to: position)
-                                } : nil
+                                } : nil,
+                                onTap: {
+                                    state.selectedAnnotationId = nil
+                                }
                             )
                         }
                     }
@@ -564,9 +567,12 @@ struct AnnotationCanvas: View {
     private func hitTest(annotation: Annotation, at point: CGPoint) -> Bool {
         switch annotation.type {
         case .line, .arrow:
-            // For lines, check distance to line segment
-            let start = CGPoint(x: annotation.cgRect.minX, y: annotation.cgRect.minY)
-            let end = CGPoint(x: annotation.cgRect.maxX, y: annotation.cgRect.maxY)
+            // For lines, use origin + size to preserve actual direction (size can be negative)
+            let start = CGPoint(x: annotation.cgRect.origin.x, y: annotation.cgRect.origin.y)
+            let end = CGPoint(
+                x: annotation.cgRect.origin.x + annotation.cgRect.size.width,
+                y: annotation.cgRect.origin.y + annotation.cgRect.size.height
+            )
             return distanceToLineSegment(point: point, start: start, end: end) < 10
 
         case .pencil, .highlighter:
@@ -1070,6 +1076,7 @@ struct AnnotationSelectionOverlay: View {
     let onMove: (CGSize) -> Void
     let onResize: (CGRect) -> Void
     let onEndpointMove: ((Int, CGPoint) -> Void)?  // For line/arrow endpoints
+    let onTap: () -> Void  // Forward taps to parent for re-evaluation
 
     private let handleSize: CGFloat = 10
 
@@ -1085,7 +1092,8 @@ struct AnnotationSelectionOverlay: View {
         isShiftHeld: Bool = false,
         onMove: @escaping (CGSize) -> Void,
         onResize: @escaping (CGRect) -> Void,
-        onEndpointMove: ((Int, CGPoint) -> Void)? = nil
+        onEndpointMove: ((Int, CGPoint) -> Void)? = nil,
+        onTap: @escaping () -> Void = {}
     ) {
         self.annotation = annotation
         self.zoom = zoom
@@ -1093,6 +1101,7 @@ struct AnnotationSelectionOverlay: View {
         self.onMove = onMove
         self.onResize = onResize
         self.onEndpointMove = onEndpointMove
+        self.onTap = onTap
     }
 
     private var scaledRect: CGRect {
@@ -1181,6 +1190,7 @@ struct AnnotationSelectionOverlay: View {
             .frame(width: max(displayRect.width, 10), height: max(displayRect.height, 10))
             .position(x: displayRect.midX, y: displayRect.midY)
             .contentShape(Rectangle())
+            .onTapGesture { onTap() }
             .gesture(moveGesture)
 
         // 8 resize handles
@@ -1230,6 +1240,7 @@ struct AnnotationSelectionOverlay: View {
                 path.addLine(to: end)
             }.strokedPath(StrokeStyle(lineWidth: 20))
         )
+        .onTapGesture { onTap() }
         .gesture(lineMoveGesture)
 
         // Start endpoint handle
@@ -1264,6 +1275,7 @@ struct AnnotationSelectionOverlay: View {
                 y: bounds.midY + dragOffset.height
             )
             .contentShape(Rectangle())
+            .onTapGesture { onTap() }
             .gesture(moveGesture)
 
         // Single center move handle
@@ -1295,7 +1307,7 @@ struct AnnotationSelectionOverlay: View {
     // MARK: - Gestures
 
     private var moveGesture: some Gesture {
-        DragGesture(minimumDistance: 1)
+        DragGesture(minimumDistance: 3)
             .updating($dragOffset) { value, state, _ in
                 state = value.translation
             }
@@ -1305,7 +1317,7 @@ struct AnnotationSelectionOverlay: View {
     }
 
     private var lineMoveGesture: some Gesture {
-        DragGesture(minimumDistance: 1)
+        DragGesture(minimumDistance: 3)
             .updating($dragOffset) { value, state, _ in
                 state = value.translation
             }
