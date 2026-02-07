@@ -407,7 +407,10 @@ class AnnotationState {
         creationCounter += 1
         let duplicate = Annotation(
             type: original.type,
-            rect: original.cgRect.offsetBy(dx: offset.x, dy: offset.y),
+            rect: CGRect(
+                origin: CGPoint(x: original.cgRect.origin.x + offset.x, y: original.cgRect.origin.y + offset.y),
+                size: original.cgRect.size
+            ),
             color: original.swiftUIColor,
             strokeWidth: original.strokeWidth,
             text: original.text,
@@ -443,7 +446,10 @@ class AnnotationState {
         creationCounter += 1
         let pasted = Annotation(
             type: original.type,
-            rect: original.cgRect.offsetBy(dx: offset.x, dy: offset.y),
+            rect: CGRect(
+                origin: CGPoint(x: original.cgRect.origin.x + offset.x, y: original.cgRect.origin.y + offset.y),
+                size: original.cgRect.size
+            ),
             color: original.swiftUIColor,
             strokeWidth: original.strokeWidth,
             text: original.text,
@@ -512,7 +518,13 @@ class AnnotationState {
               let index = annotations.firstIndex(where: { $0.id == id }) else { return }
 
         var annotation = annotations[index]
-        annotation.cgRect = annotation.cgRect.offsetBy(dx: dx, dy: dy)
+        // Note: Cannot use offsetBy() as it standardizes the rect, destroying negative
+        // width/height that encodes line/arrow direction
+        let r = annotation.cgRect
+        annotation.cgRect = CGRect(
+            origin: CGPoint(x: r.origin.x + dx, y: r.origin.y + dy),
+            size: r.size
+        )
 
         // Also offset points for pencil/highlighter
         if !annotation.cgPoints.isEmpty {

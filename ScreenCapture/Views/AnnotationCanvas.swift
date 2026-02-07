@@ -782,7 +782,13 @@ struct AnnotationCanvas: View {
         var annotation = state.annotations[index]
 
         // Apply delta to annotation rect (delta is in screen coordinates, divide by zoom)
-        annotation.cgRect = annotation.cgRect.offsetBy(dx: delta.width / zoom, dy: delta.height / zoom)
+        // Note: Cannot use offsetBy() as it standardizes the rect, destroying negative
+        // width/height that encodes line/arrow direction
+        let r = annotation.cgRect
+        annotation.cgRect = CGRect(
+            origin: CGPoint(x: r.origin.x + delta.width / zoom, y: r.origin.y + delta.height / zoom),
+            size: r.size
+        )
 
         // Also move points for pencil/highlighter
         if !annotation.cgPoints.isEmpty {
