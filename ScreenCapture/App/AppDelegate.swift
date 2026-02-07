@@ -326,6 +326,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             window.contentView = hostingView
             window.level = .floating
             window.hasShadow = true
+            window.isMovableByWindowBackground = true
             window.collectionBehavior = [.canJoinAllSpaces, .stationary]
 
             window.delegate = self
