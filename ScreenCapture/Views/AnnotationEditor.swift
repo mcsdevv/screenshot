@@ -69,6 +69,7 @@ struct AnnotationEditor: View {
                 AnnotationStatusBar(viewModel: viewModel)
             }
         }
+        .dsTooltipRoot()
         .ignoresSafeArea(edges: .top)
         .onAppear {
             loadImage()
@@ -694,14 +695,14 @@ struct AnnotationToolbar: View {
                 }
                 .disabled(!viewModel.state.canUndo)
                 .opacity(viewModel.state.canUndo ? 1 : 0.4)
-                .help("Undo (⌘Z)")
+                .dsTooltip("Undo (⌘Z)")
 
                 DSIconButton(icon: "arrow.uturn.forward", size: 28) {
                     viewModel.state.redo()
                 }
                 .disabled(!viewModel.state.canRedo)
                 .opacity(viewModel.state.canRedo ? 1 : 0.4)
-                .help("Redo (⌘Y)")
+                .dsTooltip("Redo (⌘Y)")
             }
 
             // Delete selected
@@ -709,7 +710,7 @@ struct AnnotationToolbar: View {
                 DSIconButton(icon: "trash", size: 28) {
                     viewModel.state.deleteSelectedAnnotation()
                 }
-                .help("Delete selected (⌫)")
+                .dsTooltip("Delete (⌫)")
             }
 
             // Layer panel toggle
@@ -717,7 +718,7 @@ struct AnnotationToolbar: View {
                 viewModel.state.toggleLayerPanelVisibility()
             }
             .opacity(viewModel.state.isLayerPanelVisible ? 1 : 0.6)
-            .help("Toggle layer panel")
+            .dsTooltip("Layers")
 
             // Vertical divider
             Rectangle()
@@ -728,7 +729,7 @@ struct AnnotationToolbar: View {
             DSPrimaryButton("Done", icon: "checkmark") {
                 onDone()
             }
-            .help("Save and copy to clipboard (⌘↵)")
+            .dsTooltip("Done (⌘↵)")
         }
         .frame(height: 52) // Taller for better vertical centering like Raycast
         .padding(.horizontal, DSSpacing.lg)
@@ -790,7 +791,7 @@ struct AnnotationToolbarButton: View {
                 isHovered = hovering
             }
         }
-        .help(tool.tooltip)
+        .dsTooltip(tool.tooltip)
     }
 }
 
@@ -839,6 +840,7 @@ struct TextOptionsBar: View {
                 )
             }
             .buttonStyle(.plain)
+            .dsTooltip("Font")
             .popover(isPresented: $showFontPicker) {
                 VStack(alignment: .leading, spacing: DSSpacing.xxs) {
                     ForEach(FontOption.systemFonts) { font in
@@ -879,6 +881,7 @@ struct TextOptionsBar: View {
                 )
             }
             .buttonStyle(.plain)
+            .dsTooltip("Font size")
             .popover(isPresented: $showSizePicker) {
                 VStack(spacing: DSSpacing.xxs) {
                     ForEach([12, 14, 16, 18, 24, 32, 48, 64], id: \.self) { size in
@@ -984,7 +987,7 @@ struct ColorPickerButton: View {
                 isHovered = hovering
             }
         }
-        .help("Color")
+        .dsTooltip("Color")
         .popover(isPresented: $showPicker) {
             ColorPickerGrid(selectedColor: $selectedColor, showPicker: $showPicker, onColorChange: onColorChange)
         }
@@ -1065,7 +1068,7 @@ struct StrokeWidthButton: View {
                 isHovered = hovering
             }
         }
-        .help("Stroke width")
+        .dsTooltip("Stroke width")
         .popover(isPresented: $showPicker) {
             VStack(spacing: DSSpacing.xs) {
                 ForEach([1, 2, 3, 5, 8, 12], id: \.self) { width in
@@ -1149,6 +1152,7 @@ struct AnnotationStatusBar: View {
                 }
                 .buttonStyle(.plain)
                 .onHover { isHoveredZoomOut = $0 }
+                .dsTooltip("Zoom out")
 
                 Text("\(Int(viewModel.zoom * 100))%")
                     .font(DSTypography.monoSmall)
@@ -1167,6 +1171,7 @@ struct AnnotationStatusBar: View {
                 }
                 .buttonStyle(.plain)
                 .onHover { isHoveredZoomIn = $0 }
+                .dsTooltip("Zoom in")
 
                 Button(action: { viewModel.zoom = 1.0; viewModel.offset = .zero }) {
                     Image(systemName: "1.magnifyingglass")
@@ -1180,6 +1185,7 @@ struct AnnotationStatusBar: View {
                 }
                 .buttonStyle(.plain)
                 .onHover { isHoveredReset = $0 }
+                .dsTooltip("Reset zoom")
             }
         }
         .padding(.horizontal, DSSpacing.lg)
