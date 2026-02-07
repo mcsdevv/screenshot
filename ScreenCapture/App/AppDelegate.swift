@@ -34,6 +34,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         setupMainMenu()
         setupToastWindow()
 
+        // Preflight screen capture permission (warms cache, triggers dialog once at launch)
+        Task { await ScreenCaptureContentProvider.shared.preflight() }
+
         // Show shortcut remapping prompt on first launch
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             SystemShortcutManager.shared.showRemapPromptIfNeeded()
