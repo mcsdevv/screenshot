@@ -123,28 +123,6 @@ struct MenuBarMenuView: View {
 
             Divider()
 
-            Section {
-                Button {
-                    debugLog("MenuBar: Capture Text (OCR) clicked")
-                    appDelegate.screenshotManager.captureForOCR()
-                } label: {
-                    Label("Capture Text (OCR)", systemImage: "text.viewfinder")
-                }
-                .keyboardShortcut("o", modifiers: captureModifiers)
-
-                Button {
-                    debugLog("MenuBar: Pin Screenshot clicked")
-                    appDelegate.screenshotManager.captureForPinning()
-                } label: {
-                    Label("Pin Screenshot", systemImage: "pin.fill")
-                }
-                .keyboardShortcut("p", modifiers: captureModifiers)
-            } header: {
-                Label("Tools", systemImage: "wrench.and.screwdriver")
-            }
-
-            Divider()
-
             // Other actions
             Button {
                 debugLog("MenuBar: Open Screenshots Folder clicked")

@@ -150,8 +150,6 @@ final class MenuBarMenuItemTests: XCTestCase {
             "Record Window",
             "Record Fullscreen",
             "Tools",
-            "Capture Text (OCR)",
-            "Pin Screenshot",
             "Capture History",
             "Preferences...",
             "Open Screenshots Folder",
@@ -159,7 +157,7 @@ final class MenuBarMenuItemTests: XCTestCase {
         ]
 
         // Just verify the expected titles are defined
-        XCTAssertEqual(expectedTitles.count, 15)
+        XCTAssertEqual(expectedTitles.count, 13)
     }
 
     func testMenuItemKeyEquivalents() {
@@ -171,15 +169,13 @@ final class MenuBarMenuItemTests: XCTestCase {
             ("Record Area", "7"),
             ("Record Window", "8"),
             ("Record Fullscreen", "9"),
-            ("Capture Text (OCR)", "o"),
-            ("Pin Screenshot", "p"),
             ("Open Screenshots Folder", "s"),
             ("Capture History", "h"),
             ("Preferences...", ","),
             ("Quit ScreenCapture", "q")
         ]
 
-        XCTAssertEqual(keyEquivalents.count, 12)
+        XCTAssertEqual(keyEquivalents.count, 10)
     }
 
     func testMenuItemIcons() {
@@ -191,8 +187,6 @@ final class MenuBarMenuItemTests: XCTestCase {
             "video.badge.plus",
             "video",
             "video.fill",
-            "text.viewfinder",
-            "pin.fill",
             "clock.arrow.circlepath",
             "gear",
             "folder",
