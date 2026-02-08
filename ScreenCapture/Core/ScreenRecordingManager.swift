@@ -1,72 +1,68 @@
 import AppKit
 import SwiftUI
 import ScreenCaptureKit
-import AVFoundation
 import Combine
-
-/// Thread-safe actor for collecting GIF frames from the capture stream
-actor GIFFrameCollector {
-    private var frames: [CGImage] = []
-    private var frameCount: Int = 0
-
-    func addFrame(_ frame: CGImage) {
-        frames.append(frame)
-        frameCount += 1
-    }
-
-    func getFramesAndReset() -> [CGImage] {
-        let collectedFrames = frames
-        frames = []
-        frameCount = 0
-        return collectedFrames
-    }
-
-    func reset() {
-        frames = []
-        frameCount = 0
-    }
-
-    var count: Int {
-        frameCount
-    }
-}
+import AVFoundation
 
 @MainActor
 class ScreenRecordingManager: NSObject, ObservableObject {
-    private let storageManager: StorageManager
-    private var stream: SCStream?
-    private var streamOutput: SCStreamOutput?
-    private var assetWriter: AVAssetWriter?
-    private var videoInput: AVAssetWriterInput?
-    private var audioInput: AVAssetWriterInput?
-    private var audioAppInput: AVAssetWriterInput?
+    private struct PendingOutput {
+        let temporaryURL: URL
+        let finalURL: URL
+    }
 
-    // Shared CIContext for frame processing (expensive to create, reuse across frames)
-    private let ciContext = CIContext(options: [.cacheIntermediates: false])
+    private let storageManager: StorageManager
+    private let gifExportService = GIFExportService()
+
+    private var captureEngine: CaptureEngine?
+    private var currentConfig: RecordingConfig?
+    private var activeMode: RecordingMode?
+    private var activeCaptureOutput: PendingOutput?
+    private var gifExportTask: Task<Void, Never>?
 
     @Published var isRecording = false
     @Published var isGIFRecording = false
+    @Published private(set) var isExportingGIF = false
     @Published var recordingDuration: TimeInterval = 0
-    @Published var isPaused = false
+    @Published private(set) var sessionState: RecordingSessionState = .idle
 
-    private var recordingStartTime: Date?
-    private var recordingTimer: Timer?
-    private var recordingRect: CGRect?
-    private let gifFrameCollector = GIFFrameCollector()
+    let sessionModel = RecordingSessionModel()
+
+    private var cancellables = Set<AnyCancellable>()
 
     private var controlWindow: NSWindow?
     private var selectionWindow: NSWindow?
     private var windowSelectionWindow: NSWindow?
+    private var recordingOverlayWindow: NSWindow?
     private var pendingRecordingMode: RecordingMode = .video
 
     private enum RecordingMode {
         case video
         case gif
+
+        var sessionKind: RecordingSessionKind {
+            switch self {
+            case .video:
+                return .video
+            case .gif:
+                return .gif
+            }
+        }
+
+        var outputMode: RecordingOutputMode {
+            switch self {
+            case .video:
+                return .video
+            case .gif:
+                return .gif
+            }
+        }
     }
 
     init(storageManager: StorageManager) {
         self.storageManager = storageManager
         super.init()
+        bindSessionModel()
     }
 
     func toggleRecording() {
@@ -89,46 +85,129 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         if isGIFRecording {
             debugLog("Stopping GIF recording due to \(reason)")
             stopGIFRecording(completion: completion)
-        } else if isRecording {
+            return
+        }
+
+        if isRecording {
             debugLog("Stopping screen recording due to \(reason)")
             stopRecording(completion: completion)
-        } else {
-            completion?()
+            return
         }
+
+        if isExportingGIF {
+            debugLog("Cancelling GIF export due to \(reason)")
+            gifExportTask?.cancel()
+            isExportingGIF = false
+            transitionSession { try sessionModel.markCancelled() }
+            transitionSession { try sessionModel.markIdle() }
+            hideRecordingControls()
+            completion?()
+            return
+        }
+
+        completion?()
+    }
+
+    private func bindSessionModel() {
+        sessionModel.$elapsedDuration
+            .receive(on: RunLoop.main)
+            .sink { [weak self] duration in
+                self?.recordingDuration = duration
+            }
+            .store(in: &cancellables)
+
+        sessionModel.$state
+            .receive(on: RunLoop.main)
+            .sink { [weak self] state in
+                self?.sessionState = state
+            }
+            .store(in: &cancellables)
+    }
+
+    private func transitionSession(_ transition: () throws -> Void) {
+        do {
+            try transition()
+        } catch {
+            errorLog("Invalid recording session transition", error: error)
+        }
+    }
+
+    private func failSession(_ message: String, error: Error? = nil) {
+        if let error {
+            errorLog(message, error: error)
+        } else {
+            errorLog(message)
+        }
+
+        guard sessionModel.state != .idle else { return }
+        transitionSession { try sessionModel.markFailed(message) }
+        transitionSession { try sessionModel.markIdle() }
+    }
+
+    private func resetActiveSessionRuntime() {
+        captureEngine = nil
+        currentConfig = nil
+        activeMode = nil
+        activeCaptureOutput = nil
+        gifExportTask = nil
+        isRecording = false
+        isGIFRecording = false
+        isExportingGIF = false
+    }
+
+    private func presentRecordingAlert(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     // MARK: - Selection Flow
 
     private func startRecordingWithSelection() {
+        sessionModel.forceIdle()
+        transitionSession { try sessionModel.beginSelection(for: .video) }
         pendingRecordingMode = .video
-        showAreaSelection { [weak self] rect in
+        showAreaSelection(onSelection: { [weak self] rect in
             self?.startRecording(in: rect)
-        }
+        }, onCancel: { [weak self] in
+            guard let self else { return }
+            self.transitionSession { try self.sessionModel.markCancelled() }
+            self.transitionSession { try self.sessionModel.markIdle() }
+        })
     }
 
     private func startGIFRecordingWithSelection() {
+        sessionModel.forceIdle()
+        transitionSession { try sessionModel.beginSelection(for: .gif) }
         pendingRecordingMode = .gif
-        showAreaSelection { [weak self] rect in
+        showAreaSelection(onSelection: { [weak self] rect in
             self?.startGIFRecording(in: rect)
-        }
+        }, onCancel: { [weak self] in
+            guard let self else { return }
+            self.transitionSession { try self.sessionModel.markCancelled() }
+            self.transitionSession { try self.sessionModel.markIdle() }
+        })
     }
 
-    private func showAreaSelection(completion: @escaping (CGRect?) -> Void) {
+    private func showAreaSelection(onSelection: @escaping (CGRect?) -> Void, onCancel: @escaping () -> Void) {
         closeSelectionWindow()
 
         guard let screen = NSScreen.main else {
-            completion(nil)
+            onCancel()
             return
         }
 
         let selectionView = RecordingSelectionView(
             onSelection: { [weak self] rect in
                 self?.closeSelectionWindow()
-                completion(rect)
+                onSelection(rect)
             },
             onFullscreen: { [weak self] in
                 self?.closeSelectionWindow()
-                completion(nil)
+                onSelection(nil)
             },
             onWindowSelect: { [weak self] in
                 self?.closeSelectionWindow()
@@ -136,7 +215,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             },
             onCancel: { [weak self] in
                 self?.closeSelectionWindow()
-                completion(nil)
+                onCancel()
             }
         )
 
@@ -150,9 +229,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             defer: false
         )
 
-        // CRITICAL: Prevent double-release crash under ARC
         window.isReleasedWhenClosed = false
-
         window.contentView = hostingView
         window.isOpaque = false
         window.backgroundColor = .clear
@@ -187,6 +264,9 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             },
             onCancel: { [weak self] in
                 self?.closeWindowSelectionWindow()
+                guard let self else { return }
+                self.transitionSession { try self.sessionModel.markCancelled() }
+                self.transitionSession { try self.sessionModel.markIdle() }
             }
         )
 
@@ -200,9 +280,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             defer: false
         )
 
-        // CRITICAL: Prevent double-release crash under ARC
         window.isReleasedWhenClosed = false
-
         window.contentView = hostingView
         window.isOpaque = false
         window.backgroundColor = .clear
@@ -234,309 +312,296 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - Video Recording (Area/Fullscreen)
+    // MARK: - Session Start
 
     private func startRecording(in rect: CGRect?) {
-        Task {
-            do {
-                let display = try await ScreenCaptureContentProvider.shared.getPrimaryDisplay()
-
-                let filter = SCContentFilter(display: display, excludingWindows: [])
-
-                let config = SCStreamConfiguration()
-                config.width = rect != nil ? Int(rect!.width * 2) : display.width * 2
-                config.height = rect != nil ? Int(rect!.height * 2) : display.height * 2
-                if let rect = rect {
-                    config.sourceRect = rect
-                }
-                config.showsCursor = true
-                config.captureResolution = .best
-                config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
-                config.capturesAudio = true
-                config.sampleRate = 48000
-                config.channelCount = 2
-
-                try await beginVideoRecording(filter: filter, config: config)
-            } catch {
-                errorLog("Failed to start recording", error: error)
-            }
-        }
+        let target: RecordingTarget = rect.map { .area($0) } ?? .fullscreen
+        startCaptureSession(mode: .video, target: target)
     }
-
-    // MARK: - Video Recording (Window)
 
     private func startRecording(window scWindow: SCWindow) {
-        Task {
-            do {
-                let filter = SCContentFilter(desktopIndependentWindow: scWindow)
-
-                let scaleFactor = NSScreen.main?.backingScaleFactor ?? 2.0
-                let config = SCStreamConfiguration()
-                config.width = Int(scWindow.frame.width * scaleFactor)
-                config.height = Int(scWindow.frame.height * scaleFactor)
-                config.showsCursor = true
-                config.captureResolution = .best
-                config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
-                config.capturesAudio = true
-                config.sampleRate = 48000
-                config.channelCount = 2
-
-                debugLog("Starting window recording: \(scWindow.owningApplication?.applicationName ?? "unknown") - \(config.width)x\(config.height)")
-                try await beginVideoRecording(filter: filter, config: config)
-            } catch {
-                errorLog("Failed to start window recording", error: error)
-            }
-        }
+        startCaptureSession(mode: .video, target: .window(windowID: scWindow.windowID))
     }
-
-    /// Shared video recording setup used by both area and window recording
-    private func beginVideoRecording(filter: SCContentFilter, config: SCStreamConfiguration) async throws {
-        let outputURL = storageManager.generateRecordingURL()
-        assetWriter = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
-
-        let videoSettings: [String: Any] = [
-            AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: config.width,
-            AVVideoHeightKey: config.height,
-            AVVideoCompressionPropertiesKey: [
-                AVVideoAverageBitRateKey: 10_000_000,
-                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
-            ]
-        ]
-
-        videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
-        videoInput?.expectsMediaDataInRealTime = true
-
-        let audioSettings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVSampleRateKey: 48000,
-            AVNumberOfChannelsKey: 2,
-            AVEncoderBitRateKey: 128000
-        ]
-
-        audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
-        audioInput?.expectsMediaDataInRealTime = true
-
-        if let videoInput = videoInput {
-            assetWriter?.add(videoInput)
-        }
-        if let audioInput = audioInput {
-            assetWriter?.add(audioInput)
-        }
-
-        streamOutput = CaptureOutput(
-            videoInput: videoInput,
-            audioInput: audioInput,
-            assetWriter: assetWriter
-        )
-
-        stream = SCStream(filter: filter, configuration: config, delegate: nil)
-
-        try stream?.addStreamOutput(streamOutput!, type: .screen, sampleHandlerQueue: .global(qos: .userInteractive))
-        try stream?.addStreamOutput(streamOutput!, type: .audio, sampleHandlerQueue: .global(qos: .userInteractive))
-
-        assetWriter?.startWriting()
-
-        guard assetWriter?.status == .writing else {
-            errorLog("AssetWriter failed to start: \(assetWriter?.error?.localizedDescription ?? "unknown")")
-            return
-        }
-
-        try await stream?.startCapture()
-
-        debugLog("Recording started - \(config.width)x\(config.height)")
-
-        await MainActor.run {
-            self.isRecording = true
-            self.recordingStartTime = Date()
-            self.startRecordingTimer()
-            self.showRecordingControls()
-            NotificationCenter.default.post(name: .recordingStarted, object: nil)
-        }
-    }
-
-    private func stopRecording(completion: (() -> Void)? = nil) {
-        Task {
-            do {
-                try await stream?.stopCapture()
-                stream = nil
-
-                if let captureOutput = streamOutput as? CaptureOutput {
-                    await captureOutput.finish()
-                }
-
-                videoInput?.markAsFinished()
-                audioInput?.markAsFinished()
-
-                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                    assetWriter?.finishWriting {
-                        continuation.resume()
-                    }
-                }
-
-                let outputURL = assetWriter?.outputURL
-
-                if assetWriter?.status == .failed {
-                    errorLog("AssetWriter failed: \(assetWriter?.error?.localizedDescription ?? "unknown")")
-                }
-
-                debugLog("Recording stopped - output: \(outputURL?.lastPathComponent ?? "none")")
-
-                await MainActor.run {
-                    self.isRecording = false
-                    self.recordingTimer?.invalidate()
-                    self.recordingTimer = nil
-                    self.recordingDuration = 0
-                    self.hideRecordingControls()
-                    NotificationCenter.default.post(name: .recordingStopped, object: nil)
-
-                    if let url = outputURL {
-                        let capture = self.storageManager.saveRecording(url: url)
-                        NotificationCenter.default.post(name: .recordingCompleted, object: capture)
-                    }
-                }
-            } catch {
-                errorLog("Failed to stop recording", error: error)
-            }
-
-            if let completion = completion {
-                await MainActor.run {
-                    completion()
-                }
-            }
-        }
-    }
-
-    // MARK: - GIF Recording (Area/Fullscreen)
 
     private func startGIFRecording(in rect: CGRect?) {
-        Task {
-            await gifFrameCollector.reset()
-
-            do {
-                let display = try await ScreenCaptureContentProvider.shared.getPrimaryDisplay()
-
-                let filter = SCContentFilter(display: display, excludingWindows: [])
-
-                let config = SCStreamConfiguration()
-                config.width = rect != nil ? Int(rect!.width) : display.width
-                config.height = rect != nil ? Int(rect!.height) : display.height
-                if let rect = rect {
-                    config.sourceRect = rect
-                }
-                config.showsCursor = true
-                config.minimumFrameInterval = CMTime(value: 1, timescale: 15)
-
-                try await beginGIFRecording(filter: filter, config: config)
-            } catch {
-                errorLog("Failed to start GIF recording", error: error)
-            }
-        }
+        let target: RecordingTarget = rect.map { .area($0) } ?? .fullscreen
+        startCaptureSession(mode: .gif, target: target)
     }
-
-    // MARK: - GIF Recording (Window)
 
     private func startGIFRecording(window scWindow: SCWindow) {
+        startCaptureSession(mode: .gif, target: .window(windowID: scWindow.windowID))
+    }
+
+    private func startCaptureSession(mode: RecordingMode, target: RecordingTarget) {
         Task {
-            await gifFrameCollector.reset()
+            transitionSession { try sessionModel.beginStarting(for: mode.sessionKind) }
 
             do {
-                let filter = SCContentFilter(desktopIndependentWindow: scWindow)
+                let config = RecordingConfig.resolve(mode: mode.outputMode, target: target)
+                let pendingOutput = try prepareCaptureOutput(for: mode)
+                let engine = makeCaptureEngine()
 
-                let config = SCStreamConfiguration()
-                config.width = Int(scWindow.frame.width)
-                config.height = Int(scWindow.frame.height)
-                config.showsCursor = true
-                config.minimumFrameInterval = CMTime(value: 1, timescale: 15)
+                try await engine.start(config: config, outputURL: pendingOutput.temporaryURL)
 
-                debugLog("Starting window GIF recording: \(scWindow.owningApplication?.applicationName ?? "unknown") - \(config.width)x\(config.height)")
-                try await beginGIFRecording(filter: filter, config: config)
+                captureEngine = engine
+                currentConfig = config
+                activeMode = mode
+                activeCaptureOutput = pendingOutput
+
+                isRecording = mode == .video
+                isGIFRecording = mode == .gif
+                isExportingGIF = false
+
+                transitionSession { try sessionModel.beginRecording(for: mode.sessionKind) }
+                showRecordingControls()
+                NotificationCenter.default.post(name: .recordingStarted, object: nil)
+
+                debugLog("Recording session started: mode=\(mode.outputMode.rawValue), output=\(pendingOutput.temporaryURL.lastPathComponent)")
             } catch {
-                errorLog("Failed to start window GIF recording", error: error)
+                hideRecordingControls()
+                resetActiveSessionRuntime()
+                failSession("Failed to start \(mode.outputMode.rawValue) recording", error: error)
+                presentRecordingAlert(title: "Recording Failed", message: error.localizedDescription)
             }
         }
     }
 
-    /// Shared GIF recording setup used by both area and window recording
-    private func beginGIFRecording(filter: SCContentFilter, config: SCStreamConfiguration) async throws {
-        let collector = self.gifFrameCollector
-        streamOutput = GIFCaptureOutput { frame in
-            Task {
-                await collector.addFrame(frame)
-            }
-        }
+    // MARK: - Session Stop
 
-        stream = SCStream(filter: filter, configuration: config, delegate: nil)
-        try stream?.addStreamOutput(streamOutput!, type: .screen, sampleHandlerQueue: .global(qos: .userInteractive))
-
-        try await stream?.startCapture()
-
-        debugLog("GIF recording started - \(config.width)x\(config.height), fps: 15")
-
-        await MainActor.run {
-            self.isGIFRecording = true
-            self.recordingStartTime = Date()
-            self.startRecordingTimer()
-            self.showRecordingControls()
-            NotificationCenter.default.post(name: .recordingStarted, object: nil)
-        }
+    private func stopRecording(completion: (() -> Void)? = nil) {
+        stopCaptureSession(mode: .video, completion: completion)
     }
 
     private func stopGIFRecording(completion: (() -> Void)? = nil) {
+        stopCaptureSession(mode: .gif, completion: completion)
+    }
+
+    private func stopCaptureSession(mode: RecordingMode, completion: (() -> Void)? = nil) {
         Task {
+            defer { completion?() }
+
+            transitionSession { try sessionModel.beginStopping(for: mode.sessionKind) }
+
+            guard let captureEngine, let pendingCaptureOutput = activeCaptureOutput else {
+                failSession("No active recording session to stop")
+                hideRecordingControls()
+                resetActiveSessionRuntime()
+                return
+            }
+
             do {
-                try await stream?.stopCapture()
-                stream = nil
+                _ = try await captureEngine.stop()
+                NotificationCenter.default.post(name: .recordingStopped, object: nil)
 
-                let gifFrames = await gifFrameCollector.getFramesAndReset()
-                debugLog("GIF recording stopped - \(gifFrames.count) frames collected")
+                switch mode {
+                case .video:
+                    let finalURL = try finalizeAtomicOutput(pendingCaptureOutput)
+                    try await validateVideoOutputFile(finalURL)
 
-                let encoder = GIFEncoder()
-                let outputURL = storageManager.generateGIFURL()
+                    transitionSession { try sessionModel.markCompleted() }
+                    transitionSession { try sessionModel.markIdle() }
 
-                await MainActor.run {
-                    self.isGIFRecording = false
-                    self.recordingTimer?.invalidate()
-                    self.recordingTimer = nil
-                    self.recordingDuration = 0
-                    self.hideRecordingControls()
-                    NotificationCenter.default.post(name: .recordingStopped, object: nil)
-                }
+                    hideRecordingControls()
+                    resetActiveSessionRuntime()
 
-                let success = await encoder.createGIF(from: gifFrames, outputURL: outputURL, frameDelay: 1.0/15.0)
+                    let capture = storageManager.saveRecording(url: finalURL)
+                    NotificationCenter.default.post(name: .recordingCompleted, object: capture)
 
-                if success {
-                    debugLog("GIF created at \(outputURL.lastPathComponent)")
-                    await MainActor.run {
-                        let capture = self.storageManager.saveGIF(url: outputURL)
-                        NotificationCenter.default.post(name: .recordingCompleted, object: capture)
+                case .gif:
+                    isGIFRecording = false
+                    isExportingGIF = true
+                    transitionSession { try sessionModel.beginGIFExport() }
+
+                    let sourceVideoURL = try finalizeAtomicOutput(pendingCaptureOutput)
+                    try await validateVideoOutputFile(sourceVideoURL)
+                    let gifOutput = try prepareAtomicOutput(finalURL: storageManager.generateGIFURL())
+                    let gifFPS = currentConfig?.fps ?? 15
+                    let gifQuality = currentConfig?.gifExportQuality ?? .medium
+
+                    gifExportTask = Task { @MainActor [weak self] in
+                        guard let self else { return }
+
+                        do {
+                            try await self.gifExportService.exportGIF(
+                                from: sourceVideoURL,
+                                to: gifOutput.temporaryURL,
+                                fps: gifFPS,
+                                quality: gifQuality,
+                                onProgress: { snapshot in
+                                    self.sessionModel.updateGIFExportProgress(snapshot.progress)
+                                }
+                            )
+
+                            let finalizedGIFURL = try self.finalizeAtomicOutput(gifOutput)
+                            try? FileManager.default.removeItem(at: sourceVideoURL)
+
+                            self.transitionSession { try self.sessionModel.markCompleted() }
+                            self.transitionSession { try self.sessionModel.markIdle() }
+
+                            self.hideRecordingControls()
+                            self.resetActiveSessionRuntime()
+
+                            let capture = self.storageManager.saveGIF(url: finalizedGIFURL)
+                            NotificationCenter.default.post(name: .recordingCompleted, object: capture)
+
+                            debugLog("GIF export finished: \(finalizedGIFURL.lastPathComponent)")
+                        } catch {
+                            self.isExportingGIF = false
+                            self.hideRecordingControls()
+                            self.resetActiveSessionRuntime()
+
+                            self.failSession("GIF export failed", error: error)
+
+                            let message = "GIF export failed. \(error.localizedDescription)\n\nThe source video was preserved at:\n\(sourceVideoURL.path)"
+                            self.presentRecordingAlert(title: "GIF Export Failed", message: message)
+                        }
                     }
-                } else {
-                    errorLog("GIF creation failed - \(gifFrames.count) frames, output: \(outputURL.lastPathComponent)")
+
+                    await gifExportTask?.value
+                    gifExportTask = nil
                 }
             } catch {
-                errorLog("Failed to stop GIF recording", error: error)
-            }
-
-            if let completion = completion {
-                await MainActor.run {
-                    completion()
-                }
+                await captureEngine.cancel()
+                discardPendingOutputArtifacts(activeCaptureOutput)
+                hideRecordingControls()
+                resetActiveSessionRuntime()
+                failSession("Failed to stop recording", error: error)
+                presentRecordingAlert(title: "Stop Failed", message: error.localizedDescription)
             }
         }
+    }
+
+    // MARK: - File Output
+
+    private func prepareCaptureOutput(for mode: RecordingMode) throws -> PendingOutput {
+        switch mode {
+        case .video:
+            return try prepareAtomicOutput(finalURL: storageManager.generateRecordingURL())
+        case .gif:
+            return try prepareAtomicOutput(finalURL: temporaryGIFSourceVideoURL())
+        }
+    }
+
+    private func prepareAtomicOutput(finalURL: URL) throws -> PendingOutput {
+        let directory = finalURL.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        let temporaryFilename = ".partial-\(UUID().uuidString)-\(finalURL.lastPathComponent)"
+        let temporaryURL = directory.appendingPathComponent(temporaryFilename)
+
+        if FileManager.default.fileExists(atPath: temporaryURL.path) {
+            try FileManager.default.removeItem(at: temporaryURL)
+        }
+
+        return PendingOutput(temporaryURL: temporaryURL, finalURL: finalURL)
+    }
+
+    private func finalizeAtomicOutput(_ pendingOutput: PendingOutput) throws -> URL {
+        guard FileManager.default.fileExists(atPath: pendingOutput.temporaryURL.path) else {
+            throw CaptureEngineError.outputFileMissing(pendingOutput.temporaryURL)
+        }
+
+        if FileManager.default.fileExists(atPath: pendingOutput.finalURL.path) {
+            try FileManager.default.removeItem(at: pendingOutput.finalURL)
+        }
+
+        try FileManager.default.moveItem(at: pendingOutput.temporaryURL, to: pendingOutput.finalURL)
+        return pendingOutput.finalURL
+    }
+
+    private func discardPendingOutputArtifacts(_ pendingOutput: PendingOutput?) {
+        guard let pendingOutput else { return }
+
+        if FileManager.default.fileExists(atPath: pendingOutput.temporaryURL.path) {
+            try? FileManager.default.removeItem(at: pendingOutput.temporaryURL)
+        }
+    }
+
+    private func validateVideoOutputFile(_ url: URL) async throws {
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw CaptureEngineError.outputFileMissing(url)
+        }
+
+        let fileSize: Int64
+        if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+           let sizeNumber = attributes[.size] as? NSNumber {
+            fileSize = sizeNumber.int64Value
+        } else {
+            fileSize = 0
+        }
+
+        guard fileSize > 0 else {
+            throw CaptureEngineError.outputFileInvalid(url, reason: "File is empty")
+        }
+
+        let asset = AVURLAsset(url: url)
+
+        let duration: CMTime
+        let isPlayable: Bool
+        let hasVideoTrack: Bool
+
+        do {
+            if #available(macOS 13.0, *) {
+                duration = try await asset.load(.duration)
+                isPlayable = try await asset.load(.isPlayable)
+                let videoTracks = try await asset.loadTracks(withMediaType: .video)
+                hasVideoTrack = !videoTracks.isEmpty
+            } else {
+                duration = asset.duration
+                isPlayable = asset.isPlayable
+                hasVideoTrack = !asset.tracks(withMediaType: .video).isEmpty
+            }
+        } catch {
+            throw CaptureEngineError.outputFileInvalid(url, reason: "Unable to parse video metadata (\(describe(error: error)))")
+        }
+
+        guard hasVideoTrack else {
+            throw CaptureEngineError.outputFileInvalid(url, reason: "No video track")
+        }
+
+        guard duration.isValid, duration.seconds.isFinite, duration.seconds > 0 else {
+            throw CaptureEngineError.outputFileInvalid(url, reason: "Missing or invalid duration")
+        }
+
+        guard isPlayable else {
+            throw CaptureEngineError.outputFileInvalid(url, reason: "Asset is not playable")
+        }
+
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 1280, height: 720)
+        let probeTime = CMTime(seconds: min(duration.seconds * 0.05, max(duration.seconds - 0.001, 0)), preferredTimescale: 600)
+
+        do {
+            _ = try generator.copyCGImage(at: probeTime, actualTime: nil)
+        } catch {
+            throw CaptureEngineError.outputFileInvalid(url, reason: "First-frame decode failed (\(describe(error: error)))")
+        }
+    }
+
+    private func describe(error: Error) -> String {
+        let nsError = error as NSError
+        return "\(nsError.domain) (\(nsError.code)): \(nsError.localizedDescription)"
+    }
+
+    private func temporaryGIFSourceVideoURL() -> URL {
+        storageManager.screenshotsDirectory
+            .appendingPathComponent(".gif-source-\(UUID().uuidString).mp4")
+    }
+
+    private func makeCaptureEngine() -> CaptureEngine {
+        // Prefer native ScreenCaptureKit recording output on macOS 15+.
+        // AVAssetWriter has shown intermittent empty-output failures in the field.
+        // Set forceAVAssetWriterEngine=true only for targeted fallback/debugging.
+        if #available(macOS 15.0, *),
+           !UserDefaults.standard.bool(forKey: "forceAVAssetWriterEngine") {
+            return SCRecordingOutputEngine()
+        }
+
+        return AVAssetWriterCaptureEngine()
     }
 
     // MARK: - Recording Controls
-
-    private func startRecordingTimer() {
-        recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            guard let strongSelf = self else { return }
-            Task { @MainActor in
-                guard let startTime = strongSelf.recordingStartTime else { return }
-                strongSelf.recordingDuration = Date().timeIntervalSince(startTime)
-            }
-        }
-    }
 
     private func showRecordingControls() {
         guard let screen = NSScreen.main else { return }
@@ -544,22 +609,19 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         hideRecordingControls()
 
         let controlView = RecordingControlsView(
-            duration: Binding(get: { self.recordingDuration }, set: { _ in }),
-            isPaused: Binding(get: { self.isPaused }, set: { _ in }),
+            session: sessionModel,
             onStop: { [weak self] in
-                if self?.isGIFRecording == true {
-                    self?.stopGIFRecording()
-                } else {
-                    self?.stopRecording()
+                guard let self else { return }
+                if self.isGIFRecording {
+                    self.stopGIFRecording()
+                } else if self.isRecording {
+                    self.stopRecording()
                 }
-            },
-            onPause: { [weak self] in
-                self?.togglePause()
             }
         )
 
         let hostingView = NSHostingView(rootView: controlView)
-        let controlSize = NSSize(width: 200, height: 60)
+        let controlSize = NSSize(width: 300, height: 70)
         hostingView.frame = NSRect(origin: .zero, size: controlSize)
 
         let centerX = screen.frame.midX - controlSize.width / 2
@@ -572,9 +634,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             defer: false
         )
 
-        // CRITICAL: Prevent double-release crash under ARC
         window.isReleasedWhenClosed = false
-
         window.contentView = hostingView
         window.isOpaque = false
         window.backgroundColor = .clear
@@ -584,11 +644,43 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
         controlWindow = window
         window.makeKeyAndOrderFront(nil)
+
+        showRecordingOverlay()
     }
 
-    private func hideRecordingControls() {
-        guard let windowToClose = controlWindow else { return }
-        controlWindow = nil
+    private func showRecordingOverlay() {
+        guard case .area(let rect) = currentConfig?.target else { return }
+        guard let screen = NSScreen.main else { return }
+
+        hideRecordingOverlay()
+
+        let overlayView = RecordingOverlayView(recordingRect: rect)
+        let hostingView = NSHostingView(rootView: overlayView)
+        hostingView.frame = screen.frame
+
+        let window = KeyableWindow(
+            contentRect: screen.frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+
+        window.isReleasedWhenClosed = false
+        window.contentView = hostingView
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.level = .floating
+        window.ignoresMouseEvents = true
+        window.hasShadow = false
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary]
+
+        recordingOverlayWindow = window
+        window.orderBack(nil)
+    }
+
+    private func hideRecordingOverlay() {
+        guard let windowToClose = recordingOverlayWindow else { return }
+        recordingOverlayWindow = nil
 
         windowToClose.orderOut(nil)
 
@@ -598,89 +690,17 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         }
     }
 
-    private func togglePause() {
-        isPaused.toggle()
-    }
-}
+    private func hideRecordingControls() {
+        hideRecordingOverlay()
 
-// MARK: - Video Capture Output
+        guard let windowToClose = controlWindow else { return }
+        controlWindow = nil
 
-class CaptureOutput: NSObject, SCStreamOutput {
-    private let videoInput: AVAssetWriterInput?
-    private let audioInput: AVAssetWriterInput?
-    private let assetWriter: AVAssetWriter?
-    private var sessionStarted = false
-    private let queue = DispatchQueue(label: "capture.output")
+        windowToClose.orderOut(nil)
 
-    init(videoInput: AVAssetWriterInput?, audioInput: AVAssetWriterInput?, assetWriter: AVAssetWriter?) {
-        self.videoInput = videoInput
-        self.audioInput = audioInput
-        self.assetWriter = assetWriter
-        super.init()
-    }
-
-    func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
-        guard CMSampleBufferDataIsReady(sampleBuffer) else { return }
-
-        queue.async { [weak self] in
-            guard let self = self else { return }
-            guard self.assetWriter?.status == .writing || !self.sessionStarted else { return }
-
-            if !self.sessionStarted {
-                let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-                self.assetWriter?.startSession(atSourceTime: timestamp)
-                self.sessionStarted = true
-            }
-
-            switch type {
-            case .screen:
-                if self.videoInput?.isReadyForMoreMediaData == true {
-                    self.videoInput?.append(sampleBuffer)
-                }
-            case .audio:
-                if self.audioInput?.isReadyForMoreMediaData == true {
-                    self.audioInput?.append(sampleBuffer)
-                }
-            #if compiler(>=6.0)
-            case .microphone:
-                if self.audioInput?.isReadyForMoreMediaData == true {
-                    self.audioInput?.append(sampleBuffer)
-                }
-            #endif
-            @unknown default:
-                if self.audioInput?.isReadyForMoreMediaData == true {
-                    self.audioInput?.append(sampleBuffer)
-                }
-            }
-        }
-    }
-
-    func finish() async {
-        // Cleanup if needed
-    }
-}
-
-// MARK: - GIF Capture Output
-
-class GIFCaptureOutput: NSObject, SCStreamOutput {
-    private let onFrame: (CGImage) -> Void
-    private let ciContext = CIContext(options: [.cacheIntermediates: false])
-    private var frameCount = 0
-
-    init(onFrame: @escaping (CGImage) -> Void) {
-        self.onFrame = onFrame
-        super.init()
-    }
-
-    func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
-        guard type == .screen,
-              let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-
-        let ciImage = CIImage(cvPixelBuffer: imageBuffer)
-
-        if let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) {
-            frameCount += 1
-            onFrame(cgImage)
+        Task { @MainActor in
+            windowToClose.contentView = nil
+            windowToClose.close()
         }
     }
 }

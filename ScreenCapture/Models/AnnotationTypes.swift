@@ -147,6 +147,7 @@ struct Annotation: Identifiable, Equatable, Codable, Sendable {
 
     static func == (lhs: Annotation, rhs: Annotation) -> Bool {
         lhs.id == rhs.id &&
+        lhs.type == rhs.type &&
         lhs.rect == rhs.rect &&
         lhs.color == rhs.color &&
         lhs.strokeWidth == rhs.strokeWidth &&

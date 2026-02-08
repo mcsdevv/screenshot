@@ -68,7 +68,6 @@ Record screen activity as MP4 video.
 | Audio Sample Rate | 48 kHz stereo |
 
 **Recording Controls:**
-- Pause/Resume recording
 - Stop button with duration timer
 - Optional cursor display
 - Optional microphone/system audio
@@ -87,10 +86,11 @@ Record screen as animated GIF.
 **Quality Presets:**
 | Preset | Max Dimension | Frame Skip |
 |--------|---------------|------------|
-| Low | 400px | 3 |
-| Medium | 600px | 2 |
-| High | 800px | 1 |
-| Original | Full | 0 |
+| Low | 640px | 3 |
+| Medium | 960px | 2 |
+| High | 1280px | 1 |
+
+**GIF Export Pipeline:** ScreenCapture records a temporary MP4, then exports the final GIF via `ffmpeg` palette generation/encoding for better quality and reliability.
 
 ---
 

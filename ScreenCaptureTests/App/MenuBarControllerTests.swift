@@ -119,6 +119,12 @@ final class MenuBarControllerTests: XCTestCase {
         NotificationCenter.default.post(name: NSApplication.didBecomeActiveNotification, object: nil)
         XCTAssertTrue(true, "No crash occurred")
     }
+
+    func testMenuDoesNotExposeRecordGIFItem() {
+        XCTAssertTrue(menuBarController.menuItemExistsForTesting("Record Screen"))
+        XCTAssertFalse(menuBarController.menuItemExistsForTesting("Record GIF"))
+        XCTAssertEqual(menuBarController.keyEquivalentForMenuItemForTesting("Record Screen"), "7")
+    }
 }
 
 // MARK: - Menu Item Tests
@@ -136,7 +142,6 @@ final class MenuBarMenuItemTests: XCTestCase {
             "Scrolling Capture",
             "Record",
             "Record Screen",
-            "Record GIF",
             "Tools",
             "Capture Text (OCR)",
             "Pin Screenshot",
@@ -147,7 +152,7 @@ final class MenuBarMenuItemTests: XCTestCase {
         ]
 
         // Just verify the expected titles are defined
-        XCTAssertEqual(expectedTitles.count, 15)
+        XCTAssertEqual(expectedTitles.count, 14)
     }
 
     func testMenuItemKeyEquivalents() {
@@ -158,7 +163,6 @@ final class MenuBarMenuItemTests: XCTestCase {
             ("Capture Fullscreen", "3"),
             ("Scrolling Capture", "6"),
             ("Record Screen", "7"),
-            ("Record GIF", "8"),
             ("Capture Text (OCR)", "o"),
             ("Pin Screenshot", "p"),
             ("Capture History", "h"),
@@ -166,7 +170,7 @@ final class MenuBarMenuItemTests: XCTestCase {
             ("Quit ScreenCapture", "q")
         ]
 
-        XCTAssertEqual(keyEquivalents.count, 11)
+        XCTAssertEqual(keyEquivalents.count, 10)
     }
 
     func testMenuItemIcons() {
@@ -177,7 +181,6 @@ final class MenuBarMenuItemTests: XCTestCase {
             "rectangle.fill.on.rectangle.fill",
             "scroll",
             "video.fill",
-            "photo.on.rectangle.angled",
             "text.viewfinder",
             "pin.fill",
             "clock.arrow.circlepath",

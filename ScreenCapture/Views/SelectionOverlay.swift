@@ -128,6 +128,7 @@ struct SelectionRectangle: View {
 struct DimmingOverlay: View {
     let rect: CGRect
     let size: CGSize
+    var dimmingOpacity: Double = 0.5
 
     var body: some View {
         Canvas { context, canvasSize in
@@ -137,7 +138,7 @@ struct DimmingOverlay: View {
             var cutout = Path()
             cutout.addRect(rect)
 
-            context.fill(path, with: .color(.black.opacity(0.5)))
+            context.fill(path, with: .color(.black.opacity(dimmingOpacity)))
             context.blendMode = .destinationOut
             context.fill(cutout, with: .color(.white))
         }

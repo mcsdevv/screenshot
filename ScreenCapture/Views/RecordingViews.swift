@@ -154,31 +154,41 @@ struct RecordingSelectionView: View {
 // MARK: - Recording Controls View
 
 struct RecordingControlsView: View {
-    @Binding var duration: TimeInterval
-    @Binding var isPaused: Bool
+    @ObservedObject var session: RecordingSessionModel
     let onStop: () -> Void
-    let onPause: () -> Void
+
+    @State private var isBlinking = false
 
     var body: some View {
-        HStack(spacing: DSSpacing.lg) {
-            Circle()
-                .fill(Color.dsDanger)
-                .frame(width: 12, height: 12)
-                .opacity(isPaused ? 0.5 : 1.0)
-                .animation(.easeInOut(duration: 0.5).repeatForever(), value: !isPaused)
+        VStack(spacing: DSSpacing.xs) {
+            HStack(spacing: DSSpacing.lg) {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 12, height: 12)
+                    .opacity(isRecordingState ? (isBlinking ? 0.3 : 1.0) : 1.0)
+                    .onAppear {
+                        withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                            isBlinking = true
+                        }
+                    }
 
-            Text(formatDuration(duration))
-                .font(DSTypography.mono)
-                .foregroundColor(.dsTextPrimary)
+                Text(statusText)
+                    .font(DSTypography.mono)
+                    .foregroundColor(.dsTextPrimary)
 
-            Spacer()
+                Spacer()
 
-            DSIconButton(icon: isPaused ? "play.fill" : "pause.fill", size: 28) {
-                onPause()
+                if canStop {
+                    DSIconButton(icon: "stop.fill", size: 28) {
+                        onStop()
+                    }
+                }
             }
 
-            DSIconButton(icon: "stop.fill", size: 28) {
-                onStop()
+            if isExportingGIF {
+                ProgressView(value: session.gifExportProgress)
+                    .progressViewStyle(.linear)
+                    .tint(.dsAccent)
             }
         }
         .padding(.horizontal, DSSpacing.lg)
@@ -193,5 +203,76 @@ struct RecordingControlsView: View {
         let seconds = Int(duration) % 60
         let tenths = Int((duration.truncatingRemainder(dividingBy: 1)) * 10)
         return String(format: "%02d:%02d.%d", minutes, seconds, tenths)
+    }
+
+    private var isRecordingState: Bool {
+        if case .recording = session.state { return true }
+        return false
+    }
+
+    private var isStoppingState: Bool {
+        if case .stopping = session.state { return true }
+        return false
+    }
+
+    private var isExportingGIF: Bool {
+        if case .exportingGIF = session.state { return true }
+        return false
+    }
+
+    private var canStop: Bool {
+        isRecordingState
+    }
+
+    private var statusText: String {
+        if isExportingGIF {
+            let percent = Int((session.gifExportProgress * 100).rounded())
+            return "Exporting GIF \(percent)%"
+        }
+
+        if isStoppingState {
+            return "Finalizing..."
+        }
+
+        return formatDuration(session.elapsedDuration)
+    }
+
+    private var statusColor: Color {
+        if isExportingGIF { return .dsAccent }
+        if isStoppingState { return .dsWarmAccent }
+        return .dsDanger
+    }
+}
+
+// MARK: - Recording Overlay
+
+struct RecordingOverlayView: View {
+    let recordingRect: CGRect
+
+    var body: some View {
+        GeometryReader { geometry in
+            let viewRect = convertToViewCoordinates(recordingRect, screenHeight: geometry.size.height)
+
+            ZStack {
+                DimmingOverlay(rect: viewRect, size: geometry.size, dimmingOpacity: 0.35)
+
+                Rectangle()
+                    .stroke(style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
+                    .foregroundColor(.dsBorderActive)
+                    .frame(width: viewRect.width, height: viewRect.height)
+                    .position(x: viewRect.midX, y: viewRect.midY)
+            }
+            .allowsHitTesting(false)
+        }
+        .ignoresSafeArea()
+    }
+
+    private func convertToViewCoordinates(_ rect: CGRect, screenHeight: CGFloat) -> CGRect {
+        CGRect(
+            x: rect.origin.x,
+            y: screenHeight - rect.origin.y - rect.height,
+            width: rect.width,
+            height: rect.height
+        )
     }
 }
