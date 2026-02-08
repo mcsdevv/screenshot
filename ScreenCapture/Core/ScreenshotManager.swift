@@ -48,7 +48,6 @@ class ScreenshotManager: NSObject, ObservableObject {
     private var currentTempFile: URL?
     private var selectionWindow: NSWindow?
     private var windowSelectionWindow: NSWindow?
-    private var scrollingCapture: ScrollingCapture?
     private var localEscapeMonitor: Any?
     private var globalEscapeMonitor: Any?
 
@@ -84,15 +83,6 @@ class ScreenshotManager: NSObject, ObservableObject {
         debugLog("captureFullscreen() called")
         pendingAction = .save
         capture(target: .fullscreen)
-    }
-
-    func captureScrolling() {
-        debugLog("captureScrolling() called")
-        pendingAction = .save
-        scrollingCapture = ScrollingCapture(storageManager: storageManager) { [weak self] in
-            self?.scrollingCapture = nil
-        }
-        scrollingCapture?.start()
     }
 
     func captureForOCR() {

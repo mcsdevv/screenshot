@@ -1,4 +1,4 @@
 {
   "title": "Capture",
-  "pages": ["index", "area", "window", "fullscreen", "scrolling"]
+  "pages": ["index", "area", "window", "fullscreen"]
 }

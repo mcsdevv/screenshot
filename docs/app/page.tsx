@@ -3,7 +3,7 @@ import Link from 'next/link';
 const features = [
   {
     title: 'Screenshot Capture',
-    description: 'Area, window, fullscreen, and scrolling capture modes',
+    description: 'Area, window, and fullscreen capture modes',
     href: '/docs/capture',
     icon: '📸',
   },

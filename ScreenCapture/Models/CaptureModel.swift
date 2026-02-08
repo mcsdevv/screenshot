@@ -17,7 +17,7 @@ struct CaptureItem: Identifiable, Codable, Equatable, Sendable {
 
     var fileExtension: String {
         switch type {
-        case .screenshot, .scrollingCapture:
+        case .screenshot:
             return "png"
         case .recording:
             return "mp4"
@@ -45,14 +45,12 @@ struct CaptureItem: Identifiable, Codable, Equatable, Sendable {
 
 enum CaptureType: String, Codable, CaseIterable, Sendable {
     case screenshot = "Screenshot"
-    case scrollingCapture = "Scrolling"
     case recording = "Recording"
     case gif = "GIF"
 
     var prefix: String {
         switch self {
         case .screenshot: return "Screenshot"
-        case .scrollingCapture: return "Scrolling Capture"
         case .recording: return "Recording"
         case .gif: return "GIF"
         }
@@ -61,7 +59,6 @@ enum CaptureType: String, Codable, CaseIterable, Sendable {
     var icon: String {
         switch self {
         case .screenshot: return "camera.fill"
-        case .scrollingCapture: return "scroll.fill"
         case .recording: return "video.fill"
         case .gif: return "photo.on.rectangle.angled"
         }
@@ -70,7 +67,6 @@ enum CaptureType: String, Codable, CaseIterable, Sendable {
     var color: NSColor {
         switch self {
         case .screenshot: return .systemBlue
-        case .scrollingCapture: return .systemPurple
         case .recording: return .systemRed
         case .gif: return .systemOrange
         }
@@ -79,7 +75,7 @@ enum CaptureType: String, Codable, CaseIterable, Sendable {
     var badgeStyle: DSBadge.Style {
         switch self {
         case .recording, .gif: return .systemAccent
-        case .screenshot, .scrollingCapture: return .neutral
+        case .screenshot: return .neutral
         }
     }
 }
@@ -180,6 +176,28 @@ struct CaptureMetadata: Codable, Sendable {
     }
 }
 
+private struct SkipDecodableValue: Decodable {}
+
+private struct LossyDecodableArray<Element: Decodable>: Decodable {
+    var elements: [Element]
+
+    init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        var items: [Element] = []
+
+        while !container.isAtEnd {
+            do {
+                items.append(try container.decode(Element.self))
+            } catch {
+                // Consume malformed entries so valid captures in the same file can still load.
+                _ = try? container.decode(SkipDecodableValue.self)
+            }
+        }
+
+        elements = items
+    }
+}
+
 extension CaptureItem {
     static func preview() -> CaptureItem {
         CaptureItem(
@@ -193,8 +211,7 @@ extension CaptureItem {
         [
             CaptureItem(type: .screenshot, filename: "screenshot1.png", createdAt: Date()),
             CaptureItem(type: .recording, filename: "recording1.mp4", createdAt: Date().addingTimeInterval(-3600)),
-            CaptureItem(type: .gif, filename: "animation1.gif", createdAt: Date().addingTimeInterval(-7200)),
-            CaptureItem(type: .scrollingCapture, filename: "scroll1.png", createdAt: Date().addingTimeInterval(-86400))
+            CaptureItem(type: .gif, filename: "animation1.gif", createdAt: Date().addingTimeInterval(-7200))
         ]
     }
 }
@@ -203,9 +220,26 @@ class CaptureHistory: Codable {
     var items: [CaptureItem]
     var lastCleanup: Date
 
+    private enum CodingKeys: String, CodingKey {
+        case items
+        case lastCleanup
+    }
+
     init(items: [CaptureItem] = [], lastCleanup: Date = Date()) {
         self.items = items
         self.lastCleanup = lastCleanup
+    }
+
+    required init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        if let decodedItems = try? container.decode(LossyDecodableArray<CaptureItem>.self, forKey: .items) {
+            items = decodedItems.elements
+        } else {
+            items = []
+        }
+
+        lastCleanup = (try? container.decode(Date.self, forKey: .lastCleanup)) ?? Date()
     }
 
     convenience init(fileURL: URL, fileManager: FileManager = .default) {

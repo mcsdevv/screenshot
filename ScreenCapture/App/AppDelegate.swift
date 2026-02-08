@@ -182,12 +182,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             }
         }
 
-        keyboardShortcuts.register(shortcut: .captureScrolling) { [weak self] in
-            DispatchQueue.main.async {
-                self?.screenshotManager.captureScrolling()
-            }
-        }
-
         keyboardShortcuts.register(shortcut: .recordScreen) { [weak self] in
             DispatchQueue.main.async {
                 self?.screenRecordingManager.toggleRecording()
@@ -308,7 +302,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     }
 
     private func canOpenEditor(for capture: CaptureItem) -> Bool {
-        capture.type == .screenshot || capture.type == .scrollingCapture
+        capture.type == .screenshot
     }
 
     private func copyCaptureToClipboard(_ capture: CaptureItem) -> Bool {
@@ -475,11 +469,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             onCaptureFullscreen: { [weak self] in
                 DispatchQueue.main.async {
                     self?.screenshotManager.captureFullscreen()
-                }
-            },
-            onCaptureScrolling: { [weak self] in
-                DispatchQueue.main.async {
-                    self?.screenshotManager.captureScrolling()
                 }
             },
             onRecordVideo: { [weak self] in
@@ -818,7 +807,6 @@ struct AllInOneMenuView: View {
     let onCaptureArea: () -> Void
     let onCaptureWindow: () -> Void
     let onCaptureFullscreen: () -> Void
-    let onCaptureScrolling: () -> Void
     let onRecordVideo: () -> Void
     let onOCR: () -> Void
     let onDismiss: () -> Void
@@ -848,11 +836,6 @@ struct AllInOneMenuView: View {
                 MenuButton(icon: "rectangle.fill.on.rectangle.fill", title: "Capture Fullscreen", shortcut: "⌃⇧3") {
                     onDismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onCaptureFullscreen() }
-                }
-
-                MenuButton(icon: "scroll", title: "Scrolling Capture", shortcut: "⌃⇧6") {
-                    onDismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onCaptureScrolling() }
                 }
 
                 Divider()

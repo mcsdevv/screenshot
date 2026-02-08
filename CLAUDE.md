@@ -43,7 +43,6 @@ let window = NSWindow(...)
 **Files that create windows (check all when adding new windows):**
 - `AppDelegate.swift` - QuickAccessOverlay, AllInOneMenu
 - `ScreenRecordingManager.swift` - selection window, control window
-- `ScrollingCapture.swift` - instructions window, controls window
 - `PinnedScreenshotWindow.swift` - pinned screenshot window
 
 ### Design System Consistency

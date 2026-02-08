@@ -50,7 +50,6 @@ All of these files create windows and MUST set `isReleasedWhenClosed = false`:
 
 - `AppDelegate.swift` - QuickAccessOverlay window, AllInOneMenu window
 - `ScreenRecordingManager.swift` - selection window, control window
-- `ScrollingCapture.swift` - instructions window, capture controls window
 - `PinnedScreenshotWindow.swift` - pinned screenshot window
 - `BackgroundTool.swift` - background tool window
 

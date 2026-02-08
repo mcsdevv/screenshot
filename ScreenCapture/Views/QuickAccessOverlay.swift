@@ -325,7 +325,7 @@ struct QuickAccessOverlay: View {
     private var overlayBadgeStyle: DSBadge.Style {
         switch controller.capture.type {
         case .recording, .gif: return .systemAccent
-        case .screenshot, .scrollingCapture: return .accent
+        case .screenshot: return .accent
         }
     }
 

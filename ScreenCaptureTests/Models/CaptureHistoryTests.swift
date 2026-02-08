@@ -280,6 +280,40 @@ final class CaptureHistoryTests: XCTestCase {
         XCTAssertTrue(loadedHistory.items.isEmpty)
     }
 
+    func testLoadDropsLegacyScrollingEntriesButKeepsValidItems() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+        let fileURL = tempDir.appendingPathComponent("legacy_history_\(UUID().uuidString).json")
+
+        defer {
+            try? FileManager.default.removeItem(at: fileURL)
+        }
+
+        let originalHistory = CaptureHistory()
+        originalHistory.add(CaptureItem(type: .screenshot, filename: "valid_screenshot.png"))
+        originalHistory.add(CaptureItem(type: .gif, filename: "valid_gif.gif"))
+
+        let encoded = try JSONEncoder().encode(originalHistory)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        var items = try XCTUnwrap(object["items"] as? [[String: Any]])
+
+        var legacyItem = try XCTUnwrap(items.first)
+        legacyItem["id"] = UUID().uuidString
+        legacyItem["type"] = "Scrolling"
+        legacyItem["filename"] = "legacy_scrolling.png"
+        items.insert(legacyItem, at: 0)
+        object["items"] = items
+
+        let mutatedData = try JSONSerialization.data(withJSONObject: object)
+        try mutatedData.write(to: fileURL)
+
+        let loadedHistory = CaptureHistory(fileURL: fileURL)
+
+        XCTAssertEqual(loadedHistory.items.count, 2)
+        XCTAssertEqual(loadedHistory.items[0].filename, "valid_gif.gif")
+        XCTAssertEqual(loadedHistory.items[1].filename, "valid_screenshot.png")
+        XCTAssertFalse(loadedHistory.items.contains { $0.filename == "legacy_scrolling.png" })
+    }
+
     func testLoadFromNonExistentFile() {
         let nonExistentURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("nonexistent_\(UUID().uuidString).json")
@@ -321,7 +355,7 @@ final class CaptureHistoryTests: XCTestCase {
         var favoriteItem = CaptureItem(type: .gif, filename: "fav.gif")
         favoriteItem.isFavorite = true
         originalHistory.add(favoriteItem)
-        originalHistory.add(CaptureItem(type: .scrollingCapture, filename: "scroll.png"))
+        originalHistory.add(CaptureItem(type: .screenshot, filename: "test.png"))
 
         let data = try JSONEncoder().encode(originalHistory)
         try data.write(to: fileURL)
@@ -330,21 +364,12 @@ final class CaptureHistoryTests: XCTestCase {
         let loadedHistory = CaptureHistory(fileURL: fileURL)
 
         XCTAssertEqual(loadedHistory.items.count, 2)
-        XCTAssertEqual(loadedHistory.items[0].type, .scrollingCapture)
+        XCTAssertEqual(loadedHistory.items[0].type, .screenshot)
         XCTAssertEqual(loadedHistory.items[1].type, .gif)
         XCTAssertTrue(loadedHistory.items[1].isFavorite)
     }
 
     // MARK: - Filter Edge Cases Tests
-
-    func testFilterScrollingCapture() {
-        history.add(CaptureItem(type: .scrollingCapture, filename: "scroll1.png"))
-        history.add(CaptureItem(type: .scrollingCapture, filename: "scroll2.png"))
-        history.add(CaptureItem(type: .screenshot, filename: "ss.png"))
-
-        let scrolling = history.filter(by: .scrollingCapture)
-        XCTAssertEqual(scrolling.count, 2)
-    }
 
     func testFilterEmptyHistory() {
         let results = history.filter(by: .screenshot)
