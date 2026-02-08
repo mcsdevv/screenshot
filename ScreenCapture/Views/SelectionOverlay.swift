@@ -20,7 +20,9 @@ struct SelectionOverlay: View {
                     SelectionRectangle(start: start, end: current, geometry: geometry)
                 }
 
-                SelectionCrosshairs(position: mousePosition, geometry: geometry)
+                if !isSelecting {
+                    SelectionCrosshairs(position: mousePosition, geometry: geometry)
+                }
 
                 SelectionInfoPanel(position: mousePosition, selection: currentSelectionRect)
             }
