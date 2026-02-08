@@ -50,6 +50,28 @@ class ScreenCaptureContentProvider {
         return display
     }
 
+    /// Returns the display that contains most of the given rect.
+    func getDisplay(containing rect: CGRect) async throws -> SCDisplay {
+        let content = try await getContent()
+        guard let fallbackDisplay = content.displays.first else {
+            throw NSError(
+                domain: "ScreenCaptureContentProvider",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "No display found"]
+            )
+        }
+
+        guard
+            let screen = screenContaining(rect),
+            let screenDisplayID = displayID(for: screen),
+            let matchedDisplay = content.displays.first(where: { $0.displayID == screenDisplayID })
+        else {
+            return fallbackDisplay
+        }
+
+        return matchedDisplay
+    }
+
     private func fetchContent() async throws -> SCShareableContent {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         cachedContent = content
@@ -60,5 +82,34 @@ class ScreenCaptureContentProvider {
     func invalidateCache() {
         cachedContent = nil
         lastFetchTime = nil
+    }
+
+    private func screenContaining(_ rect: CGRect) -> NSScreen? {
+        let midpoint = CGPoint(x: rect.midX, y: rect.midY)
+        if let directMatch = NSScreen.screens.first(where: { $0.frame.contains(midpoint) }) {
+            return directMatch
+        }
+
+        var bestScreen: NSScreen?
+        var bestIntersectionArea: CGFloat = 0
+        for screen in NSScreen.screens {
+            let intersection = screen.frame.intersection(rect)
+            guard !intersection.isNull else { continue }
+
+            let area = max(0, intersection.width) * max(0, intersection.height)
+            if area > bestIntersectionArea {
+                bestIntersectionArea = area
+                bestScreen = screen
+            }
+        }
+
+        return bestScreen
+    }
+
+    private func displayID(for screen: NSScreen) -> CGDirectDisplayID? {
+        guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
+            return nil
+        }
+        return CGDirectDisplayID(number.uint32Value)
     }
 }
