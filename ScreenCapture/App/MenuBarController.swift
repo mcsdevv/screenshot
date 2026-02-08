@@ -116,8 +116,6 @@ class MenuBarController: NSObject {
         toolsHeader.isEnabled = false
         menu.addItem(toolsHeader)
 
-        addMenuItem(title: "Capture Text (OCR)", icon: "text.viewfinder", action: #selector(captureOCR), keyEquivalent: "o", modifiers: [.control, .shift])
-        addMenuItem(title: "Pin Screenshot", icon: "pin.fill", action: #selector(pinScreenshot), keyEquivalent: "p", modifiers: [.control, .shift])
         addMenuItem(title: "Fake Screenshot", icon: "photo.fill", action: #selector(fakeScreenshot), keyEquivalent: "f", modifiers: [.control, .shift])
 
         menu.addItem(NSMenuItem.separator())
@@ -198,14 +196,6 @@ class MenuBarController: NSObject {
 
     @objc private func recordFullscreen() {
         screenRecordingManager.startFullscreenRecording()
-    }
-
-    @objc private func captureOCR() {
-        screenshotManager.captureForOCR()
-    }
-
-    @objc private func pinScreenshot() {
-        screenshotManager.captureForPinning()
     }
 
     @objc private func fakeScreenshot() {
