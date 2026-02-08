@@ -218,6 +218,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             }
         }
 
+        keyboardShortcuts.register(shortcut: .openScreenshotsFolder) { [weak self] in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                NSWorkspace.shared.open(self.storageManager.screenshotsDirectory)
+            }
+        }
+
         keyboardShortcuts.register(shortcut: .showKeyboardShortcuts) { [weak self] in
             DispatchQueue.main.async {
                 self?.toggleKeyboardShortcutsOverlay()

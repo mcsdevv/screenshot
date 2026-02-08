@@ -9,7 +9,7 @@ final class ImageStitcherTests: XCTestCase {
     }
 
     func testShortcutListExcludesLegacyScrollingShortcut() {
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.allCases.count, 10)
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.allCases.count, 11)
         XCTAssertFalse(KeyboardShortcuts.Shortcut.allCases.map(\.rawValue).contains("captureScrolling"))
     }
 }

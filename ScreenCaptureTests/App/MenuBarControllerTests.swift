@@ -126,6 +126,7 @@ final class MenuBarControllerTests: XCTestCase {
         XCTAssertFalse(menuBarController.menuItemExistsForTesting("Record GIF"))
         XCTAssertEqual(menuBarController.keyEquivalentForMenuItemForTesting("Record Screen"), "7")
         XCTAssertEqual(menuBarController.keyEquivalentForMenuItemForTesting("Record Window"), "8")
+        XCTAssertEqual(menuBarController.keyEquivalentForMenuItemForTesting("Open Screenshots Folder"), "s")
     }
 }
 
@@ -167,12 +168,13 @@ final class MenuBarMenuItemTests: XCTestCase {
             ("Record Window", "8"),
             ("Capture Text (OCR)", "o"),
             ("Pin Screenshot", "p"),
+            ("Open Screenshots Folder", "s"),
             ("Capture History", "h"),
             ("Preferences...", ","),
             ("Quit ScreenCapture", "q")
         ]
 
-        XCTAssertEqual(keyEquivalents.count, 10)
+        XCTAssertEqual(keyEquivalents.count, 11)
     }
 
     func testMenuItemIcons() {
