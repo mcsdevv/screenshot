@@ -510,10 +510,9 @@ struct CaptureGridCard: View {
     }
 
     private func loadThumbnail() {
-        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        let captureType = capture.type
-
         Task { @MainActor in
+            let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+            let captureType = capture.type
             let image = await Task.detached(priority: .userInitiated) {
                 await makeThumbnailImage(for: captureType, at: url, maxPixelSize: 440)
             }.value
@@ -673,10 +672,9 @@ struct CaptureListRow: View {
     }
 
     private func loadThumbnail() {
-        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        let captureType = capture.type
-
         Task { @MainActor in
+            let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+            let captureType = capture.type
             let image = await Task.detached(priority: .userInitiated) {
                 await makeThumbnailImage(for: captureType, at: url, maxPixelSize: 160)
             }.value
