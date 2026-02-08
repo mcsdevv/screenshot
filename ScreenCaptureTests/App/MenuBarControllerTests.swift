@@ -188,6 +188,8 @@ final class MenuBarMenuItemTests: XCTestCase {
             "rectangle.dashed",
             "macwindow",
             "rectangle.fill.on.rectangle.fill",
+            "video.badge.plus",
+            "video",
             "video.fill",
             "text.viewfinder",
             "pin.fill",
