@@ -8,6 +8,12 @@ import Vision
 class KeyableWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+
+    override init(contentRect: NSRect, styleMask style: NSWindow.StyleMask, backing backingStoreType: NSWindow.BackingStoreType, defer flag: Bool) {
+        super.init(contentRect: contentRect, styleMask: style, backing: backingStoreType, defer: flag)
+        // Keep helper overlays visible to the user while preventing them from being encoded in captures.
+        sharingType = .none
+    }
 }
 
 @MainActor

@@ -74,6 +74,7 @@ final class ScreenshotManagerTests: XCTestCase {
 
         XCTAssertTrue(window.canBecomeKey)
         XCTAssertTrue(window.canBecomeMain)
+        XCTAssertEqual(window.sharingType, .none)
     }
 
     // MARK: - Notification Name Tests
