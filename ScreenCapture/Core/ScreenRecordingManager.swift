@@ -44,6 +44,12 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     private var nativeWindowSelectionTask: Process?
     private var nativeWindowSelectionTempFile: URL?
     private var pendingRecordingMode: RecordingMode = .video
+    private var pendingRecordingTarget: RecordingTarget?
+    private var pendingAreaRect: CGRect?
+    private var isPreparingRecording = false
+    private var pendingCountdownTask: Task<Void, Never>?
+    private let controlsState = RecordingControlsStateModel()
+    private var controlWindowOrigin: CGPoint?
 
     private enum RecordingMode {
         case video
@@ -76,6 +82,11 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     }
 
     func toggleRecording() {
+        if isPreparingRecording {
+            cancelPendingRecordingPreparation()
+            return
+        }
+
         if isRecording {
             stopRecording()
         } else {
@@ -105,6 +116,11 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     }
 
     func toggleGIFRecording() {
+        if isPreparingRecording {
+            cancelPendingRecordingPreparation()
+            return
+        }
+
         if isGIFRecording {
             stopGIFRecording()
         } else {
@@ -138,6 +154,13 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
         if nativeWindowSelectionTask != nil {
             cancelNativeWindowSelection(reason: reason, updateSession: true)
+            completion?()
+            return
+        }
+
+        if isPreparingRecording {
+            debugLog("Cancelling pending recording preparation due to \(reason)")
+            cancelPendingRecordingPreparation()
             completion?()
             return
         }
@@ -190,6 +213,14 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         activeCaptureOutput = nil
         gifExportTask = nil
         isStoppingCapture = false
+        pendingCountdownTask?.cancel()
+        pendingCountdownTask = nil
+        pendingRecordingTarget = nil
+        pendingAreaRect = nil
+        isPreparingRecording = false
+        controlsState.showRecordButton = false
+        controlsState.countdownValue = nil
+        controlWindowOrigin = nil
         isRecording = false
         isGIFRecording = false
         isExportingGIF = false
@@ -274,6 +305,10 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.level = .screenSaver
+        window.onEscapeKey = { [weak self] in
+            self?.closeSelectionWindow()
+            onCancel()
+        }
 
         selectionWindow = window
         NSApp.activate(ignoringOtherApps: true)
@@ -463,21 +498,111 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     // MARK: - Session Start
 
     private func startRecording(in rect: CGRect?) {
-        let target: RecordingTarget = rect.map { .area($0) } ?? .fullscreen
-        startCaptureSession(mode: .video, target: target)
+        if let rect {
+            prepareRecording(mode: .video, target: .area(rect.standardized))
+            return
+        }
+
+        prepareRecording(mode: .video, target: .fullscreen)
     }
 
     private func startRecording(window scWindow: SCWindow) {
-        startCaptureSession(mode: .video, target: .window(windowID: scWindow.windowID))
+        prepareRecording(mode: .video, target: .window(windowID: scWindow.windowID))
     }
 
     private func startGIFRecording(in rect: CGRect?) {
-        let target: RecordingTarget = rect.map { .area($0) } ?? .fullscreen
-        startCaptureSession(mode: .gif, target: target)
+        if let rect {
+            prepareRecording(mode: .gif, target: .area(rect.standardized))
+            return
+        }
+
+        prepareRecording(mode: .gif, target: .fullscreen)
     }
 
     private func startGIFRecording(window scWindow: SCWindow) {
-        startCaptureSession(mode: .gif, target: .window(windowID: scWindow.windowID))
+        prepareRecording(mode: .gif, target: .window(windowID: scWindow.windowID))
+    }
+
+    private func prepareRecording(mode: RecordingMode, target: RecordingTarget) {
+        pendingRecordingMode = mode
+        pendingRecordingTarget = target
+        isPreparingRecording = true
+        pendingCountdownTask?.cancel()
+        pendingCountdownTask = nil
+        controlsState.showRecordButton = true
+        controlsState.countdownValue = nil
+        controlWindowOrigin = nil
+
+        switch target {
+        case let .area(rect):
+            pendingAreaRect = rect.standardized
+            showAdjustableRecordingOverlay(for: rect.standardized)
+        case .fullscreen, .window:
+            pendingAreaRect = nil
+            hideRecordingOverlay()
+        }
+
+        showRecordingControls(showRecordButton: true)
+    }
+
+    private func beginPendingRecordingCountdown() {
+        guard isPreparingRecording, controlsState.showRecordButton else { return }
+        guard pendingCountdownTask == nil else { return }
+
+        pendingCountdownTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            for countdownValue in stride(from: 3, through: 1, by: -1) {
+                guard self.isPreparingRecording else {
+                    self.pendingCountdownTask = nil
+                    return
+                }
+
+                self.controlsState.countdownValue = countdownValue
+
+                do {
+                    try await Task.sleep(nanoseconds: 1_000_000_000)
+                } catch {
+                    self.pendingCountdownTask = nil
+                    return
+                }
+            }
+
+            self.pendingCountdownTask = nil
+            self.controlsState.countdownValue = nil
+            self.startPreparedRecording()
+        }
+    }
+
+    private func startPreparedRecording() {
+        guard isPreparingRecording, let pendingTarget = pendingRecordingTarget else { return }
+
+        var resolvedTarget = pendingTarget
+        if case .area = pendingTarget, let pendingAreaRect {
+            resolvedTarget = .area(pendingAreaRect.standardized)
+        }
+
+        isPreparingRecording = false
+        pendingRecordingTarget = nil
+        controlsState.showRecordButton = false
+        controlsState.countdownValue = nil
+        startCaptureSession(mode: pendingRecordingMode, target: resolvedTarget)
+    }
+
+    private func cancelPendingRecordingPreparation() {
+        pendingCountdownTask?.cancel()
+        pendingCountdownTask = nil
+        pendingRecordingTarget = nil
+        isPreparingRecording = false
+        pendingAreaRect = nil
+        controlsState.showRecordButton = false
+        controlsState.countdownValue = nil
+        hideRecordingControls()
+
+        if sessionModel.state != .idle {
+            transitionSession { try sessionModel.markCancelled() }
+            transitionSession { try sessionModel.markIdle() }
+        }
     }
 
     private func startCaptureSession(mode: RecordingMode, target: RecordingTarget) {
@@ -500,9 +625,16 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                 isRecording = mode == .video
                 isGIFRecording = mode == .gif
                 isExportingGIF = false
+                isPreparingRecording = false
+                pendingRecordingTarget = nil
+                pendingAreaRect = nil
+                pendingCountdownTask?.cancel()
+                pendingCountdownTask = nil
+                controlsState.showRecordButton = false
+                controlsState.countdownValue = nil
 
                 transitionSession { try sessionModel.beginRecording(for: mode.sessionKind) }
-                showRecordingControls()
+                showRecordingControls(showRecordButton: false)
                 NotificationCenter.default.post(name: .recordingStarted, object: nil)
 
                 debugLog("Recording session started: mode=\(mode.outputMode.rawValue), output=\(pendingOutput.temporaryURL.lastPathComponent)")
@@ -771,32 +903,39 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
     // MARK: - Recording Controls
 
-    private func showRecordingControls() {
-        guard let screen = recordingScreen() ?? currentInteractionScreen() else { return }
+    private func showRecordingControls(showRecordButton: Bool) {
+        guard let screen = controlsScreen() else { return }
 
-        hideRecordingControls()
+        controlsState.showRecordButton = showRecordButton
+        if !showRecordButton {
+            controlsState.countdownValue = nil
+        }
+
+        hideControlWindow(resetPosition: false)
 
         let controlView = RecordingControlsView(
             session: sessionModel,
+            controlsState: controlsState,
+            onRecord: { [weak self] in
+                self?.beginPendingRecordingCountdown()
+            },
             onStop: { [weak self] in
-                guard let self else { return }
-                if self.isGIFRecording {
-                    self.stopGIFRecording()
-                } else if self.isRecording {
-                    self.stopRecording()
-                }
+                self?.handleControlStopTapped()
             }
         )
 
         let hostingView = NSHostingView(rootView: controlView)
-        let controlSize = NSSize(width: 300, height: 70)
+        let controlSize = NSSize(width: 360, height: 74)
         hostingView.frame = NSRect(origin: .zero, size: controlSize)
 
-        let centerX = screen.frame.midX - controlSize.width / 2
-        let bottomY = screen.visibleFrame.minY + 20
+        let defaultOrigin = CGPoint(
+            x: screen.frame.midX - controlSize.width / 2,
+            y: screen.visibleFrame.minY + 20
+        )
+        let origin = controlWindowOrigin ?? defaultOrigin
 
         let window = KeyableWindow(
-            contentRect: NSRect(x: centerX, y: bottomY, width: controlSize.width, height: controlSize.height),
+            contentRect: NSRect(origin: origin, size: controlSize),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
@@ -806,14 +945,94 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         window.contentView = hostingView
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.level = .floating
+        window.level = showRecordButton
+            ? NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
+            : .floating
         window.hasShadow = false
-        window.collectionBehavior = [.canJoinAllSpaces, .stationary]
+        window.isMovableByWindowBackground = true
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        if showRecordButton {
+            window.onEscapeKey = { [weak self] in
+                self?.cancelPendingRecordingPreparation()
+            }
+        }
 
         controlWindow = window
+        controlWindowOrigin = origin
+
         window.makeKeyAndOrderFront(nil)
 
-        showRecordingOverlay()
+        if !showRecordButton {
+            showRecordingOverlay()
+        }
+    }
+
+    private func handleControlStopTapped() {
+        if isPreparingRecording {
+            cancelPendingRecordingPreparation()
+            return
+        }
+
+        if isGIFRecording {
+            stopGIFRecording()
+        } else if isRecording {
+            stopRecording()
+        }
+    }
+
+    private func controlsScreen() -> NSScreen? {
+        if let pendingRecordingTarget {
+            switch pendingRecordingTarget {
+            case .fullscreen:
+                return currentInteractionScreen()
+            case .window:
+                return NSScreen.main ?? NSScreen.screens.first
+            case .area:
+                if let pendingAreaRect, let areaScreen = screenContaining(pendingAreaRect) {
+                    return areaScreen
+                }
+            }
+        }
+
+        if let pendingAreaRect, let areaScreen = screenContaining(pendingAreaRect) {
+            return areaScreen
+        }
+
+        return recordingScreen() ?? currentInteractionScreen()
+    }
+
+    private func showAdjustableRecordingOverlay(for rect: CGRect) {
+        guard let screen = screenContaining(rect) ?? currentInteractionScreen() else { return }
+
+        hideRecordingOverlay()
+
+        let overlayView = AdjustableRecordingOverlayView(
+            initialRect: rect,
+            screenFrame: screen.frame
+        ) { [weak self] updatedRect in
+            self?.pendingAreaRect = updatedRect.standardized
+        }
+        let hostingView = NSHostingView(rootView: overlayView)
+        hostingView.frame = NSRect(origin: .zero, size: screen.frame.size)
+
+        let window = KeyableWindow(
+            contentRect: screen.frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+
+        window.isReleasedWhenClosed = false
+        window.contentView = hostingView
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.level = .screenSaver
+        window.ignoresMouseEvents = false
+        window.hasShadow = false
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+
+        recordingOverlayWindow = window
+        window.makeKeyAndOrderFront(nil)
     }
 
     private func showRecordingOverlay() {
@@ -840,7 +1059,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         window.level = .floating
         window.ignoresMouseEvents = true
         window.hasShadow = false
-        window.collectionBehavior = [.canJoinAllSpaces, .stationary]
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
 
         recordingOverlayWindow = window
         window.orderBack(nil)
@@ -860,7 +1079,10 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
     private func hideRecordingControls() {
         hideRecordingOverlay()
+        hideControlWindow(resetPosition: true)
+    }
 
+    private func hideControlWindow(resetPosition: Bool) {
         guard let windowToClose = controlWindow else { return }
         controlWindow = nil
 
@@ -869,6 +1091,12 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         Task { @MainActor in
             windowToClose.contentView = nil
             windowToClose.close()
+        }
+
+        if resetPosition {
+            controlWindowOrigin = nil
+        } else {
+            controlWindowOrigin = windowToClose.frame.origin
         }
     }
 

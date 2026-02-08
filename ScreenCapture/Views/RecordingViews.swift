@@ -154,8 +154,16 @@ struct RecordingSelectionView: View {
 
 // MARK: - Recording Controls View
 
+@MainActor
+final class RecordingControlsStateModel: ObservableObject {
+    @Published var showRecordButton = false
+    @Published var countdownValue: Int?
+}
+
 struct RecordingControlsView: View {
     @ObservedObject var session: RecordingSessionModel
+    @ObservedObject var controlsState: RecordingControlsStateModel
+    let onRecord: () -> Void
     let onStop: () -> Void
 
     @State private var isBlinking = false
@@ -180,8 +188,25 @@ struct RecordingControlsView: View {
                 Spacer()
 
                 if canStop {
-                    DSIconButton(icon: "stop.fill", size: 28) {
-                        onStop()
+                    HStack(spacing: DSSpacing.sm) {
+                        if controlsState.showRecordButton {
+                            if let countdownValue = controlsState.countdownValue {
+                                RecordingControlCountdownBadge(countdownValue: countdownValue)
+                            } else {
+                                RecordingControlActionButton(
+                                    title: "Record",
+                                    icon: "record.circle.fill",
+                                    foregroundColor: .black.opacity(0.85),
+                                    backgroundColor: .white
+                                ) {
+                                    onRecord()
+                                }
+                            }
+                        }
+
+                        DSIconButton(icon: "stop.fill", size: 28) {
+                            onStop()
+                        }
                     }
                 }
             }
@@ -222,7 +247,7 @@ struct RecordingControlsView: View {
     }
 
     private var canStop: Bool {
-        isRecordingState
+        !isExportingGIF
     }
 
     private var statusText: String {
@@ -235,13 +260,431 @@ struct RecordingControlsView: View {
             return "Finalizing..."
         }
 
+        if let countdownValue = controlsState.countdownValue, controlsState.showRecordButton {
+            return "Starting in \(countdownValue)..."
+        }
+
+        if controlsState.showRecordButton && !isRecordingState {
+            return "Ready to record"
+        }
+
         return formatDuration(session.elapsedDuration)
     }
 
     private var statusColor: Color {
         if isExportingGIF { return .dsAccent }
         if isStoppingState { return .dsWarmAccent }
+        if controlsState.countdownValue != nil && controlsState.showRecordButton { return .dsWarmAccent }
+        if controlsState.showRecordButton && !isRecordingState { return .white.opacity(0.9) }
         return .dsDanger
+    }
+}
+
+private struct RecordingControlActionButton: View {
+    let title: String
+    let icon: String
+    let foregroundColor: Color
+    let backgroundColor: Color
+    let action: () -> Void
+
+    @State private var isHovered = false
+    @State private var isPressed = false
+
+    var body: some View {
+        Button(action: {
+            isPressed = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                isPressed = false
+                action()
+            }
+        }) {
+            HStack(spacing: DSSpacing.xs) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(title)
+                    .font(DSTypography.labelMedium)
+            }
+            .foregroundColor(foregroundColor)
+            .padding(.horizontal, DSSpacing.md)
+            .padding(.vertical, DSSpacing.xs)
+            .background(
+                Capsule()
+                    .fill(backgroundColor.opacity(isHovered ? 0.9 : 1.0))
+            )
+            .scaleEffect(isPressed ? 0.96 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
+private struct RecordingControlCountdownBadge: View {
+    let countdownValue: Int
+
+    var body: some View {
+        Text("\(countdownValue)")
+            .font(DSTypography.labelLarge)
+            .foregroundColor(.black.opacity(0.85))
+            .frame(width: 56, height: 28)
+            .background(
+                Capsule()
+                    .fill(Color.white.opacity(0.95))
+            )
+    }
+}
+
+// MARK: - Adjustable Recording Overlay
+
+struct AdjustableRecordingOverlayView: View {
+    let screenFrame: CGRect
+    let onRectChange: (CGRect) -> Void
+
+    @State private var currentScreenRect: CGRect
+    @State private var activeInteraction: DragInteraction?
+    @State private var activeCursor: CursorKind = .arrow
+
+    private static let minimumSize: CGFloat = 80
+    private static let edgeHitThickness: CGFloat = 14
+    private static let cornerHitSize: CGFloat = 24
+    private static let bodyInset: CGFloat = 14
+
+    init(initialRect: CGRect, screenFrame: CGRect, onRectChange: @escaping (CGRect) -> Void) {
+        self.screenFrame = screenFrame
+        self.onRectChange = onRectChange
+        _currentScreenRect = State(initialValue: initialRect.standardized)
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            let localRect = convertToViewCoordinates(currentScreenRect, localHeight: geometry.size.height)
+            let bounds = CGRect(origin: .zero, size: geometry.size)
+
+            ZStack {
+                DimmingOverlay(rect: localRect, size: geometry.size, dimmingOpacity: 0.35)
+
+                Rectangle()
+                    .stroke(style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
+                    .foregroundColor(.dsBorderActive)
+                    .frame(width: localRect.width, height: localRect.height)
+                    .position(x: localRect.midX, y: localRect.midY)
+
+                ResizeHandles(rect: localRect)
+
+                interactionLayer(for: localRect, bounds: bounds, localHeight: geometry.size.height)
+            }
+        }
+        .ignoresSafeArea()
+        .onAppear {
+            onRectChange(currentScreenRect)
+        }
+        .onDisappear {
+            setCursor(.arrow)
+        }
+    }
+
+    private func interactionLayer(for localRect: CGRect, bounds: CGRect, localHeight: CGFloat) -> some View {
+        Rectangle()
+            .fill(Color.black.opacity(0.001))
+            .contentShape(Rectangle())
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let location):
+                    updateHoverCursor(at: location, in: localRect)
+                case .ended:
+                    if activeInteraction == nil {
+                        setCursor(.arrow)
+                    }
+                }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        if activeInteraction == nil {
+                            activeInteraction = interaction(for: value.startLocation, in: localRect)
+                        }
+
+                        guard let activeInteraction else { return }
+
+                        switch activeInteraction {
+                        case .move(let startRect):
+                            let updated = moveRect(startRect, by: value.translation, in: bounds)
+                            updateScreenRect(from: updated, localHeight: localHeight)
+                            setCursor(.closedHand)
+                        case .resize(let handle, let startRect):
+                            let updated = resizeRect(
+                                startRect,
+                                with: value.translation,
+                                handle: handle,
+                                in: bounds
+                            )
+                            updateScreenRect(from: updated, localHeight: localHeight)
+                            setCursor(cursor(for: handle))
+                        }
+                    }
+                    .onEnded { value in
+                        activeInteraction = nil
+
+                        // Recompute cursor against latest rect for stable hover feedback.
+                        let latestLocalRect = convertToViewCoordinates(currentScreenRect, localHeight: localHeight)
+                        setCursor(cursor(for: value.location, in: latestLocalRect))
+                    }
+            )
+    }
+
+    private func updateHoverCursor(at location: CGPoint, in rect: CGRect) {
+        guard activeInteraction == nil else { return }
+        setCursor(cursor(for: location, in: rect))
+    }
+
+    private func cursor(for location: CGPoint, in rect: CGRect) -> CursorKind {
+        if let handle = resizeHandle(at: location, in: rect) {
+            return cursor(for: handle)
+        }
+
+        if bodyDragRect(for: rect).contains(location) {
+            return .pointingHand
+        }
+
+        return .arrow
+    }
+
+    private func interaction(for location: CGPoint, in rect: CGRect) -> DragInteraction? {
+        if let handle = resizeHandle(at: location, in: rect) {
+            return .resize(handle: handle, startRect: rect)
+        }
+
+        if bodyDragRect(for: rect).contains(location) {
+            return .move(startRect: rect)
+        }
+
+        return nil
+    }
+
+    private func bodyDragRect(for rect: CGRect) -> CGRect {
+        rect.insetBy(dx: Self.bodyInset, dy: Self.bodyInset)
+    }
+
+    private func resizeHandle(at location: CGPoint, in rect: CGRect) -> ResizeHandle? {
+        for handle in ResizeHandle.allCases {
+            if resizeHandleHitRect(for: handle, in: rect).contains(location) {
+                return handle
+            }
+        }
+        return nil
+    }
+
+    private func resizeHandleHitRect(for handle: ResizeHandle, in rect: CGRect) -> CGRect {
+        let cornerSize = Self.cornerHitSize
+        let edgeThickness = Self.edgeHitThickness
+        let cornerHalf = cornerSize / 2
+
+        switch handle {
+        case .topLeft:
+            return CGRect(x: rect.minX - cornerHalf, y: rect.minY - cornerHalf, width: cornerSize, height: cornerSize)
+        case .topRight:
+            return CGRect(x: rect.maxX - cornerHalf, y: rect.minY - cornerHalf, width: cornerSize, height: cornerSize)
+        case .bottomLeft:
+            return CGRect(x: rect.minX - cornerHalf, y: rect.maxY - cornerHalf, width: cornerSize, height: cornerSize)
+        case .bottomRight:
+            return CGRect(x: rect.maxX - cornerHalf, y: rect.maxY - cornerHalf, width: cornerSize, height: cornerSize)
+        case .top:
+            return CGRect(
+                x: rect.minX + cornerHalf,
+                y: rect.minY - edgeThickness / 2,
+                width: max(0, rect.width - cornerSize),
+                height: edgeThickness
+            )
+        case .bottom:
+            return CGRect(
+                x: rect.minX + cornerHalf,
+                y: rect.maxY - edgeThickness / 2,
+                width: max(0, rect.width - cornerSize),
+                height: edgeThickness
+            )
+        case .left:
+            return CGRect(
+                x: rect.minX - edgeThickness / 2,
+                y: rect.minY + cornerHalf,
+                width: edgeThickness,
+                height: max(0, rect.height - cornerSize)
+            )
+        case .right:
+            return CGRect(
+                x: rect.maxX - edgeThickness / 2,
+                y: rect.minY + cornerHalf,
+                width: edgeThickness,
+                height: max(0, rect.height - cornerSize)
+            )
+        }
+    }
+
+    private func cursor(for handle: ResizeHandle) -> CursorKind {
+        switch handle {
+        case .left, .right:
+            return .resizeHorizontal
+        case .top, .bottom:
+            return .resizeVertical
+        case .topLeft, .topRight, .bottomLeft, .bottomRight:
+            return .crosshair
+        }
+    }
+
+    private func moveRect(_ rect: CGRect, by translation: CGSize, in bounds: CGRect) -> CGRect {
+        var moved = rect
+        moved.origin.x += translation.width
+        moved.origin.y += translation.height
+
+        moved.origin.x = min(max(moved.origin.x, bounds.minX), bounds.maxX - moved.width)
+        moved.origin.y = min(max(moved.origin.y, bounds.minY), bounds.maxY - moved.height)
+
+        return moved
+    }
+
+    private func resizeRect(_ rect: CGRect, with translation: CGSize, handle: ResizeHandle, in bounds: CGRect) -> CGRect {
+        let minSize = Self.minimumSize
+
+        var left = rect.minX
+        var right = rect.maxX
+        var top = rect.minY
+        var bottom = rect.maxY
+
+        if handle.affectsLeft {
+            left = min(
+                max(rect.minX + translation.width, bounds.minX),
+                rect.maxX - minSize
+            )
+        }
+
+        if handle.affectsRight {
+            right = max(
+                min(rect.maxX + translation.width, bounds.maxX),
+                rect.minX + minSize
+            )
+        }
+
+        if handle.affectsTop {
+            top = min(
+                max(rect.minY + translation.height, bounds.minY),
+                rect.maxY - minSize
+            )
+        }
+
+        if handle.affectsBottom {
+            bottom = max(
+                min(rect.maxY + translation.height, bounds.maxY),
+                rect.minY + minSize
+            )
+        }
+
+        return CGRect(
+            x: left,
+            y: top,
+            width: max(minSize, right - left),
+            height: max(minSize, bottom - top)
+        )
+    }
+
+    private func updateScreenRect(from localRect: CGRect, localHeight: CGFloat) {
+        let screenRect = convertToScreenCoordinates(localRect, localHeight: localHeight)
+        currentScreenRect = screenRect
+        onRectChange(screenRect)
+    }
+
+    private func handlePoint(for handle: ResizeHandle, in rect: CGRect) -> CGPoint {
+        switch handle {
+        case .topLeft: return CGPoint(x: rect.minX, y: rect.minY)
+        case .top: return CGPoint(x: rect.midX, y: rect.minY)
+        case .topRight: return CGPoint(x: rect.maxX, y: rect.minY)
+        case .right: return CGPoint(x: rect.maxX, y: rect.midY)
+        case .bottomRight: return CGPoint(x: rect.maxX, y: rect.maxY)
+        case .bottom: return CGPoint(x: rect.midX, y: rect.maxY)
+        case .bottomLeft: return CGPoint(x: rect.minX, y: rect.maxY)
+        case .left: return CGPoint(x: rect.minX, y: rect.midY)
+        }
+    }
+
+    private func convertToViewCoordinates(_ rect: CGRect, localHeight: CGFloat) -> CGRect {
+        CGRect(
+            x: rect.origin.x - screenFrame.minX,
+            y: localHeight - (rect.origin.y - screenFrame.minY) - rect.height,
+            width: rect.width,
+            height: rect.height
+        )
+    }
+
+    private func convertToScreenCoordinates(_ rect: CGRect, localHeight: CGFloat) -> CGRect {
+        CGRect(
+            x: rect.origin.x + screenFrame.minX,
+            y: screenFrame.minY + (localHeight - rect.origin.y - rect.height),
+            width: rect.width,
+            height: rect.height
+        ).standardized
+    }
+
+    private func setCursor(_ cursor: CursorKind) {
+        guard cursor != activeCursor else { return }
+        activeCursor = cursor
+        cursor.nsCursor.set()
+    }
+
+    private enum DragInteraction {
+        case move(startRect: CGRect)
+        case resize(handle: ResizeHandle, startRect: CGRect)
+    }
+
+    private enum ResizeHandle: CaseIterable {
+        case topLeft
+        case top
+        case topRight
+        case right
+        case bottomRight
+        case bottom
+        case bottomLeft
+        case left
+
+        var affectsLeft: Bool {
+            self == .topLeft || self == .left || self == .bottomLeft
+        }
+
+        var affectsRight: Bool {
+            self == .topRight || self == .right || self == .bottomRight
+        }
+
+        var affectsTop: Bool {
+            self == .topLeft || self == .top || self == .topRight
+        }
+
+        var affectsBottom: Bool {
+            self == .bottomLeft || self == .bottom || self == .bottomRight
+        }
+    }
+
+    private enum CursorKind: Equatable {
+        case arrow
+        case pointingHand
+        case crosshair
+        case closedHand
+        case resizeHorizontal
+        case resizeVertical
+
+        var nsCursor: NSCursor {
+            switch self {
+            case .arrow:
+                return .arrow
+            case .pointingHand:
+                return .pointingHand
+            case .crosshair:
+                return .crosshair
+            case .closedHand:
+                return .closedHand
+            case .resizeHorizontal:
+                return .resizeLeftRight
+            case .resizeVertical:
+                return .resizeUpDown
+            }
+        }
     }
 }
 

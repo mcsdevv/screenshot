@@ -520,6 +520,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         window.isOpaque = false
         window.backgroundColor = .clear
         window.level = .screenSaver
+        window.onEscapeKey = { [weak self] in
+            self?.closeSelectionOverlay()
+        }
 
         selectionOverlayWindow = window
         window.makeKeyAndOrderFront(nil)
