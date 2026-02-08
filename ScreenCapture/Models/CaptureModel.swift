@@ -75,6 +75,13 @@ enum CaptureType: String, Codable, CaseIterable, Sendable {
         case .gif: return .systemOrange
         }
     }
+
+    var badgeStyle: DSBadge.Style {
+        switch self {
+        case .recording, .gif: return .systemAccent
+        case .screenshot, .scrollingCapture: return .neutral
+        }
+    }
 }
 
 /// Screen corner positions for popup windows

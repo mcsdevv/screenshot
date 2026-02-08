@@ -461,7 +461,7 @@ struct CaptureGridCard: View {
                 VStack {
                     Spacer()
                     HStack {
-                        DSBadge(text: capture.type.rawValue, style: .neutral)
+                        DSBadge(text: capture.type.rawValue, style: capture.type.badgeStyle)
                         Spacer()
                     }
                     .padding(DSSpacing.sm)
@@ -613,7 +613,7 @@ struct CaptureListRow: View {
                 }
 
                 HStack(spacing: DSSpacing.sm) {
-                    DSBadge(text: capture.type.rawValue, style: .neutral)
+                    DSBadge(text: capture.type.rawValue, style: capture.type.badgeStyle)
 
                     Text(formatDate(capture.createdAt))
                         .font(DSTypography.caption)
