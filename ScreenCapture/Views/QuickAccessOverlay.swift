@@ -42,46 +42,44 @@ class QuickAccessOverlayController: ObservableObject {
         let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
         let captureType = capture.type
 
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let image: NSImage?
+        Task { [weak self] in
+            let image = await Task.detached(priority: .userInitiated) { () -> NSImage? in
+                switch captureType {
+                case .recording:
+                    return await Self.generateVideoThumbnail(at: url)
+                default:
+                    return Self.generateImageThumbnail(at: url, maxPixelSize: 1_280)
+                }
+            }.value
 
-            switch captureType {
-            case .recording:
-                image = Self.generateVideoThumbnail(at: url)
-            default:
-                image = Self.generateImageThumbnail(at: url, maxPixelSize: 1_280)
+            guard let self else { return }
+            self.isLoadingThumbnail = false
+
+            if let image {
+                self.thumbnail = image
+                self.thumbnailLoadFailed = false
+            } else {
+                self.thumbnailLoadFailed = true
             }
 
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.isLoadingThumbnail = false
-
-                if let image {
-                    self.thumbnail = image
-                    self.thumbnailLoadFailed = false
-                } else {
-                    self.thumbnailLoadFailed = true
-                }
-
-                // Manually trigger SwiftUI update - only do this when visible
-                if self.isVisible {
-                    self.objectWillChange.send()
-                }
+            // Manually trigger SwiftUI update - only do this when visible
+            if self.isVisible {
+                self.objectWillChange.send()
             }
         }
     }
 
-    private nonisolated static func generateVideoThumbnail(at url: URL) -> NSImage? {
+    private nonisolated static func generateVideoThumbnail(at url: URL) async -> NSImage? {
         let asset = AVURLAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 1280, height: 720)
 
-        if let image = try? generator.copyCGImage(at: CMTime(seconds: 0.1, preferredTimescale: 600), actualTime: nil) {
+        if let image = try? await generator.generateCGImageAsync(at: CMTime(seconds: 0.1, preferredTimescale: 600)) {
             return NSImage(cgImage: image, size: .zero)
         }
 
-        if let image = try? generator.copyCGImage(at: .zero, actualTime: nil) {
+        if let image = try? await generator.generateCGImageAsync(at: .zero) {
             return NSImage(cgImage: image, size: .zero)
         }
 
