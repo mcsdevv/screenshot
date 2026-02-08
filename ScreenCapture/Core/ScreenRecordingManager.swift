@@ -990,6 +990,30 @@ extension ScreenRecordingManager {
     func installSelectionWindowForTesting(_ window: NSWindow) {
         selectionWindow = window
     }
+
+    var pendingRecordingTargetForTesting: RecordingTarget? {
+        pendingRecordingTarget
+    }
+
+    var isRecordButtonVisibleForTesting: Bool {
+        controlsState.showRecordButton
+    }
+
+    var hasPendingCountdownTaskForTesting: Bool {
+        pendingCountdownTask != nil
+    }
+
+    func prepareWindowRecordingForTesting(windowID: UInt32) {
+        startRecordingForWindowID(windowID)
+    }
+
+    func beginPendingRecordingCountdownForTesting() {
+        beginPendingRecordingCountdown()
+    }
+
+    func cancelPendingRecordingPreparationForTesting() {
+        cancelPendingRecordingPreparation()
+    }
 }
 #endif
 
