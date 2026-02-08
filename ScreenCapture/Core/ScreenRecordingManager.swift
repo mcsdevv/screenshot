@@ -430,7 +430,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.level = .floating
-        window.hasShadow = true
+        window.hasShadow = false
         window.collectionBehavior = [.canJoinAllSpaces, .stationary]
 
         controlWindow = window
