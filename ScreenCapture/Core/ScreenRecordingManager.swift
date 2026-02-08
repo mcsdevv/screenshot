@@ -18,19 +18,14 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     }
 
     private let storageManager: StorageManager
-    private let gifExportService = GIFExportService()
 
     private var captureEngine: CaptureEngine?
     private var currentConfig: RecordingConfig?
-    private var activeMode: RecordingMode?
     private var activeCaptureOutput: PendingOutput?
-    private var gifExportTask: Task<Void, Never>?
     private var captureEngineStatusCancellable: AnyCancellable?
     private var isStoppingCapture = false
 
     @Published var isRecording = false
-    @Published var isGIFRecording = false
-    @Published private(set) var isExportingGIF = false
     @Published var recordingDuration: TimeInterval = 0
     @Published private(set) var sessionState: RecordingSessionState = .idle
 
@@ -43,36 +38,12 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     private var recordingOverlayWindow: NSWindow?
     private var nativeWindowSelectionTask: Process?
     private var nativeWindowSelectionTempFile: URL?
-    private var pendingRecordingMode: RecordingMode = .video
     private var pendingRecordingTarget: RecordingTarget?
     private var pendingAreaRect: CGRect?
     private var isPreparingRecording = false
     private var pendingCountdownTask: Task<Void, Never>?
     private let controlsState = RecordingControlsStateModel()
     private var controlWindowOrigin: CGPoint?
-
-    private enum RecordingMode {
-        case video
-        case gif
-
-        var sessionKind: RecordingSessionKind {
-            switch self {
-            case .video:
-                return .video
-            case .gif:
-                return .gif
-            }
-        }
-
-        var outputMode: RecordingOutputMode {
-            switch self {
-            case .video:
-                return .video
-            case .gif:
-                return .gif
-            }
-        }
-    }
 
     init(storageManager: StorageManager) {
         self.storageManager = storageManager
@@ -100,55 +71,28 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             return
         }
 
-        if isGIFRecording {
-            stopGIFRecording()
-            return
-        }
-
-        if isExportingGIF {
-            return
-        }
-
+        resetSelectionContextForModeSwitch(reason: "starting window recording selection")
         sessionModel.forceIdle()
-        transitionSession { try sessionModel.beginSelection(for: .video) }
-        pendingRecordingMode = .video
+        transitionSession { try sessionModel.beginSelection() }
         showWindowSelection()
     }
 
-    func toggleGIFRecording() {
-        if isPreparingRecording {
-            cancelPendingRecordingPreparation()
+    func startFullscreenRecording() {
+        if isRecording {
+            stopRecording()
             return
         }
 
-        if isGIFRecording {
-            stopGIFRecording()
-        } else {
-            startGIFRecordingWithSelection()
-        }
+        resetSelectionContextForModeSwitch(reason: "starting fullscreen recording")
+        sessionModel.forceIdle()
+        transitionSession { try sessionModel.beginSelection() }
+        prepareRecording(target: .fullscreen)
     }
 
     func stopActiveRecordingIfNeeded(reason: String = "termination", completion: (() -> Void)? = nil) {
-        if isGIFRecording {
-            debugLog("Stopping GIF recording due to \(reason)")
-            stopGIFRecording(completion: completion)
-            return
-        }
-
         if isRecording {
             debugLog("Stopping screen recording due to \(reason)")
             stopRecording(completion: completion)
-            return
-        }
-
-        if isExportingGIF {
-            debugLog("Cancelling GIF export due to \(reason)")
-            gifExportTask?.cancel()
-            isExportingGIF = false
-            transitionSession { try sessionModel.markCancelled() }
-            transitionSession { try sessionModel.markIdle() }
-            hideRecordingControls()
-            completion?()
             return
         }
 
@@ -209,9 +153,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         captureEngineStatusCancellable = nil
         captureEngine = nil
         currentConfig = nil
-        activeMode = nil
         activeCaptureOutput = nil
-        gifExportTask = nil
         isStoppingCapture = false
         pendingCountdownTask?.cancel()
         pendingCountdownTask = nil
@@ -222,8 +164,6 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         controlsState.countdownValue = nil
         controlWindowOrigin = nil
         isRecording = false
-        isGIFRecording = false
-        isExportingGIF = false
     }
 
     private func presentRecordingAlert(title: String, message: String) {
@@ -238,9 +178,9 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     // MARK: - Selection Flow
 
     private func startRecordingWithSelection() {
+        resetSelectionContextForModeSwitch(reason: "starting area recording selection")
         sessionModel.forceIdle()
-        transitionSession { try sessionModel.beginSelection(for: .video) }
-        pendingRecordingMode = .video
+        transitionSession { try sessionModel.beginSelection() }
         showAreaSelection(onSelection: { [weak self] rect in
             self?.startRecording(in: rect)
         }, onCancel: { [weak self] in
@@ -250,20 +190,23 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         })
     }
 
-    private func startGIFRecordingWithSelection() {
-        sessionModel.forceIdle()
-        transitionSession { try sessionModel.beginSelection(for: .gif) }
-        pendingRecordingMode = .gif
-        showAreaSelection(onSelection: { [weak self] rect in
-            self?.startGIFRecording(in: rect)
-        }, onCancel: { [weak self] in
-            guard let self else { return }
-            self.transitionSession { try self.sessionModel.markCancelled() }
-            self.transitionSession { try self.sessionModel.markIdle() }
-        })
+    private func resetSelectionContextForModeSwitch(reason: String) {
+        closeSelectionWindow()
+        cancelNativeWindowSelection(reason: reason, updateSession: false)
+
+        guard isPreparingRecording else { return }
+
+        pendingCountdownTask?.cancel()
+        pendingCountdownTask = nil
+        pendingRecordingTarget = nil
+        pendingAreaRect = nil
+        isPreparingRecording = false
+        controlsState.showRecordButton = false
+        controlsState.countdownValue = nil
+        hideRecordingControls()
     }
 
-    private func showAreaSelection(onSelection: @escaping (CGRect?) -> Void, onCancel: @escaping () -> Void) {
+    private func showAreaSelection(onSelection: @escaping (CGRect) -> Void, onCancel: @escaping () -> Void) {
         closeSelectionWindow()
 
         guard let screen = currentInteractionScreen() else {
@@ -275,14 +218,6 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             onSelection: { [weak self] rect in
                 self?.closeSelectionWindow()
                 onSelection(rect)
-            },
-            onFullscreen: { [weak self] in
-                self?.closeSelectionWindow()
-                onSelection(nil)
-            },
-            onWindowSelect: { [weak self] in
-                self?.closeSelectionWindow()
-                self?.showWindowSelection()
             },
             onCancel: { [weak self] in
                 self?.closeSelectionWindow()
@@ -482,49 +417,17 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         return image.size
     }
 
-    private func startRecordingForWindow(_ window: SCWindow) {
-        startRecordingForWindowID(window.windowID)
-    }
-
     private func startRecordingForWindowID(_ windowID: UInt32) {
-        switch pendingRecordingMode {
-        case .video:
-            startCaptureSession(mode: .video, target: .window(windowID: windowID))
-        case .gif:
-            startCaptureSession(mode: .gif, target: .window(windowID: windowID))
-        }
+        startCaptureSession(target: .window(windowID: windowID))
     }
 
     // MARK: - Session Start
 
-    private func startRecording(in rect: CGRect?) {
-        if let rect {
-            prepareRecording(mode: .video, target: .area(rect.standardized))
-            return
-        }
-
-        prepareRecording(mode: .video, target: .fullscreen)
+    private func startRecording(in rect: CGRect) {
+        prepareRecording(target: .area(rect.standardized))
     }
 
-    private func startRecording(window scWindow: SCWindow) {
-        prepareRecording(mode: .video, target: .window(windowID: scWindow.windowID))
-    }
-
-    private func startGIFRecording(in rect: CGRect?) {
-        if let rect {
-            prepareRecording(mode: .gif, target: .area(rect.standardized))
-            return
-        }
-
-        prepareRecording(mode: .gif, target: .fullscreen)
-    }
-
-    private func startGIFRecording(window scWindow: SCWindow) {
-        prepareRecording(mode: .gif, target: .window(windowID: scWindow.windowID))
-    }
-
-    private func prepareRecording(mode: RecordingMode, target: RecordingTarget) {
-        pendingRecordingMode = mode
+    private func prepareRecording(target: RecordingTarget) {
         pendingRecordingTarget = target
         isPreparingRecording = true
         pendingCountdownTask?.cancel()
@@ -586,7 +489,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         pendingRecordingTarget = nil
         controlsState.showRecordButton = false
         controlsState.countdownValue = nil
-        startCaptureSession(mode: pendingRecordingMode, target: resolvedTarget)
+        startCaptureSession(target: resolvedTarget)
     }
 
     private func cancelPendingRecordingPreparation() {
@@ -605,13 +508,13 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         }
     }
 
-    private func startCaptureSession(mode: RecordingMode, target: RecordingTarget) {
+    private func startCaptureSession(target: RecordingTarget) {
         Task {
-            transitionSession { try sessionModel.beginStarting(for: mode.sessionKind) }
+            transitionSession { try sessionModel.beginStarting() }
 
             do {
-                let config = RecordingConfig.resolve(mode: mode.outputMode, target: target)
-                let pendingOutput = try prepareCaptureOutput(for: mode)
+                let config = RecordingConfig.resolve(target: target)
+                let pendingOutput = try prepareCaptureOutput()
                 let engine = makeCaptureEngine()
 
                 try await engine.start(config: config, outputURL: pendingOutput.temporaryURL)
@@ -619,12 +522,9 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
                 captureEngine = engine
                 currentConfig = config
-                activeMode = mode
                 activeCaptureOutput = pendingOutput
 
-                isRecording = mode == .video
-                isGIFRecording = mode == .gif
-                isExportingGIF = false
+                isRecording = true
                 isPreparingRecording = false
                 pendingRecordingTarget = nil
                 pendingAreaRect = nil
@@ -633,15 +533,15 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                 controlsState.showRecordButton = false
                 controlsState.countdownValue = nil
 
-                transitionSession { try sessionModel.beginRecording(for: mode.sessionKind) }
+                transitionSession { try sessionModel.beginRecording() }
                 showRecordingControls(showRecordButton: false)
                 NotificationCenter.default.post(name: .recordingStarted, object: nil)
 
-                debugLog("Recording session started: mode=\(mode.outputMode.rawValue), output=\(pendingOutput.temporaryURL.lastPathComponent)")
+                debugLog("Recording session started: output=\(pendingOutput.temporaryURL.lastPathComponent)")
             } catch {
                 hideRecordingControls()
                 resetActiveSessionRuntime()
-                failSession("Failed to start \(mode.outputMode.rawValue) recording", error: error)
+                failSession("Failed to start recording", error: error)
                 presentRecordingAlert(title: "Recording Failed", message: error.localizedDescription)
             }
         }
@@ -650,14 +550,6 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     // MARK: - Session Stop
 
     private func stopRecording(completion: (() -> Void)? = nil) {
-        stopCaptureSession(mode: .video, completion: completion)
-    }
-
-    private func stopGIFRecording(completion: (() -> Void)? = nil) {
-        stopCaptureSession(mode: .gif, completion: completion)
-    }
-
-    private func stopCaptureSession(mode: RecordingMode, completion: (() -> Void)? = nil) {
         Task {
             isStoppingCapture = true
             defer {
@@ -665,7 +557,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                 completion?()
             }
 
-            transitionSession { try sessionModel.beginStopping(for: mode.sessionKind) }
+            transitionSession { try sessionModel.beginStopping() }
 
             guard let captureEngine, let pendingCaptureOutput = activeCaptureOutput else {
                 failSession("No active recording session to stop")
@@ -678,73 +570,17 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                 _ = try await captureEngine.stop()
                 NotificationCenter.default.post(name: .recordingStopped, object: nil)
 
-                switch mode {
-                case .video:
-                    let finalURL = try finalizeAtomicOutput(pendingCaptureOutput)
-                    try await validateVideoOutputFile(finalURL)
+                let finalURL = try finalizeAtomicOutput(pendingCaptureOutput)
+                try await validateVideoOutputFile(finalURL)
 
-                    transitionSession { try sessionModel.markCompleted() }
-                    transitionSession { try sessionModel.markIdle() }
+                transitionSession { try sessionModel.markCompleted() }
+                transitionSession { try sessionModel.markIdle() }
 
-                    hideRecordingControls()
-                    resetActiveSessionRuntime()
+                hideRecordingControls()
+                resetActiveSessionRuntime()
 
-                    let capture = storageManager.saveRecording(url: finalURL)
-                    NotificationCenter.default.post(name: .recordingCompleted, object: capture)
-
-                case .gif:
-                    isGIFRecording = false
-                    isExportingGIF = true
-                    transitionSession { try sessionModel.beginGIFExport() }
-
-                    let sourceVideoURL = try finalizeAtomicOutput(pendingCaptureOutput)
-                    try await validateVideoOutputFile(sourceVideoURL)
-                    let gifOutput = try prepareAtomicOutput(finalURL: storageManager.generateGIFURL())
-                    let gifFPS = currentConfig?.fps ?? 15
-                    let gifQuality = currentConfig?.gifExportQuality ?? .medium
-
-                    gifExportTask = Task { @MainActor [weak self] in
-                        guard let self else { return }
-
-                        do {
-                            try await self.gifExportService.exportGIF(
-                                from: sourceVideoURL,
-                                to: gifOutput.temporaryURL,
-                                fps: gifFPS,
-                                quality: gifQuality,
-                                onProgress: { snapshot in
-                                    self.sessionModel.updateGIFExportProgress(snapshot.progress)
-                                }
-                            )
-
-                            let finalizedGIFURL = try self.finalizeAtomicOutput(gifOutput)
-                            try? FileManager.default.removeItem(at: sourceVideoURL)
-
-                            self.transitionSession { try self.sessionModel.markCompleted() }
-                            self.transitionSession { try self.sessionModel.markIdle() }
-
-                            self.hideRecordingControls()
-                            self.resetActiveSessionRuntime()
-
-                            let capture = self.storageManager.saveGIF(url: finalizedGIFURL)
-                            NotificationCenter.default.post(name: .recordingCompleted, object: capture)
-
-                            debugLog("GIF export finished: \(finalizedGIFURL.lastPathComponent)")
-                        } catch {
-                            self.isExportingGIF = false
-                            self.hideRecordingControls()
-                            self.resetActiveSessionRuntime()
-
-                            self.failSession("GIF export failed", error: error)
-
-                            let message = "GIF export failed. \(error.localizedDescription)\n\nThe source video was preserved at:\n\(sourceVideoURL.path)"
-                            self.presentRecordingAlert(title: "GIF Export Failed", message: message)
-                        }
-                    }
-
-                    await gifExportTask?.value
-                    gifExportTask = nil
-                }
+                let capture = storageManager.saveRecording(url: finalURL)
+                NotificationCenter.default.post(name: .recordingCompleted, object: capture)
             } catch {
                 await captureEngine.cancel()
                 discardPendingOutputArtifacts(activeCaptureOutput)
@@ -758,13 +594,8 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
     // MARK: - File Output
 
-    private func prepareCaptureOutput(for mode: RecordingMode) throws -> PendingOutput {
-        switch mode {
-        case .video:
-            return try prepareAtomicOutput(finalURL: storageManager.generateRecordingURL())
-        case .gif:
-            return try prepareAtomicOutput(finalURL: temporaryGIFSourceVideoURL())
-        }
+    private func prepareCaptureOutput() throws -> PendingOutput {
+        try prepareAtomicOutput(finalURL: storageManager.generateRecordingURL())
     }
 
     private func prepareAtomicOutput(finalURL: URL) throws -> PendingOutput {
@@ -867,11 +698,6 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     private func describe(error: Error) -> String {
         let nsError = error as NSError
         return "\(nsError.domain) (\(nsError.code)): \(nsError.localizedDescription)"
-    }
-
-    private func temporaryGIFSourceVideoURL() -> URL {
-        storageManager.screenshotsDirectory
-            .appendingPathComponent(".gif-source-\(UUID().uuidString).mp4")
     }
 
     private func makeCaptureEngine() -> CaptureEngine {
@@ -979,9 +805,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             return
         }
 
-        if isGIFRecording {
-            stopGIFRecording()
-        } else if isRecording {
+        if isRecording {
             stopRecording()
         }
     }
@@ -1152,3 +976,19 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         return bestScreen
     }
 }
+
+#if DEBUG
+extension ScreenRecordingManager {
+    var hasSelectionWindowForTesting: Bool {
+        selectionWindow != nil
+    }
+
+    var isPreparingRecordingForTesting: Bool {
+        isPreparingRecording
+    }
+
+    func installSelectionWindowForTesting(_ window: NSWindow) {
+        selectionWindow = window
+    }
+}
+#endif

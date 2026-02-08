@@ -6,9 +6,9 @@ class KeyboardShortcuts {
         case captureArea = "captureArea"
         case captureWindow = "captureWindow"
         case captureFullscreen = "captureFullscreen"
-        case recordScreen = "recordScreen"
+        case recordArea = "recordArea"
         case recordWindow = "recordWindow"
-        case recordGIF = "recordGIF"
+        case recordFullscreen = "recordFullscreen"
         case allInOne = "allInOne"
         case ocr = "ocr"
         case pinScreenshot = "pinScreenshot"
@@ -20,9 +20,9 @@ class KeyboardShortcuts {
             case .captureArea: return UInt32(kVK_ANSI_4)
             case .captureWindow: return UInt32(kVK_ANSI_5)
             case .captureFullscreen: return UInt32(kVK_ANSI_3)
-            case .recordScreen: return UInt32(kVK_ANSI_7)
+            case .recordArea: return UInt32(kVK_ANSI_7)
             case .recordWindow: return UInt32(kVK_ANSI_8)
-            case .recordGIF: return UInt32(kVK_ANSI_8)
+            case .recordFullscreen: return UInt32(kVK_ANSI_9)
             case .allInOne: return UInt32(kVK_ANSI_A)
             case .ocr: return UInt32(kVK_ANSI_O)
             case .pinScreenshot: return UInt32(kVK_ANSI_P)
@@ -40,7 +40,7 @@ class KeyboardShortcuts {
                     return UInt32(cmdKey | shiftKey)
                 case .recordWindow:
                     return UInt32(optionKey | shiftKey)
-                case .recordScreen, .recordGIF, .ocr, .pinScreenshot, .openScreenshotsFolder:
+                case .recordArea, .recordFullscreen, .ocr, .pinScreenshot, .openScreenshotsFolder:
                     return UInt32(cmdKey | shiftKey)
                 case .allInOne:
                     return UInt32(cmdKey | shiftKey | optionKey)
@@ -54,7 +54,7 @@ class KeyboardShortcuts {
                     return UInt32(controlKey | shiftKey)
                 case .recordWindow:
                     return UInt32(optionKey | shiftKey)
-                case .recordScreen, .recordGIF, .ocr, .pinScreenshot, .openScreenshotsFolder:
+                case .recordArea, .recordFullscreen, .ocr, .pinScreenshot, .openScreenshotsFolder:
                     return UInt32(controlKey | shiftKey)
                 case .allInOne:
                     return UInt32(controlKey | shiftKey | optionKey)
@@ -74,9 +74,9 @@ class KeyboardShortcuts {
             case .captureArea: return "Capture Area"
             case .captureWindow: return "Capture Window"
             case .captureFullscreen: return "Capture Fullscreen"
-            case .recordScreen: return "Record Screen"
+            case .recordArea: return "Record Area"
             case .recordWindow: return "Record Window"
-            case .recordGIF: return "Record GIF"
+            case .recordFullscreen: return "Record Fullscreen"
             case .allInOne: return "All-in-One Menu"
             case .ocr: return "Capture Text (OCR)"
             case .pinScreenshot: return "Pin Screenshot"
@@ -92,9 +92,9 @@ class KeyboardShortcuts {
                 case .captureArea: return "⌘⇧4"
                 case .captureWindow: return "⌘⇧5"
                 case .captureFullscreen: return "⌘⇧3"
-                case .recordScreen: return "⌘⇧7"
+                case .recordArea: return "⌘⇧7"
                 case .recordWindow: return "⌥⇧8"
-                case .recordGIF: return "⌘⇧8"
+                case .recordFullscreen: return "⌘⇧9"
                 case .allInOne: return "⌘⇧⌥A"
                 case .ocr: return "⌘⇧O"
                 case .pinScreenshot: return "⌘⇧P"
@@ -106,9 +106,9 @@ class KeyboardShortcuts {
                 case .captureArea: return "⌃⇧4"
                 case .captureWindow: return "⌃⇧5"
                 case .captureFullscreen: return "⌃⇧3"
-                case .recordScreen: return "⌃⇧7"
+                case .recordArea: return "⌃⇧7"
                 case .recordWindow: return "⌥⇧8"
-                case .recordGIF: return "⌃⇧8"
+                case .recordFullscreen: return "⌃⇧9"
                 case .allInOne: return "⌃⇧⌥A"
                 case .ocr: return "⌃⇧O"
                 case .pinScreenshot: return "⌃⇧P"

@@ -12,9 +12,9 @@ final class KeyboardShortcutsTests: XCTestCase {
         XCTAssertTrue(allCases.contains(.captureArea))
         XCTAssertTrue(allCases.contains(.captureWindow))
         XCTAssertTrue(allCases.contains(.captureFullscreen))
-        XCTAssertTrue(allCases.contains(.recordScreen))
+        XCTAssertTrue(allCases.contains(.recordArea))
         XCTAssertTrue(allCases.contains(.recordWindow))
-        XCTAssertTrue(allCases.contains(.recordGIF))
+        XCTAssertTrue(allCases.contains(.recordFullscreen))
         XCTAssertTrue(allCases.contains(.allInOne))
         XCTAssertTrue(allCases.contains(.ocr))
         XCTAssertTrue(allCases.contains(.pinScreenshot))
@@ -26,9 +26,9 @@ final class KeyboardShortcutsTests: XCTestCase {
         XCTAssertEqual(KeyboardShortcuts.Shortcut.captureArea.rawValue, "captureArea")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.captureWindow.rawValue, "captureWindow")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.captureFullscreen.rawValue, "captureFullscreen")
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordScreen.rawValue, "recordScreen")
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordArea.rawValue, "recordArea")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.recordWindow.rawValue, "recordWindow")
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordGIF.rawValue, "recordGIF")
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordFullscreen.rawValue, "recordFullscreen")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.allInOne.rawValue, "allInOne")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.ocr.rawValue, "ocr")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.pinScreenshot.rawValue, "pinScreenshot")
@@ -50,16 +50,16 @@ final class KeyboardShortcutsTests: XCTestCase {
         XCTAssertEqual(KeyboardShortcuts.Shortcut.captureFullscreen.defaultKeyCode, UInt32(kVK_ANSI_3))
     }
 
-    func testDefaultKeyCodeForRecordScreen() {
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordScreen.defaultKeyCode, UInt32(kVK_ANSI_7))
+    func testDefaultKeyCodeForRecordArea() {
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordArea.defaultKeyCode, UInt32(kVK_ANSI_7))
     }
 
     func testDefaultKeyCodeForRecordWindow() {
         XCTAssertEqual(KeyboardShortcuts.Shortcut.recordWindow.defaultKeyCode, UInt32(kVK_ANSI_8))
     }
 
-    func testDefaultKeyCodeForRecordGIF() {
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordGIF.defaultKeyCode, UInt32(kVK_ANSI_8))
+    func testDefaultKeyCodeForRecordFullscreen() {
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordFullscreen.defaultKeyCode, UInt32(kVK_ANSI_9))
     }
 
     func testDefaultKeyCodeForAllInOne() {
@@ -95,9 +95,9 @@ final class KeyboardShortcutsTests: XCTestCase {
         let expectedCmdShift = UInt32(cmdKey | shiftKey)
         let expectedShiftOption = UInt32(shiftKey | optionKey)
 
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordScreen.modifiers(useNativeShortcuts: true), expectedCmdShift)
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordArea.modifiers(useNativeShortcuts: true), expectedCmdShift)
         XCTAssertEqual(KeyboardShortcuts.Shortcut.recordWindow.modifiers(useNativeShortcuts: true), expectedShiftOption)
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordGIF.modifiers(useNativeShortcuts: true), expectedCmdShift)
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordFullscreen.modifiers(useNativeShortcuts: true), expectedCmdShift)
         XCTAssertEqual(KeyboardShortcuts.Shortcut.ocr.modifiers(useNativeShortcuts: true), expectedCmdShift)
         XCTAssertEqual(KeyboardShortcuts.Shortcut.pinScreenshot.modifiers(useNativeShortcuts: true), expectedCmdShift)
         XCTAssertEqual(KeyboardShortcuts.Shortcut.openScreenshotsFolder.modifiers(useNativeShortcuts: true), expectedCmdShift)
@@ -126,9 +126,9 @@ final class KeyboardShortcutsTests: XCTestCase {
         let expectedCtrlShift = UInt32(controlKey | shiftKey)
         let expectedShiftOption = UInt32(shiftKey | optionKey)
 
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordScreen.modifiers(useNativeShortcuts: false), expectedCtrlShift)
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordArea.modifiers(useNativeShortcuts: false), expectedCtrlShift)
         XCTAssertEqual(KeyboardShortcuts.Shortcut.recordWindow.modifiers(useNativeShortcuts: false), expectedShiftOption)
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordGIF.modifiers(useNativeShortcuts: false), expectedCtrlShift)
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordFullscreen.modifiers(useNativeShortcuts: false), expectedCtrlShift)
         XCTAssertEqual(KeyboardShortcuts.Shortcut.ocr.modifiers(useNativeShortcuts: false), expectedCtrlShift)
         XCTAssertEqual(KeyboardShortcuts.Shortcut.pinScreenshot.modifiers(useNativeShortcuts: false), expectedCtrlShift)
         XCTAssertEqual(KeyboardShortcuts.Shortcut.openScreenshotsFolder.modifiers(useNativeShortcuts: false), expectedCtrlShift)
@@ -155,9 +155,9 @@ final class KeyboardShortcutsTests: XCTestCase {
         XCTAssertEqual(KeyboardShortcuts.Shortcut.captureArea.displayName, "Capture Area")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.captureWindow.displayName, "Capture Window")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.captureFullscreen.displayName, "Capture Fullscreen")
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordScreen.displayName, "Record Screen")
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordArea.displayName, "Record Area")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.recordWindow.displayName, "Record Window")
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordGIF.displayName, "Record GIF")
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordFullscreen.displayName, "Record Fullscreen")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.allInOne.displayName, "All-in-One Menu")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.ocr.displayName, "Capture Text (OCR)")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.pinScreenshot.displayName, "Pin Screenshot")
@@ -171,9 +171,9 @@ final class KeyboardShortcutsTests: XCTestCase {
         XCTAssertEqual(KeyboardShortcuts.Shortcut.captureArea.displayShortcut(useNativeShortcuts: true), "⌘⇧4")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.captureWindow.displayShortcut(useNativeShortcuts: true), "⌘⇧5")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.captureFullscreen.displayShortcut(useNativeShortcuts: true), "⌘⇧3")
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordScreen.displayShortcut(useNativeShortcuts: true), "⌘⇧7")
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordArea.displayShortcut(useNativeShortcuts: true), "⌘⇧7")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.recordWindow.displayShortcut(useNativeShortcuts: true), "⌥⇧8")
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordGIF.displayShortcut(useNativeShortcuts: true), "⌘⇧8")
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordFullscreen.displayShortcut(useNativeShortcuts: true), "⌘⇧9")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.allInOne.displayShortcut(useNativeShortcuts: true), "⌘⇧⌥A")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.ocr.displayShortcut(useNativeShortcuts: true), "⌘⇧O")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.pinScreenshot.displayShortcut(useNativeShortcuts: true), "⌘⇧P")
@@ -187,9 +187,9 @@ final class KeyboardShortcutsTests: XCTestCase {
         XCTAssertEqual(KeyboardShortcuts.Shortcut.captureArea.displayShortcut(useNativeShortcuts: false), "⌃⇧4")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.captureWindow.displayShortcut(useNativeShortcuts: false), "⌃⇧5")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.captureFullscreen.displayShortcut(useNativeShortcuts: false), "⌃⇧3")
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordScreen.displayShortcut(useNativeShortcuts: false), "⌃⇧7")
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordArea.displayShortcut(useNativeShortcuts: false), "⌃⇧7")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.recordWindow.displayShortcut(useNativeShortcuts: false), "⌥⇧8")
-        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordGIF.displayShortcut(useNativeShortcuts: false), "⌃⇧8")
+        XCTAssertEqual(KeyboardShortcuts.Shortcut.recordFullscreen.displayShortcut(useNativeShortcuts: false), "⌃⇧9")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.allInOne.displayShortcut(useNativeShortcuts: false), "⌃⇧⌥A")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.ocr.displayShortcut(useNativeShortcuts: false), "⌃⇧O")
         XCTAssertEqual(KeyboardShortcuts.Shortcut.pinScreenshot.displayShortcut(useNativeShortcuts: false), "⌃⇧P")

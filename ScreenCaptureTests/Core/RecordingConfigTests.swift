@@ -20,7 +20,7 @@ final class RecordingConfigTests: XCTestCase {
         super.tearDown()
     }
 
-    func testResolveVideoConfigUsesUserSettings() {
+    func testResolveConfigUsesUserSettings() {
         defaults.set("medium", forKey: "recordingQuality")
         defaults.set(30, forKey: "recordingFPS")
         defaults.set(true, forKey: "recordShowCursor")
@@ -29,7 +29,6 @@ final class RecordingConfigTests: XCTestCase {
         defaults.set(false, forKey: "recordSystemAudio")
 
         let config = RecordingConfig.resolve(
-            mode: .video,
             target: .fullscreen,
             userDefaults: defaults
         )
@@ -42,44 +41,19 @@ final class RecordingConfigTests: XCTestCase {
         XCTAssertFalse(config.includeSystemAudio)
     }
 
-    func testResolveGIFConfigUsesGIFSettings() {
-        defaults.set(20, forKey: "gifFPS")
-        defaults.set("high", forKey: "gifQuality")
+    func testInvalidFPSFallsBackToDefault() {
+        defaults.set(144, forKey: "recordingFPS")
 
         let config = RecordingConfig.resolve(
-            mode: .gif,
             target: .fullscreen,
             userDefaults: defaults
         )
 
-        XCTAssertEqual(config.mode, .gif)
-        XCTAssertEqual(config.fps, 20)
-        XCTAssertEqual(config.gifExportQuality, .high)
-    }
-
-    func testInvalidFPSFallsBackToDefaults() {
-        defaults.set(144, forKey: "recordingFPS")
-        defaults.set(7, forKey: "gifFPS")
-
-        let videoConfig = RecordingConfig.resolve(
-            mode: .video,
-            target: .fullscreen,
-            userDefaults: defaults
-        )
-
-        let gifConfig = RecordingConfig.resolve(
-            mode: .gif,
-            target: .fullscreen,
-            userDefaults: defaults
-        )
-
-        XCTAssertEqual(videoConfig.fps, 60)
-        XCTAssertEqual(gifConfig.fps, 15)
+        XCTAssertEqual(config.fps, 60)
     }
 
     func testScaledDimensionsRespectQualityCaps() {
         let low = RecordingConfig(
-            mode: .video,
             quality: .low,
             fps: 30,
             includeCursor: true,
@@ -87,12 +61,10 @@ final class RecordingConfigTests: XCTestCase {
             includeMicrophone: false,
             includeSystemAudio: true,
             excludesCurrentProcessAudio: false,
-            gifExportQuality: .medium,
             target: .fullscreen
         )
 
         let high = RecordingConfig(
-            mode: .video,
             quality: .high,
             fps: 60,
             includeCursor: true,
@@ -100,7 +72,6 @@ final class RecordingConfigTests: XCTestCase {
             includeMicrophone: false,
             includeSystemAudio: true,
             excludesCurrentProcessAudio: false,
-            gifExportQuality: .medium,
             target: .fullscreen
         )
 

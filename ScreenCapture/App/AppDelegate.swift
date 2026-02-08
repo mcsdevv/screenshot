@@ -52,7 +52,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             return .terminateLater
         }
 
-        if screenRecordingManager.isRecording || screenRecordingManager.isGIFRecording || screenRecordingManager.isExportingGIF {
+        if screenRecordingManager.isRecording {
             terminationReplyPending = true
             performTerminationCleanup(reason: reason) { [weak self] in
                 guard let self = self else { return }
@@ -180,7 +180,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             }
         }
 
-        keyboardShortcuts.register(shortcut: .recordScreen) { [weak self] in
+        keyboardShortcuts.register(shortcut: .recordArea) { [weak self] in
             DispatchQueue.main.async {
                 self?.screenRecordingManager.toggleRecording()
             }
@@ -192,9 +192,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             }
         }
 
-        keyboardShortcuts.register(shortcut: .recordGIF) { [weak self] in
+        keyboardShortcuts.register(shortcut: .recordFullscreen) { [weak self] in
             DispatchQueue.main.async {
-                self?.screenRecordingManager.toggleGIFRecording()
+                self?.screenRecordingManager.startFullscreenRecording()
             }
         }
 
@@ -476,9 +476,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
                     self?.screenshotManager.captureFullscreen()
                 }
             },
-            onRecordVideo: { [weak self] in
+            onRecordArea: { [weak self] in
                 DispatchQueue.main.async {
                     self?.screenRecordingManager.toggleRecording()
+                }
+            },
+            onRecordWindow: { [weak self] in
+                DispatchQueue.main.async {
+                    self?.screenRecordingManager.startWindowRecordingSelection()
+                }
+            },
+            onRecordFullscreen: { [weak self] in
+                DispatchQueue.main.async {
+                    self?.screenRecordingManager.startFullscreenRecording()
                 }
             },
             onOCR: { [weak self] in
@@ -494,7 +504,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         )
 
         let hostingView = NSHostingView(rootView: menuView)
-        let menuSize = NSSize(width: 280, height: 360)
+        let menuSize = NSSize(width: 280, height: 420)
         hostingView.frame = NSRect(origin: .zero, size: menuSize)
 
         let centerX = screen.frame.midX - menuSize.width / 2
@@ -812,7 +822,9 @@ struct AllInOneMenuView: View {
     let onCaptureArea: () -> Void
     let onCaptureWindow: () -> Void
     let onCaptureFullscreen: () -> Void
-    let onRecordVideo: () -> Void
+    let onRecordArea: () -> Void
+    let onRecordWindow: () -> Void
+    let onRecordFullscreen: () -> Void
     let onOCR: () -> Void
     let onDismiss: () -> Void
 
@@ -847,9 +859,19 @@ struct AllInOneMenuView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
 
-                MenuButton(icon: "video.fill", title: "Record Video", shortcut: "⌃⇧7") {
+                MenuButton(icon: "video.fill", title: "Record Area", shortcut: "⌃⇧7") {
                     onDismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onRecordVideo() }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onRecordArea() }
+                }
+
+                MenuButton(icon: "video", title: "Record Window", shortcut: "⌥⇧8") {
+                    onDismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onRecordWindow() }
+                }
+
+                MenuButton(icon: "rectangle.inset.filled.and.record", title: "Record Fullscreen", shortcut: "⌃⇧9") {
+                    onDismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onRecordFullscreen() }
                 }
 
                 Divider()
@@ -870,7 +892,7 @@ struct AllInOneMenuView: View {
                 .foregroundColor(.secondary)
                 .padding(.bottom, 12)
         }
-        .frame(width: 280, height: 360)
+        .frame(width: 280, height: 420)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(

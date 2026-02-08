@@ -318,14 +318,6 @@ class StorageManager: ObservableObject {
         return capture
     }
 
-    func saveGIF(url: URL) -> CaptureItem {
-        let filename = url.lastPathComponent
-        let capture = CaptureItem(type: .gif, filename: filename)
-        history.add(capture)
-        saveHistory()
-        return capture
-    }
-
     func getCapture(id: UUID) -> CaptureItem? {
         history.items.first { $0.id == id }
     }
@@ -370,11 +362,6 @@ class StorageManager: ObservableObject {
 
     func generateRecordingURL() -> URL {
         let filename = generateFilename(for: .recording)
-        return screenshotsDirectory.appendingPathComponent(filename)
-    }
-
-    func generateGIFURL() -> URL {
-        let filename = generateFilename(for: .gif)
         return screenshotsDirectory.appendingPathComponent(filename)
     }
 

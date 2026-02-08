@@ -52,8 +52,6 @@ final class ScreenRecordingManagerTests: XCTestCase {
 
     func testInitialStateIsNotRecording() {
         XCTAssertFalse(recordingManager.isRecording)
-        XCTAssertFalse(recordingManager.isGIFRecording)
-        XCTAssertFalse(recordingManager.isExportingGIF)
         XCTAssertEqual(recordingManager.recordingDuration, 0)
         XCTAssertEqual(recordingManager.sessionState, .idle)
     }
@@ -61,6 +59,24 @@ final class ScreenRecordingManagerTests: XCTestCase {
     func testFirstMouseHostingViewAcceptsFirstMouse() {
         let hostingView = FirstMouseHostingView(rootView: EmptyView())
         XCTAssertTrue(hostingView.acceptsFirstMouse(for: nil))
+    }
+
+    func testStartFullscreenRecordingClearsExistingSelectionWindow() {
+        let staleWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 120, height: 80),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        staleWindow.isReleasedWhenClosed = false
+        recordingManager.installSelectionWindowForTesting(staleWindow)
+        XCTAssertTrue(recordingManager.hasSelectionWindowForTesting)
+
+        recordingManager.startFullscreenRecording()
+
+        XCTAssertFalse(recordingManager.hasSelectionWindowForTesting)
+        XCTAssertTrue(recordingManager.isPreparingRecordingForTesting)
+        XCTAssertEqual(recordingManager.sessionModel.state, .selecting)
     }
 
     // MARK: - Published Properties Tests
@@ -72,16 +88,6 @@ final class ScreenRecordingManagerTests: XCTestCase {
         }
 
         // Initial subscription counts as one
-        XCTAssertGreaterThanOrEqual(changeCount, 1)
-        cancellable.cancel()
-    }
-
-    func testIsGIFRecordingIsPublished() {
-        var changeCount = 0
-        let cancellable = recordingManager.$isGIFRecording.sink { _ in
-            changeCount += 1
-        }
-
         XCTAssertGreaterThanOrEqual(changeCount, 1)
         cancellable.cancel()
     }

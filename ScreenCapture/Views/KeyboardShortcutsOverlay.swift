@@ -45,8 +45,9 @@ struct KeyboardShortcutsOverlay: View {
                 title: "Recording",
                 icon: "video.fill",
                 shortcuts: [
-                    ShortcutItem(keys: "\(mod)7", description: "Record Screen"),
-                    ShortcutItem(keys: "\(mod)8", description: "Record GIF"),
+                    ShortcutItem(keys: "\(mod)7", description: "Record Area"),
+                    ShortcutItem(keys: "⌥⇧8", description: "Record Window"),
+                    ShortcutItem(keys: "\(mod)9", description: "Record Fullscreen"),
                 ]
             ),
             ShortcutGroup(

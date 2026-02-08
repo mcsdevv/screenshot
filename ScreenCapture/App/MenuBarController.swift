@@ -106,8 +106,9 @@ class MenuBarController: NSObject {
         recordHeader.isEnabled = false
         menu.addItem(recordHeader)
 
-        recordingMenuItem = addMenuItem(title: "Record Screen", icon: "video.fill", action: #selector(toggleRecording), keyEquivalent: "7", modifiers: [.control, .shift])
+        recordingMenuItem = addMenuItem(title: "Record Area", icon: "rectangle.dashed.and.record", action: #selector(recordArea), keyEquivalent: "7", modifiers: [.control, .shift])
         addMenuItem(title: "Record Window", icon: "video", action: #selector(recordWindow), keyEquivalent: "8", modifiers: [.option, .shift])
+        addMenuItem(title: "Record Fullscreen", icon: "rectangle.inset.filled.and.record", action: #selector(recordFullscreen), keyEquivalent: "9", modifiers: [.control, .shift])
 
         menu.addItem(NSMenuItem.separator())
 
@@ -187,12 +188,16 @@ class MenuBarController: NSObject {
         screenshotManager.captureFullscreen()
     }
 
-    @objc private func toggleRecording() {
+    @objc private func recordArea() {
         screenRecordingManager.toggleRecording()
     }
 
     @objc private func recordWindow() {
         screenRecordingManager.startWindowRecordingSelection()
+    }
+
+    @objc private func recordFullscreen() {
+        screenRecordingManager.startFullscreenRecording()
     }
 
     @objc private func captureOCR() {
@@ -254,7 +259,7 @@ class MenuBarController: NSObject {
 
     @objc private func recordingDidStop() {
         isRecording = false
-        recordingMenuItem?.title = "Record Screen"
+        recordingMenuItem?.title = "Record Area"
 
         if let button = statusItem.button {
             let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
