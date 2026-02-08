@@ -303,6 +303,7 @@ struct GeneralPreferencesView: View {
     @AppStorage("showQuickAccess") private var showQuickAccess = true
     @AppStorage("quickAccessDuration") private var quickAccessDuration = 5.0
     @AppStorage("popupCorner") private var popupCorner = ScreenCorner.bottomLeft.rawValue
+    @AppStorage("afterCaptureAction") private var afterCaptureAction = "quickAccess"
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xl) {
@@ -357,7 +358,7 @@ struct GeneralPreferencesView: View {
 
             PreferenceSection("Default Actions") {
                 PreferenceRow("After capture") {
-                    Picker("", selection: .constant("quickAccess")) {
+                    Picker("", selection: $afterCaptureAction) {
                         Text("Show Quick Access").tag("quickAccess")
                         Text("Copy to Clipboard").tag("clipboard")
                         Text("Save to File").tag("save")
@@ -388,7 +389,7 @@ struct GeneralPreferencesView: View {
 
 struct ShortcutsPreferencesView: View {
     @StateObject private var shortcutManager = SystemShortcutManager.shared
-    @State private var isRemapping = false
+    @State private var isUpdating = false
 
     private var useNativeShortcuts: Bool {
         shortcutManager.shortcutsRemapped
@@ -406,8 +407,8 @@ struct ShortcutsPreferencesView: View {
                                 .foregroundColor(.dsTextPrimary)
 
                             Text(useNativeShortcuts
-                                 ? "ScreenCapture is using ⌘⇧3, ⌘⇧4, ⌘⇧5 shortcuts."
-                                 : "Native macOS shortcuts are active. ScreenCapture uses ⌃⇧ shortcuts.")
+                                 ? "ScreenCapture is using the ⌘⇧ layout."
+                                 : "ScreenCapture is using the ⌃⇧ safe layout.")
                                 .font(DSTypography.caption)
                                 .foregroundColor(.dsTextTertiary)
                         }
@@ -417,11 +418,11 @@ struct ShortcutsPreferencesView: View {
                         // Status indicator
                         HStack(spacing: DSSpacing.xs) {
                             Circle()
-                                .fill(useNativeShortcuts ? Color.dsSuccess : Color.dsTextTertiary)
+                                .fill(useNativeShortcuts ? Color.dsAccent : Color.dsTextTertiary)
                                 .frame(width: 8, height: 8)
-                            Text(useNativeShortcuts ? "Enabled" : "Disabled")
+                            Text(useNativeShortcuts ? "Standard" : "Safe")
                                 .font(DSTypography.caption)
-                                .foregroundColor(useNativeShortcuts ? .dsSuccess : .dsTextTertiary)
+                                .foregroundColor(useNativeShortcuts ? .dsAccent : .dsTextTertiary)
                         }
                     }
 
@@ -429,11 +430,11 @@ struct ShortcutsPreferencesView: View {
 
                     HStack {
                         if useNativeShortcuts {
-                            Text("The native macOS screenshot shortcuts have been disabled. ScreenCapture handles all screenshot shortcuts.")
+                            Text("If macOS screenshot shortcuts are still enabled, disable them manually in System Settings → Keyboard → Keyboard Shortcuts → Screenshots.")
                                 .font(DSTypography.caption)
                                 .foregroundColor(.dsTextTertiary)
                         } else {
-                            Text("Enable this to use familiar shortcuts like ⌘⇧3 and ⌘⇧4 with ScreenCapture instead of the built-in Screenshot app.")
+                            Text("Use this mode to avoid conflicts with macOS built-in screenshot shortcuts.")
                                 .font(DSTypography.caption)
                                 .foregroundColor(.dsTextTertiary)
                         }
@@ -442,15 +443,15 @@ struct ShortcutsPreferencesView: View {
 
                         Button(action: toggleShortcutMode) {
                             HStack(spacing: DSSpacing.xs) {
-                                if isRemapping {
+                                if isUpdating {
                                     ProgressView()
                                         .scaleEffect(0.7)
                                         .frame(width: 12, height: 12)
                                 } else {
-                                    Image(systemName: useNativeShortcuts ? "keyboard.badge.ellipsis" : "keyboard")
+                                    Image(systemName: useNativeShortcuts ? "keyboard.badge.ellipsis" : "keyboard.fill")
                                         .font(.system(size: 12))
                                 }
-                                Text(useNativeShortcuts ? "Restore Native Shortcuts" : "Use Standard Shortcuts")
+                                Text(useNativeShortcuts ? "Use Safe Shortcuts" : "Use Standard Shortcuts")
                                     .font(DSTypography.labelSmall)
                             }
                             .foregroundColor(useNativeShortcuts ? .dsWarmAccent : .dsAccent)
@@ -462,7 +463,7 @@ struct ShortcutsPreferencesView: View {
                             )
                         }
                         .buttonStyle(.plain)
-                        .disabled(isRemapping)
+                        .disabled(isUpdating)
                     }
                 }
             }
@@ -479,6 +480,8 @@ struct ShortcutsPreferencesView: View {
 
             PreferenceSection("Recording Shortcuts") {
                 ShortcutRow(name: "Record Screen", shortcut: shortcut(for: .recordScreen))
+                DSDivider()
+                ShortcutRow(name: "Record Window", shortcut: shortcut(for: .recordWindow))
                 DSDivider()
                 ShortcutRow(name: "Record GIF", shortcut: shortcut(for: .recordGIF))
             }
@@ -498,34 +501,26 @@ struct ShortcutsPreferencesView: View {
     }
 
     private func toggleShortcutMode() {
-        isRemapping = true
+        isUpdating = true
+        let success = useNativeShortcuts
+            ? shortcutManager.enableNativeShortcuts()
+            : shortcutManager.disableNativeShortcuts()
+        isUpdating = false
 
-        DispatchQueue.global(qos: .userInitiated).async {
-            let success: Bool
-            if useNativeShortcuts {
-                // Restore native shortcuts
-                success = shortcutManager.enableNativeShortcuts()
-            } else {
-                // Disable native shortcuts
-                success = shortcutManager.disableNativeShortcuts()
-            }
-
-            DispatchQueue.main.async {
-                isRemapping = false
-
-                if success {
-                    // Notify that shortcuts need to be re-registered
-                    NotificationCenter.default.post(name: .shortcutsRemapped, object: nil)
-                } else {
-                    // Show error alert
-                    let alert = NSAlert()
-                    alert.messageText = "Could Not Update Shortcuts"
-                    alert.informativeText = "There was an error modifying the system shortcuts. You may need to change them manually in System Settings → Keyboard → Keyboard Shortcuts → Screenshots."
-                    alert.alertStyle = .warning
-                    alert.runModal()
-                }
+        if success {
+            NotificationCenter.default.post(name: .shortcutsRemapped, object: nil)
+            if !useNativeShortcuts {
+                showManualShortcutInstructions()
             }
         }
+    }
+
+    private func showManualShortcutInstructions() {
+        let alert = NSAlert()
+        alert.messageText = "Standard Shortcuts Enabled"
+        alert.informativeText = "To avoid conflicts, disable built-in Screenshot shortcuts manually in System Settings → Keyboard → Keyboard Shortcuts → Screenshots."
+        alert.alertStyle = .informational
+        alert.runModal()
     }
 }
 
@@ -620,7 +615,6 @@ struct RecordingPreferencesView: View {
     @AppStorage("recordMicrophone") private var recordMicrophone = false
     @AppStorage("recordSystemAudio") private var recordSystemAudio = true
     @AppStorage("showMouseClicks") private var showMouseClicks = true
-    @AppStorage("showKeystrokes") private var showKeystrokes = false
     @AppStorage("gifFPS") private var gifFPS = 15
     @AppStorage("gifQuality") private var gifQuality = "medium"
 
@@ -663,7 +657,11 @@ struct RecordingPreferencesView: View {
             PreferenceSection("Visual Feedback") {
                 DSToggle(isOn: $showMouseClicks, label: "Highlight mouse clicks")
                 DSDivider()
-                DSToggle(isOn: $showKeystrokes, label: "Show keystrokes")
+                PreferenceRow("Keystroke overlay", subtitle: "Not available in native capture mode") {
+                    Text("Unavailable")
+                        .font(DSTypography.labelSmall)
+                        .foregroundColor(.dsTextTertiary)
+                }
             }
 
             PreferenceSection("GIF Recording") {
@@ -832,6 +830,14 @@ struct StoragePreferencesView: View {
             loadCurrentSettings()
             calculateStorageUsed()
         }
+        .onChange(of: autoCleanup) { _, _ in
+            storageManager.applyCleanupPolicy()
+            calculateStorageUsed()
+        }
+        .onChange(of: cleanupDays) { _, _ in
+            storageManager.applyCleanupPolicy()
+            calculateStorageUsed()
+        }
     }
 
     private func loadCurrentSettings() {
@@ -903,6 +909,7 @@ struct StoragePreferencesView: View {
         alert.addButton(withTitle: "Cancel")
 
         if alert.runModal() == .alertFirstButtonReturn {
+            _ = storageManager.clearAllCaptures()
             calculateStorageUsed()
         }
     }
@@ -911,21 +918,27 @@ struct StoragePreferencesView: View {
 // MARK: - Advanced Preferences
 
 struct AdvancedPreferencesView: View {
-    @AppStorage("enableHardwareAcceleration") private var enableHardwareAcceleration = true
-    @AppStorage("reducedMotion") private var reducedMotion = false
-    @AppStorage("debugMode") private var debugMode = false
-
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xl) {
             PreferenceSection("Performance") {
-                DSToggle(isOn: $enableHardwareAcceleration, label: "Enable hardware acceleration")
+                PreferenceRow("Rendering") {
+                    Text("Native GPU accelerated")
+                        .font(DSTypography.labelSmall)
+                        .foregroundColor(.dsSuccess)
+                }
+
                 DSDivider()
-                DSToggle(isOn: $reducedMotion, label: "Reduce motion effects")
+
+                PreferenceRow("Animations") {
+                    Text("System default")
+                        .font(DSTypography.labelSmall)
+                        .foregroundColor(.dsTextTertiary)
+                }
             }
 
             PreferenceSection("Developer") {
                 HStack(alignment: .center) {
-                    Text("Enable debug mode")
+                    Text("Reset all preferences")
                         .font(DSTypography.bodyMedium)
                         .foregroundColor(.dsTextPrimary)
 
@@ -947,10 +960,6 @@ struct AdvancedPreferencesView: View {
                         )
                     }
                     .buttonStyle(.plain)
-
-                    Toggle("", isOn: $debugMode)
-                        .toggleStyle(SwitchToggleStyle(tint: .dsAccent))
-                        .labelsHidden()
                 }
             }
 

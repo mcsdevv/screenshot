@@ -1,21 +1,23 @@
 import Foundation
 import AVFoundation
+import ImageIO
+import UniformTypeIdentifiers
 
 enum GIFExportError: LocalizedError {
-    case ffmpegNotInstalled
     case sourceMissing(URL)
-    case paletteGenerationFailed(String)
+    case noVideoTrack
+    case frameExtractionFailed(String)
     case gifEncodingFailed(String)
     case outputMissing(URL)
 
     var errorDescription: String? {
         switch self {
-        case .ffmpegNotInstalled:
-            return "ffmpeg was not found. Install it (for example with Homebrew: brew install ffmpeg) and retry GIF export."
         case let .sourceMissing(url):
             return "Source recording is missing: \(url.path)"
-        case let .paletteGenerationFailed(message):
-            return "Palette generation failed: \(message)"
+        case .noVideoTrack:
+            return "The recording does not contain a video track."
+        case let .frameExtractionFailed(message):
+            return "Unable to extract frames for GIF export: \(message)"
         case let .gifEncodingFailed(message):
             return "GIF encoding failed: \(message)"
         case let .outputMissing(url):
@@ -26,38 +28,9 @@ enum GIFExportError: LocalizedError {
 
 @MainActor
 final class GIFExportService {
-    private final class FFmpegParseState {
-        private let lock = NSLock()
-        private var stderrBuffer = ""
-        private var partialLineBuffer = ""
-
-        func appendAndExtractLines(_ chunk: String) -> [String] {
-            lock.lock()
-            defer { lock.unlock() }
-
-            stderrBuffer += chunk
-            partialLineBuffer += chunk
-
-            let lines = partialLineBuffer.components(separatedBy: "\n")
-            partialLineBuffer = lines.last ?? ""
-            return Array(lines.dropLast())
-        }
-
-        func fullStderr() -> String {
-            lock.lock()
-            defer { lock.unlock() }
-            return stderrBuffer
-        }
-    }
-
     struct ProgressSnapshot: Sendable {
         let stage: String
         let progress: Double
-    }
-
-    private struct FFmpegResult {
-        let exitCode: Int32
-        let stderr: String
     }
 
     func exportGIF(
@@ -71,63 +44,80 @@ final class GIFExportService {
             throw GIFExportError.sourceMissing(sourceVideoURL)
         }
 
-        let ffmpegURL = try resolveFFmpegURL()
-        let totalDuration = max(0.1, await videoDurationSeconds(for: sourceVideoURL))
-        let targetWidth = quality.targetWidth ?? 1_280
+        let sanitizedFPS = max(1, min(60, fps))
+        let frameDelay = 1.0 / Double(sanitizedFPS)
+        let asset = AVURLAsset(url: sourceVideoURL)
 
-        let paletteURL = outputGIFURL.deletingLastPathComponent().appendingPathComponent("palette-\(UUID().uuidString).png")
-        defer { try? FileManager.default.removeItem(at: paletteURL) }
+        let videoTrack: AVAssetTrack
+        let durationSeconds: Double
+        do {
+            if #available(macOS 13.0, *) {
+                let tracks = try await asset.loadTracks(withMediaType: .video)
+                guard let firstTrack = tracks.first else { throw GIFExportError.noVideoTrack }
+                videoTrack = firstTrack
 
-        onProgress?(ProgressSnapshot(stage: "Preparing", progress: 0.0))
+                let duration = try await asset.load(.duration)
+                durationSeconds = max(0.1, duration.seconds.isFinite ? duration.seconds : 0.1)
+            } else {
+                guard let firstTrack = asset.tracks(withMediaType: .video).first else { throw GIFExportError.noVideoTrack }
+                videoTrack = firstTrack
 
-        let paletteFilter = "fps=\(fps),scale=\(targetWidth):-1:flags=lanczos,palettegen=stats_mode=diff"
-        let paletteArgs = [
-            "-y",
-            "-i", sourceVideoURL.path,
-            "-vf", paletteFilter,
-            "-progress", "pipe:2",
-            "-nostats",
-            paletteURL.path
+                let duration = asset.duration
+                durationSeconds = max(0.1, duration.seconds.isFinite ? duration.seconds : 0.1)
+            }
+        } catch let error as GIFExportError {
+            throw error
+        } catch {
+            throw GIFExportError.frameExtractionFailed(error.localizedDescription)
+        }
+
+        let frameCount = max(1, Int((durationSeconds * Double(sanitizedFPS)).rounded(.up)))
+        let frameTimes = buildFrameTimes(duration: durationSeconds, frameCount: frameCount)
+
+        guard let destination = CGImageDestinationCreateWithURL(
+            outputGIFURL as CFURL,
+            UTType.gif.identifier as CFString,
+            frameTimes.count,
+            nil
+        ) else {
+            throw GIFExportError.gifEncodingFailed("Could not create GIF destination")
+        }
+
+        let fileProperties: [CFString: Any] = [
+            kCGImagePropertyGIFDictionary: [
+                kCGImagePropertyGIFLoopCount: 0
+            ]
+        ]
+        CGImageDestinationSetProperties(destination, fileProperties as CFDictionary)
+
+        let frameProperties: [CFString: Any] = [
+            kCGImagePropertyGIFDictionary: [
+                kCGImagePropertyGIFDelayTime: frameDelay
+            ]
         ]
 
-        let paletteResult = try await runFFmpeg(
-            executableURL: ffmpegURL,
-            arguments: paletteArgs,
-            totalDuration: totalDuration,
-            stageLabel: "Generating Palette"
-        ) { stageProgress in
-            onProgress?(ProgressSnapshot(stage: "Generating Palette", progress: stageProgress * 0.40))
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.requestedTimeToleranceBefore = .zero
+        generator.requestedTimeToleranceAfter = .zero
+        generator.maximumSize = maximumFrameSize(for: quality, track: videoTrack)
+
+        onProgress?(ProgressSnapshot(stage: "Preparing", progress: 0))
+
+        for (index, time) in frameTimes.enumerated() {
+            do {
+                let image = try generator.copyCGImage(at: time, actualTime: nil)
+                CGImageDestinationAddImage(destination, image, frameProperties as CFDictionary)
+            } catch {
+                throw GIFExportError.frameExtractionFailed(error.localizedDescription)
+            }
+
+            let frameProgress = Double(index + 1) / Double(frameTimes.count)
+            onProgress?(ProgressSnapshot(stage: "Encoding GIF", progress: frameProgress))
         }
 
-        guard paletteResult.exitCode == 0 else {
-            throw GIFExportError.paletteGenerationFailed(paletteResult.stderr)
-        }
-
-        onProgress?(ProgressSnapshot(stage: "Encoding GIF", progress: 0.40))
-
-        let encodeFilter = "fps=\(fps),scale=\(targetWidth):-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle"
-        let encodeArgs = [
-            "-y",
-            "-i", sourceVideoURL.path,
-            "-i", paletteURL.path,
-            "-lavfi", encodeFilter,
-            "-progress", "pipe:2",
-            "-nostats",
-            outputGIFURL.path
-        ]
-
-        let encodeResult = try await runFFmpeg(
-            executableURL: ffmpegURL,
-            arguments: encodeArgs,
-            totalDuration: totalDuration,
-            stageLabel: "Encoding GIF"
-        ) { stageProgress in
-            let overall = 0.40 + (stageProgress * 0.60)
-            onProgress?(ProgressSnapshot(stage: "Encoding GIF", progress: overall))
-        }
-
-        guard encodeResult.exitCode == 0 else {
-            throw GIFExportError.gifEncodingFailed(encodeResult.stderr)
+        guard CGImageDestinationFinalize(destination) else {
+            throw GIFExportError.gifEncodingFailed("Image destination finalize failed")
         }
 
         guard FileManager.default.fileExists(atPath: outputGIFURL.path) else {
@@ -137,135 +127,28 @@ final class GIFExportService {
         onProgress?(ProgressSnapshot(stage: "Done", progress: 1.0))
     }
 
-    private func resolveFFmpegURL() throws -> URL {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["which", "ffmpeg"]
-
-        let outputPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = Pipe()
-
-        try process.run()
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else {
-            throw GIFExportError.ffmpegNotInstalled
+    private func buildFrameTimes(duration: Double, frameCount: Int) -> [CMTime] {
+        guard frameCount > 1 else {
+            return [CMTime(seconds: 0, preferredTimescale: 600)]
         }
 
-        let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
-        guard let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !path.isEmpty else {
-            throw GIFExportError.ffmpegNotInstalled
+        let step = duration / Double(frameCount - 1)
+        return (0..<frameCount).map { index in
+            let seconds = min(duration, Double(index) * step)
+            return CMTime(seconds: seconds, preferredTimescale: 600)
         }
-
-        return URL(fileURLWithPath: path)
     }
 
-    private func videoDurationSeconds(for url: URL) async -> Double {
-        let asset = AVURLAsset(url: url)
-
-        if #available(macOS 13.0, *) {
-            if let duration = try? await asset.load(.duration),
-               duration.isValid,
-               duration.seconds.isFinite,
-               duration.seconds > 0 {
-                return duration.seconds
-            }
-        } else {
-            let duration = asset.duration
-            if duration.isValid, duration.seconds.isFinite, duration.seconds > 0 {
-                return duration.seconds
-            }
+    private func maximumFrameSize(for quality: GIFExportQualityPreset, track: AVAssetTrack) -> CGSize {
+        guard let targetWidth = quality.targetWidth else {
+            return CGSize(width: 4_096, height: 4_096)
         }
 
-        return 1.0
-    }
-
-    private func runFFmpeg(
-        executableURL: URL,
-        arguments: [String],
-        totalDuration: Double,
-        stageLabel: String,
-        onProgress: @escaping (Double) -> Void
-    ) async throws -> FFmpegResult {
-        let process = Process()
-        process.executableURL = executableURL
-        process.arguments = arguments
-
-        let stderrPipe = Pipe()
-        process.standardError = stderrPipe
-        process.standardOutput = Pipe()
-
-        let parserState = FFmpegParseState()
-
-        stderrPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty, let chunk = String(data: data, encoding: .utf8) else {
-                return
-            }
-
-            let lines = parserState.appendAndExtractLines(chunk)
-
-            for line in lines {
-                guard let elapsed = GIFExportService.extractElapsedSeconds(from: line) else { continue }
-                let progress = min(max(elapsed / totalDuration, 0), 1)
-                Task { @MainActor in
-                    onProgress(progress)
-                }
-            }
-        }
-
-        try process.run()
-
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            process.terminationHandler = { _ in
-                continuation.resume()
-            }
-        }
-
-        stderrPipe.fileHandleForReading.readabilityHandler = nil
-
-        debugLog("GIFExportService: \(stageLabel) finished with code \(process.terminationStatus)")
-
-        return FFmpegResult(exitCode: process.terminationStatus, stderr: parserState.fullStderr())
-    }
-
-    private nonisolated static func extractElapsedSeconds(from line: String) -> Double? {
-        if line.hasPrefix("out_time_ms=") {
-            let value = line.replacingOccurrences(of: "out_time_ms=", with: "")
-            guard let raw = Double(value) else { return nil }
-            return raw / 1_000_000.0
-        }
-
-        if line.hasPrefix("out_time_us=") {
-            let value = line.replacingOccurrences(of: "out_time_us=", with: "")
-            guard let raw = Double(value) else { return nil }
-            return raw / 1_000_000.0
-        }
-
-        if line.hasPrefix("out_time=") {
-            let value = line.replacingOccurrences(of: "out_time=", with: "")
-            return parseTimestampToSeconds(value)
-        }
-
-        if let range = line.range(of: "time=") {
-            let value = String(line[range.upperBound...]).split(separator: " ").first.map(String.init) ?? ""
-            return parseTimestampToSeconds(value)
-        }
-
-        return nil
-    }
-
-    private nonisolated static func parseTimestampToSeconds(_ timestamp: String) -> Double? {
-        let parts = timestamp.split(separator: ":")
-        guard parts.count == 3,
-              let hours = Double(parts[0]),
-              let minutes = Double(parts[1]),
-              let seconds = Double(parts[2]) else {
-            return nil
-        }
-
-        return (hours * 3600) + (minutes * 60) + seconds
+        let naturalSize = track.naturalSize.applying(track.preferredTransform)
+        let videoWidth = max(1, abs(naturalSize.width))
+        let videoHeight = max(1, abs(naturalSize.height))
+        let aspectRatio = videoHeight / videoWidth
+        let targetHeight = CGFloat(targetWidth) * aspectRatio
+        return CGSize(width: CGFloat(targetWidth), height: max(1, targetHeight))
     }
 }

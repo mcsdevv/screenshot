@@ -5,6 +5,7 @@ import ScreenCaptureKit
 // MARK: - Window Selection View
 
 struct WindowSelectionView: View {
+    var title: String = "Select Window"
     let onWindowSelected: (SCWindow) -> Void
     let onCancel: () -> Void
 
@@ -30,7 +31,7 @@ struct WindowSelectionView: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Select Window to Record")
+                Text(title)
                     .font(DSTypography.headlineMedium)
                     .foregroundColor(.dsTextPrimary)
 

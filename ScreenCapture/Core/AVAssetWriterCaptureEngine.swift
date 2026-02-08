@@ -34,6 +34,10 @@ final class AVAssetWriterCaptureEngine: NSObject, CaptureEngine {
             throw CaptureEngineError.alreadyRunning
         }
 
+        if config.includeMicrophone {
+            try await ensureMicrophoneAuthorization()
+        }
+
         let filterContext = try await resolveFilterContext(for: config.target)
         let streamConfig = makeStreamConfiguration(config: config, context: filterContext)
 
@@ -239,6 +243,28 @@ final class AVAssetWriterCaptureEngine: NSObject, CaptureEngine {
         return "\(nsError.domain) (\(nsError.code)): \(nsError.localizedDescription)"
     }
 
+    private func ensureMicrophoneAuthorization() async throws {
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            return
+
+        case .notDetermined:
+            let granted = await AVCaptureDevice.requestAccess(for: .audio)
+            if !granted {
+                throw CaptureEngineError.microphonePermissionDenied
+            }
+
+        case .denied:
+            throw CaptureEngineError.microphonePermissionDenied
+
+        case .restricted:
+            throw CaptureEngineError.microphonePermissionRestricted
+
+        @unknown default:
+            throw CaptureEngineError.microphonePermissionDenied
+        }
+    }
+
     private func resolveFilterContext(for target: RecordingTarget) async throws -> FilterContext {
         switch target {
         case .fullscreen:
@@ -269,12 +295,13 @@ final class AVAssetWriterCaptureEngine: NSObject, CaptureEngine {
             guard let window = content.windows.first(where: { $0.windowID == windowID }) else {
                 throw CaptureEngineError.invalidWindowTarget(windowID)
             }
+            let display = try await ScreenCaptureContentProvider.shared.getDisplay(containing: window.frame)
             let filter = SCContentFilter(desktopIndependentWindow: window)
             return FilterContext(
                 filter: filter,
                 baseWidthPoints: window.frame.width,
                 baseHeightPoints: window.frame.height,
-                scaleFactor: NSScreen.main?.backingScaleFactor ?? 2.0,
+                scaleFactor: displayScaleFactor(for: display.displayID),
                 sourceRect: nil
             )
         }

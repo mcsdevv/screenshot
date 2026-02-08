@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 import AVFoundation
+import ImageIO
 
 // Custom NSView that accepts first mouse to allow clicks without activation
 class FirstMouseView: NSView {
@@ -48,7 +49,7 @@ class QuickAccessOverlayController: ObservableObject {
             case .recording:
                 image = Self.generateVideoThumbnail(at: url)
             default:
-                image = NSImage(contentsOf: url)
+                image = Self.generateImageThumbnail(at: url, maxPixelSize: 1_280)
             }
 
             DispatchQueue.main.async {
@@ -85,6 +86,24 @@ class QuickAccessOverlayController: ObservableObject {
         }
 
         return nil
+    }
+
+    private nonisolated static func generateImageThumbnail(at url: URL, maxPixelSize: CGFloat) -> NSImage? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            return nil
+        }
+
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ]
+
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            return nil
+        }
+
+        return NSImage(cgImage: cgImage, size: .zero)
     }
 
     func dismiss() {

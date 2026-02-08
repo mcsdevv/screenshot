@@ -10,6 +10,8 @@ final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
 
 @MainActor
 class ScreenRecordingManager: NSObject, ObservableObject {
+    static let recordWindowSelectionModeKey = "isSelectingRecordWindow"
+
     private struct PendingOutput {
         let temporaryURL: URL
         let finalURL: URL
@@ -23,6 +25,8 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     private var activeMode: RecordingMode?
     private var activeCaptureOutput: PendingOutput?
     private var gifExportTask: Task<Void, Never>?
+    private var captureEngineStatusCancellable: AnyCancellable?
+    private var isStoppingCapture = false
 
     @Published var isRecording = false
     @Published var isGIFRecording = false
@@ -36,8 +40,9 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
     private var controlWindow: NSWindow?
     private var selectionWindow: NSWindow?
-    private var windowSelectionWindow: NSWindow?
     private var recordingOverlayWindow: NSWindow?
+    private var nativeWindowSelectionTask: Process?
+    private var nativeWindowSelectionTempFile: URL?
     private var pendingRecordingMode: RecordingMode = .video
 
     private enum RecordingMode {
@@ -66,6 +71,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     init(storageManager: StorageManager) {
         self.storageManager = storageManager
         super.init()
+        setRecordWindowSelectionMode(false)
         bindSessionModel()
     }
 
@@ -75,6 +81,27 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         } else {
             startRecordingWithSelection()
         }
+    }
+
+    func startWindowRecordingSelection() {
+        if isRecording {
+            stopRecording()
+            return
+        }
+
+        if isGIFRecording {
+            stopGIFRecording()
+            return
+        }
+
+        if isExportingGIF {
+            return
+        }
+
+        sessionModel.forceIdle()
+        transitionSession { try sessionModel.beginSelection(for: .video) }
+        pendingRecordingMode = .video
+        showWindowSelection()
     }
 
     func toggleGIFRecording() {
@@ -105,6 +132,12 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             transitionSession { try sessionModel.markCancelled() }
             transitionSession { try sessionModel.markIdle() }
             hideRecordingControls()
+            completion?()
+            return
+        }
+
+        if nativeWindowSelectionTask != nil {
+            cancelNativeWindowSelection(reason: reason, updateSession: true)
             completion?()
             return
         }
@@ -149,11 +182,14 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     }
 
     private func resetActiveSessionRuntime() {
+        cancelNativeWindowSelection(reason: "reset active session", updateSession: false)
+        captureEngineStatusCancellable = nil
         captureEngine = nil
         currentConfig = nil
         activeMode = nil
         activeCaptureOutput = nil
         gifExportTask = nil
+        isStoppingCapture = false
         isRecording = false
         isGIFRecording = false
         isExportingGIF = false
@@ -260,61 +296,167 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     // MARK: - Window Selection
 
     private func showWindowSelection() {
-        guard let screen = currentInteractionScreen() else { return }
-
-        let windowView = WindowSelectionView(
-            onWindowSelected: { [weak self] window in
-                self?.closeWindowSelectionWindow()
-                self?.startRecordingForWindow(window)
-            },
-            onCancel: { [weak self] in
-                self?.closeWindowSelectionWindow()
-                guard let self else { return }
-                self.transitionSession { try self.sessionModel.markCancelled() }
-                self.transitionSession { try self.sessionModel.markIdle() }
-            }
-        )
-
-        let hostingView = FirstMouseHostingView(rootView: windowView)
-        hostingView.frame = NSRect(origin: .zero, size: screen.frame.size)
-
-        let window = KeyableWindow(
-            contentRect: screen.frame,
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: false
-        )
-
-        window.isReleasedWhenClosed = false
-        window.contentView = hostingView
-        window.isOpaque = false
-        window.backgroundColor = .clear
-        window.level = .screenSaver
-
-        windowSelectionWindow = window
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
-        window.makeFirstResponder(hostingView)
+        startNativeWindowSelection()
     }
 
-    private func closeWindowSelectionWindow() {
-        guard let windowToClose = windowSelectionWindow else { return }
-        windowSelectionWindow = nil
+    private func startNativeWindowSelection() {
+        cancelNativeWindowSelection(reason: "starting new native window selection", updateSession: false)
+        setRecordWindowSelectionMode(true)
 
-        windowToClose.orderOut(nil)
+        let tempFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("record-window-selection-\(UUID().uuidString).png")
+        nativeWindowSelectionTempFile = tempFile
 
-        Task { @MainActor in
-            windowToClose.contentView = nil
-            windowToClose.close()
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        task.arguments = ["-i", "-w", "-o", "-x", tempFile.path]
+        nativeWindowSelectionTask = task
+
+        debugLog("Running native window picker for recording")
+
+        task.terminationHandler = { [weak self] process in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                let isCurrentTask = self.nativeWindowSelectionTask === task
+                if isCurrentTask {
+                    self.nativeWindowSelectionTask = nil
+                    self.nativeWindowSelectionTempFile = nil
+                    self.setRecordWindowSelectionMode(false)
+                }
+
+                guard isCurrentTask else {
+                    try? FileManager.default.removeItem(at: tempFile)
+                    return
+                }
+
+                defer { try? FileManager.default.removeItem(at: tempFile) }
+
+                guard process.terminationStatus == 0 else {
+                    self.handleNativeWindowSelectionCancelled()
+                    return
+                }
+
+                let mouseLocation = NSEvent.mouseLocation
+                guard let selectedWindowID = self.resolveSelectedWindowID(
+                    mouseLocation: mouseLocation,
+                    referenceImageURL: tempFile
+                ) else {
+                    self.presentRecordingAlert(
+                        title: "Window Selection Failed",
+                        message: "Unable to determine the selected window. Please try again."
+                    )
+                    self.handleNativeWindowSelectionCancelled()
+                    return
+                }
+
+                self.startRecordingForWindowID(selectedWindowID)
+            }
+        }
+
+        do {
+            try task.run()
+        } catch {
+            errorLog("Failed to launch native window picker", error: error)
+            try? FileManager.default.removeItem(at: tempFile)
+            nativeWindowSelectionTask = nil
+            nativeWindowSelectionTempFile = nil
+            setRecordWindowSelectionMode(false)
+            presentRecordingAlert(
+                title: "Window Selection Failed",
+                message: "Unable to open the native window selector."
+            )
+            handleNativeWindowSelectionCancelled()
         }
     }
 
+    private func cancelNativeWindowSelection(reason: String, updateSession: Bool) {
+        guard nativeWindowSelectionTask != nil || nativeWindowSelectionTempFile != nil else { return }
+
+        debugLog("Cancelling native window selection (\(reason))")
+        if let task = nativeWindowSelectionTask, task.isRunning {
+            task.terminate()
+        }
+        nativeWindowSelectionTask = nil
+
+        if let tempFile = nativeWindowSelectionTempFile {
+            try? FileManager.default.removeItem(at: tempFile)
+        }
+        nativeWindowSelectionTempFile = nil
+        setRecordWindowSelectionMode(false)
+
+        if updateSession {
+            handleNativeWindowSelectionCancelled()
+        }
+    }
+
+    private func setRecordWindowSelectionMode(_ isSelecting: Bool) {
+        UserDefaults.standard.set(isSelecting, forKey: Self.recordWindowSelectionModeKey)
+    }
+
+    private func handleNativeWindowSelectionCancelled() {
+        transitionSession { try sessionModel.markCancelled() }
+        transitionSession { try sessionModel.markIdle() }
+    }
+
+    private func resolveSelectedWindowID(mouseLocation: CGPoint, referenceImageURL: URL) -> UInt32? {
+        guard let windowInfoList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else {
+            return nil
+        }
+
+        let ownPID = Int32(ProcessInfo.processInfo.processIdentifier)
+        let desktopFrame = NSScreen.screens.reduce(CGRect.null) { partialResult, screen in
+            partialResult.union(screen.frame)
+        }
+        let flippedMouse = CGPoint(x: mouseLocation.x, y: desktopFrame.maxY - mouseLocation.y)
+        let referenceSize = referenceImageSize(at: referenceImageURL)
+        var sizeMatchedFallback: UInt32?
+
+        for windowInfo in windowInfoList {
+            guard
+                let windowIDNumber = windowInfo[kCGWindowNumber as String] as? NSNumber,
+                let ownerPIDNumber = windowInfo[kCGWindowOwnerPID as String] as? NSNumber,
+                ownerPIDNumber.int32Value != ownPID,
+                let layerNumber = windowInfo[kCGWindowLayer as String] as? NSNumber,
+                layerNumber.intValue == 0,
+                let boundsDict = windowInfo[kCGWindowBounds as String] as? NSDictionary,
+                let bounds = CGRect(dictionaryRepresentation: boundsDict),
+                bounds.width > 1,
+                bounds.height > 1
+            else {
+                continue
+            }
+
+            if bounds.contains(mouseLocation) || bounds.contains(flippedMouse) {
+                return windowIDNumber.uint32Value
+            }
+
+            if sizeMatchedFallback == nil, let referenceSize {
+                let widthMatches = abs(bounds.width - referenceSize.width) <= 2
+                let heightMatches = abs(bounds.height - referenceSize.height) <= 2
+                if widthMatches && heightMatches {
+                    sizeMatchedFallback = windowIDNumber.uint32Value
+                }
+            }
+        }
+
+        return sizeMatchedFallback
+    }
+
+    private func referenceImageSize(at url: URL) -> CGSize? {
+        guard let image = NSImage(contentsOf: url) else { return nil }
+        return image.size
+    }
+
     private func startRecordingForWindow(_ window: SCWindow) {
+        startRecordingForWindowID(window.windowID)
+    }
+
+    private func startRecordingForWindowID(_ windowID: UInt32) {
         switch pendingRecordingMode {
         case .video:
-            startRecording(window: window)
+            startCaptureSession(mode: .video, target: .window(windowID: windowID))
         case .gif:
-            startGIFRecording(window: window)
+            startCaptureSession(mode: .gif, target: .window(windowID: windowID))
         }
     }
 
@@ -348,6 +490,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                 let engine = makeCaptureEngine()
 
                 try await engine.start(config: config, outputURL: pendingOutput.temporaryURL)
+                bindCaptureEngineStatus(engine)
 
                 captureEngine = engine
                 currentConfig = config
@@ -384,7 +527,11 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
     private func stopCaptureSession(mode: RecordingMode, completion: (() -> Void)? = nil) {
         Task {
-            defer { completion?() }
+            isStoppingCapture = true
+            defer {
+                isStoppingCapture = false
+                completion?()
+            }
 
             transitionSession { try sessionModel.beginStopping(for: mode.sessionKind) }
 
@@ -596,15 +743,30 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     }
 
     private func makeCaptureEngine() -> CaptureEngine {
-        // Prefer native ScreenCaptureKit recording output on macOS 15+.
-        // AVAssetWriter has shown intermittent output routing and stability issues.
-        #if compiler(>=6.0)
-        if #available(macOS 15.0, *) {
-            return SCRecordingOutputEngine()
-        }
-        #endif
+        SCRecordingOutputEngine()
+    }
 
-        return AVAssetWriterCaptureEngine()
+    private func bindCaptureEngineStatus(_ engine: CaptureEngine) {
+        captureEngineStatusCancellable = engine.statusPublisher
+            .receive(on: RunLoop.main)
+            .sink { [weak self] status in
+                self?.handleCaptureEngineStatus(status)
+            }
+    }
+
+    private func handleCaptureEngineStatus(_ status: CaptureEngineStatus) {
+        guard case .failed(let message) = status else { return }
+        guard !isStoppingCapture else { return }
+        guard sessionModel.state != .idle else { return }
+
+        let reason = message.isEmpty ? "Unknown recording engine error." : message
+        errorLog("Capture engine failed: \(reason)")
+
+        discardPendingOutputArtifacts(activeCaptureOutput)
+        hideRecordingControls()
+        resetActiveSessionRuntime()
+        failSession("Recording engine failed")
+        presentRecordingAlert(title: "Recording Failed", message: reason)
     }
 
     // MARK: - Recording Controls

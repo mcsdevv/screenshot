@@ -4,6 +4,7 @@ import AppKit
 struct SelectionOverlay: View {
     let onSelection: (CGRect) -> Void
     let onCancel: () -> Void
+    var screenFrame: CGRect?
 
     @State private var startPoint: CGPoint?
     @State private var currentPoint: CGPoint?
@@ -81,12 +82,11 @@ struct SelectionOverlay: View {
     }
 
     private func convertToScreenCoordinates(_ rect: CGRect, in geometry: GeometryProxy) -> CGRect {
-        guard let screen = NSScreen.main else { return rect }
-        let screenHeight = screen.frame.height
+        let frame = screenFrame ?? NSScreen.main?.frame ?? CGRect(origin: .zero, size: geometry.size)
 
         return CGRect(
-            x: rect.origin.x,
-            y: screenHeight - rect.origin.y - rect.height,
+            x: frame.minX + rect.origin.x,
+            y: frame.maxY - rect.origin.y - rect.height,
             width: rect.width,
             height: rect.height
         )

@@ -109,6 +109,7 @@ class MenuBarController: NSObject {
         menu.addItem(recordHeader)
 
         recordingMenuItem = addMenuItem(title: "Record Screen", icon: "video.fill", action: #selector(toggleRecording), keyEquivalent: "7", modifiers: [.control, .shift])
+        addMenuItem(title: "Record Window", icon: "video", action: #selector(recordWindow), keyEquivalent: "8", modifiers: [.option, .shift])
 
         menu.addItem(NSMenuItem.separator())
 
@@ -194,6 +195,10 @@ class MenuBarController: NSObject {
 
     @objc private func toggleRecording() {
         screenRecordingManager.toggleRecording()
+    }
+
+    @objc private func recordWindow() {
+        screenRecordingManager.startWindowRecordingSelection()
     }
 
     @objc private func captureOCR() {
