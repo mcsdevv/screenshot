@@ -22,7 +22,7 @@ class PinnedScreenshotWindow {
         // Use corner preference for initial position
         let cornerRawValue = UserDefaults.standard.string(forKey: "popupCorner") ?? ScreenCorner.bottomLeft.rawValue
         let corner = ScreenCorner(rawValue: cornerRawValue) ?? .bottomLeft
-        let origin = corner.windowOrigin(screenFrame: screen.visibleFrame, windowSize: initialSize, padding: 40)
+        let origin = corner.windowOrigin(screenFrame: screen.visibleFrame, windowSize: initialSize, padding: DSSpacing.lg)
 
         let newWindow = PinnedWindow(
             contentRect: NSRect(origin: origin, size: initialSize),
