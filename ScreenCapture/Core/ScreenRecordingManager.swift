@@ -418,7 +418,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     }
 
     private func startRecordingForWindowID(_ windowID: UInt32) {
-        startCaptureSession(target: .window(windowID: windowID))
+        prepareRecording(target: .window(windowID: windowID))
     }
 
     // MARK: - Session Start
@@ -989,6 +989,30 @@ extension ScreenRecordingManager {
 
     func installSelectionWindowForTesting(_ window: NSWindow) {
         selectionWindow = window
+    }
+
+    var pendingRecordingTargetForTesting: RecordingTarget? {
+        pendingRecordingTarget
+    }
+
+    var isRecordButtonVisibleForTesting: Bool {
+        controlsState.showRecordButton
+    }
+
+    var hasPendingCountdownTaskForTesting: Bool {
+        pendingCountdownTask != nil
+    }
+
+    func prepareWindowRecordingForTesting(windowID: UInt32) {
+        startRecordingForWindowID(windowID)
+    }
+
+    func beginPendingRecordingCountdownForTesting() {
+        beginPendingRecordingCountdown()
+    }
+
+    func cancelPendingRecordingPreparationForTesting() {
+        cancelPendingRecordingPreparation()
     }
 }
 #endif

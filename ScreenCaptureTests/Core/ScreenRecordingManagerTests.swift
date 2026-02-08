@@ -79,6 +79,37 @@ final class ScreenRecordingManagerTests: XCTestCase {
         XCTAssertEqual(recordingManager.sessionModel.state, .selecting)
     }
 
+    func testWindowRecordingSelectionPreparesInsteadOfStartingImmediately() throws {
+        try recordingManager.sessionModel.beginSelection()
+
+        recordingManager.prepareWindowRecordingForTesting(windowID: 42)
+
+        XCTAssertTrue(recordingManager.isPreparingRecordingForTesting)
+        XCTAssertFalse(recordingManager.isRecording)
+        XCTAssertTrue(recordingManager.isRecordButtonVisibleForTesting)
+        XCTAssertEqual(recordingManager.pendingRecordingTargetForTesting, .window(windowID: 42))
+        XCTAssertEqual(recordingManager.sessionModel.state, .selecting)
+    }
+
+    func testWindowRecordingWaitsForRecordActionBeforeStarting() async throws {
+        try recordingManager.sessionModel.beginSelection()
+        recordingManager.prepareWindowRecordingForTesting(windowID: 777)
+        XCTAssertFalse(recordingManager.hasPendingCountdownTaskForTesting)
+
+        recordingManager.beginPendingRecordingCountdownForTesting()
+        await Task.yield()
+
+        XCTAssertTrue(recordingManager.hasPendingCountdownTaskForTesting)
+        XCTAssertTrue(recordingManager.isPreparingRecordingForTesting)
+        XCTAssertFalse(recordingManager.isRecording)
+        XCTAssertEqual(recordingManager.sessionModel.state, .selecting)
+
+        recordingManager.cancelPendingRecordingPreparationForTesting()
+        XCTAssertFalse(recordingManager.hasPendingCountdownTaskForTesting)
+        XCTAssertFalse(recordingManager.isPreparingRecordingForTesting)
+        XCTAssertEqual(recordingManager.sessionModel.state, .idle)
+    }
+
     // MARK: - Published Properties Tests
 
     func testIsRecordingIsPublished() {
