@@ -60,6 +60,9 @@ class ScrollingCapture: NSObject {
         window.backgroundColor = .clear
         window.level = .floating
         window.hasShadow = true
+        window.onEscapeKey = { [weak self] in
+            self?.cancel()
+        }
 
         controlWindow = window
         window.makeKeyAndOrderFront(nil)
@@ -113,6 +116,9 @@ class ScrollingCapture: NSObject {
         window.backgroundColor = .clear
         window.level = .floating
         window.hasShadow = true
+        window.onEscapeKey = { [weak self] in
+            self?.cancel()
+        }
 
         controlWindow = window
         window.makeKeyAndOrderFront(nil)
