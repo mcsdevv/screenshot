@@ -43,6 +43,12 @@ class ScreenCaptureContentProvider {
     /// Returns the primary display from cached content.
     func getPrimaryDisplay() async throws -> SCDisplay {
         let content = try await getContent()
+        if let mainScreen = NSScreen.main,
+           let mainDisplayID = displayID(for: mainScreen),
+           let matchedDisplay = content.displays.first(where: { $0.displayID == mainDisplayID }) {
+            return matchedDisplay
+        }
+
         guard let display = content.displays.first else {
             throw NSError(domain: "ScreenCaptureContentProvider", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "No display found"])

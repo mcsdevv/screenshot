@@ -284,12 +284,7 @@ final class OCRServiceTests: XCTestCase {
         // This method uses main thread dispatch, so we just call it and let it run
         // We can't easily verify clipboard content in tests, but we can ensure no crash
         OCRService.recognizeAndCopy(from: testImage)
-
-        // Give it a moment to process
-        let expectation = XCTestExpectation(description: "Wait for async operation")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            expectation.fulfill()
-        }
-        wait(for: [expectation], timeout: 5.0)
+        // Pump the main run loop briefly so the async task can start.
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
     }
 }

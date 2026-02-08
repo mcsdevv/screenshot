@@ -38,10 +38,15 @@ class StorageManager: ObservableObject {
     private let appDirectory: URL
     private let historyFile: URL
     private var autoSaveTimer: Timer?
+    private var activeSecurityScopedDirectory: URL?
 
     // UserDefaults keys
     private static let storageLocationKey = "storageLocation"
     private static let customFolderBookmarkKey = "customFolderBookmark"
+    private static let autoCleanupKey = "autoCleanup"
+    private static let cleanupDaysKey = "cleanupDays"
+    private static let captureFormatKey = "captureFormat"
+    private static let jpegQualityKey = "jpegQuality"
 
     init(config: StorageConfig = .live) {
         self.config = config
@@ -78,21 +83,28 @@ class StorageManager: ObservableObject {
 
         switch storageLocation {
         case "desktop":
+            stopAccessingSecurityScopedDirectory()
             return config.fileManager.urls(for: .desktopDirectory, in: .userDomainMask).first!
         case "custom":
-            if let customURL = getCustomFolderURL() {
+            if let customURL = resolveCustomFolderURL() {
                 return customURL
             }
             debugLog("StorageManager: Custom folder not accessible, falling back to default")
             return defaultDirectory
         default:
+            stopAccessingSecurityScopedDirectory()
             return defaultDirectory
         }
     }
 
     /// Gets the custom folder URL from the stored security-scoped bookmark
     func getCustomFolderURL() -> URL? {
+        resolveCustomFolderURL()
+    }
+
+    private func resolveCustomFolderURL() -> URL? {
         guard let bookmarkData = config.userDefaults.data(forKey: Self.customFolderBookmarkKey) else {
+            stopAccessingSecurityScopedDirectory()
             return nil
         }
 
@@ -105,21 +117,41 @@ class StorageManager: ObservableObject {
 
             if isStale {
                 debugLog("StorageManager: Bookmark is stale, need to re-select folder")
+                config.userDefaults.removeObject(forKey: Self.customFolderBookmarkKey)
+                stopAccessingSecurityScopedDirectory()
                 return nil
             }
 
-            // Start accessing the security-scoped resource
-            if url.startAccessingSecurityScopedResource() {
-                debugLog("StorageManager: Accessed custom folder at \(url.path)")
-                return url
-            } else {
+            let scopedURL = url.standardizedFileURL
+            if activeSecurityScopedDirectory?.standardizedFileURL == scopedURL {
+                return scopedURL
+            }
+
+            guard scopedURL.startAccessingSecurityScopedResource() else {
                 errorLog("StorageManager: Failed to access security-scoped resource")
+                stopAccessingSecurityScopedDirectory()
                 return nil
             }
+
+            stopAccessingSecurityScopedDirectory()
+            activeSecurityScopedDirectory = scopedURL
+            debugLog("StorageManager: Accessed custom folder at \(scopedURL.path)")
+            return scopedURL
         } catch {
             errorLog("StorageManager: Failed to resolve bookmark", error: error)
+            stopAccessingSecurityScopedDirectory()
             return nil
         }
+    }
+
+    private func stopAccessingSecurityScopedDirectory() {
+        guard let activeSecurityScopedDirectory else { return }
+        activeSecurityScopedDirectory.stopAccessingSecurityScopedResource()
+        self.activeSecurityScopedDirectory = nil
+    }
+
+    func releaseSecurityScopedAccess() {
+        stopAccessingSecurityScopedDirectory()
     }
 
     /// Sets a custom folder and stores a security-scoped bookmark
@@ -150,6 +182,9 @@ class StorageManager: ObservableObject {
     /// Sets the storage location preference
     func setStorageLocation(_ location: String) {
         config.userDefaults.set(location, forKey: Self.storageLocationKey)
+        if location != "custom" {
+            stopAccessingSecurityScopedDirectory()
+        }
         debugLog("StorageManager: Storage location set to \(location)")
         verifyStoragePermissions()
     }
@@ -206,19 +241,30 @@ class StorageManager: ObservableObject {
     }
 
     private func cleanupOldCaptures() {
+        guard isAutoCleanupEnabled else { return }
+
         let calendar = Calendar.current
-        let cutoffDate = calendar.date(byAdding: .day, value: -30, to: Date())!
+        let cutoffDate = calendar.date(byAdding: .day, value: -cleanupDays, to: Date())!
+        var removedAny = false
 
         history.items.removeAll { item in
             if item.isFavorite { return false }
             if item.createdAt < cutoffDate {
                 _ = deleteFile(named: item.filename)
+                removeAnnotationSidecar(named: item.filename)
+                removedAny = true
                 return true
             }
             return false
         }
 
-        saveHistory()
+        if removedAny {
+            saveHistory()
+        }
+    }
+
+    func applyCleanupPolicy() {
+        cleanupOldCaptures()
     }
 
     func saveCapture(image: NSImage, type: CaptureType) -> CaptureItem {
@@ -235,25 +281,8 @@ class StorageManager: ObservableObject {
             errorLog("StorageManager: Failed to create directory", error: error)
         }
 
-        // Convert and save image
-        guard let tiffData = image.tiffRepresentation else {
-            errorLog("StorageManager: Failed to get TIFF representation")
-            let capture = CaptureItem(type: type, filename: filename)
-            history.add(capture)
-            saveHistory()
-            return capture
-        }
-
-        guard let bitmap = NSBitmapImageRep(data: tiffData) else {
-            errorLog("StorageManager: Failed to create bitmap from TIFF data")
-            let capture = CaptureItem(type: type, filename: filename)
-            history.add(capture)
-            saveHistory()
-            return capture
-        }
-
-        guard let pngData = bitmap.representation(using: .png, properties: [:]) else {
-            errorLog("StorageManager: Failed to create PNG data")
+        guard let imageData = encodedCaptureData(from: image, type: type) else {
+            errorLog("StorageManager: Failed to encode capture image data")
             let capture = CaptureItem(type: type, filename: filename)
             history.add(capture)
             saveHistory()
@@ -261,8 +290,8 @@ class StorageManager: ObservableObject {
         }
 
         do {
-            try pngData.write(to: url)
-            debugLog("StorageManager: Successfully wrote \(pngData.count) bytes to \(url.path)")
+            try imageData.write(to: url)
+            debugLog("StorageManager: Successfully wrote \(imageData.count) bytes to \(url.path)")
 
             // Verify file exists
             if config.fileManager.fileExists(atPath: url.path) {
@@ -304,9 +333,27 @@ class StorageManager: ObservableObject {
     @discardableResult
     func deleteCapture(_ capture: CaptureItem) -> Bool {
         let deleted = deleteFile(named: capture.filename)
+        removeAnnotationSidecar(named: capture.filename)
         history.remove(id: capture.id)
         saveHistory()
         return deleted
+    }
+
+    @discardableResult
+    func clearAllCaptures() -> Int {
+        let captures = history.items
+        var deletedCount = 0
+
+        for capture in captures {
+            if deleteFile(named: capture.filename) {
+                deletedCount += 1
+            }
+            removeAnnotationSidecar(named: capture.filename)
+        }
+
+        history.items.removeAll()
+        saveHistory()
+        return deletedCount
     }
 
     func toggleFavorite(_ capture: CaptureItem) {
@@ -338,12 +385,21 @@ class StorageManager: ObservableObject {
 
         let ext: String
         switch type {
-        case .screenshot, .scrollingCapture: ext = "png"
+        case .screenshot, .scrollingCapture:
+            ext = screenshotFileExtension
         case .recording: ext = "mp4"
         case .gif: ext = "gif"
         }
 
         return "\(type.prefix) \(dateString).\(ext)"
+    }
+
+    private func removeAnnotationSidecar(named filename: String) {
+        let imageURL = screenshotsDirectory.appendingPathComponent(filename)
+        let sidecarURL = AnnotationDocument.sidecarURL(for: imageURL)
+        if config.fileManager.fileExists(atPath: sidecarURL.path) {
+            try? config.fileManager.removeItem(at: sidecarURL)
+        }
     }
 
     private func deleteFile(named filename: String) -> Bool {
@@ -448,5 +504,58 @@ class StorageManager: ObservableObject {
         autoSaveTimer?.invalidate()
         // Note: Cannot call @MainActor-isolated saveHistory() from deinit.
         // Auto-save timer handles periodic saves; final save happens in AppDelegate termination hook.
+    }
+}
+
+private extension StorageManager {
+    enum ScreenshotFormat: String {
+        case png
+        case jpeg
+        case tiff
+    }
+
+    var screenshotFileExtension: String {
+        screenshotFormat.rawValue == ScreenshotFormat.jpeg.rawValue ? "jpg" : screenshotFormat.rawValue
+    }
+
+    var screenshotFormat: ScreenshotFormat {
+        ScreenshotFormat(rawValue: (config.userDefaults.string(forKey: Self.captureFormatKey) ?? "png").lowercased()) ?? .png
+    }
+
+    var jpegCompression: CGFloat {
+        let raw = config.userDefaults.object(forKey: Self.jpegQualityKey) as? Double ?? 0.9
+        return max(0.1, min(1.0, CGFloat(raw)))
+    }
+
+    var isAutoCleanupEnabled: Bool {
+        guard config.userDefaults.object(forKey: Self.autoCleanupKey) != nil else { return true }
+        return config.userDefaults.bool(forKey: Self.autoCleanupKey)
+    }
+
+    var cleanupDays: Int {
+        let value = config.userDefaults.integer(forKey: Self.cleanupDaysKey)
+        let validValues = [7, 14, 30, 90]
+        return validValues.contains(value) ? value : 30
+    }
+
+    func encodedCaptureData(from image: NSImage, type: CaptureType) -> Data? {
+        guard let tiffData = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData) else {
+            return nil
+        }
+
+        switch type {
+        case .screenshot, .scrollingCapture:
+            switch screenshotFormat {
+            case .png:
+                return bitmap.representation(using: .png, properties: [:])
+            case .jpeg:
+                return bitmap.representation(using: .jpeg, properties: [.compressionFactor: jpegCompression])
+            case .tiff:
+                return bitmap.representation(using: .tiff, properties: [:])
+            }
+        case .recording, .gif:
+            return bitmap.representation(using: .png, properties: [:])
+        }
     }
 }

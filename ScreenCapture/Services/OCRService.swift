@@ -207,18 +207,25 @@ extension OCRService {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(text, forType: .string)
             } catch let error as OCRError {
-                let alert = NSAlert()
-                alert.messageText = "OCR Failed"
-                alert.informativeText = error.localizedDescription
-                alert.alertStyle = .warning
-                alert.runModal()
+                presentOCRError(error.localizedDescription)
             } catch {
-                let alert = NSAlert()
-                alert.messageText = "OCR Failed"
-                alert.informativeText = error.localizedDescription
-                alert.alertStyle = .warning
-                alert.runModal()
+                presentOCRError(error.localizedDescription)
             }
         }
+    }
+
+    @MainActor
+    private static func presentOCRError(_ description: String) {
+        guard let hostWindow = NSApp.keyWindow ?? NSApp.mainWindow else {
+            errorLog("OCRService.recognizeAndCopy failed: \(description)")
+            NSSound.beep()
+            return
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "OCR Failed"
+        alert.informativeText = description
+        alert.alertStyle = .warning
+        alert.beginSheetModal(for: hostWindow, completionHandler: nil)
     }
 }
