@@ -78,6 +78,41 @@ class SafeWindow: NSWindow {
 
 However, setting `isReleasedWhenClosed = false` is the preferred approach.
 
+## Known Benign ScreenCaptureKit Stop Logs (macOS 15+)
+
+When stopping area recordings on macOS 15+, Console/Xcode can show framework-level teardown noise such as:
+
+- `_SCStream_RemoteAudioQueueOperationHandlerWithError:1492 streamOutput NOT found. Dropping frame`
+- `_SCStream_RemoteVideoQueueOperationHandlerWithError:1459 stream output NOT found. Dropping frame`
+- `No scene exists for identity: com.apple.controlcenter:...-NSStatusItemView`
+- `Unhandled disconnected auxiliary scene <NSHostedViewScene: ...>`
+
+These messages can appear even when recording output is valid and playable. They are emitted by system components (`ScreenCaptureKit` / Control Center scene lifecycle), not by app-level logging.
+
+### When to Treat as Non-Blocking
+
+The log spam above is considered non-blocking when all are true:
+
+- The recording file exists and is non-empty
+- The recording is playable
+- The video track is present and decodes
+- No app crash or recording-session failure state is triggered
+
+### When to Treat as a Real Bug
+
+Investigate as a failure if any of the following occur:
+
+- Missing output file
+- Zero-byte output
+- Unplayable asset / decode failure
+- Session transitions to failed or app crashes
+
+### Debugging Guidance
+
+- Do not rely on these framework log lines alone for pass/fail decisions.
+- Use app-level output validation (`validateVideoOutputFile`) and session state as source of truth.
+- For cleaner local debugging, filter these signatures in Console/Xcode log output.
+
 ## Important Milestone: Keyboard Shortcuts Working (2026-01-08)
 
 Successfully fixed keyboard shortcuts and button responsiveness:

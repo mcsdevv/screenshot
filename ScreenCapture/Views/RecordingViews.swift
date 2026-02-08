@@ -11,6 +11,8 @@ struct RecordingSelectionView: View {
 
     @State private var startPoint: CGPoint?
     @State private var currentPoint: CGPoint?
+    @State private var startScreenPoint: CGPoint?
+    @State private var currentScreenPoint: CGPoint?
     @State private var isSelecting = false
     @State private var mousePosition: CGPoint = .zero
 
@@ -52,7 +54,7 @@ struct RecordingSelectionView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
-            .gesture(selectionGesture(in: geometry))
+            .gesture(selectionGesture())
             .onContinuousHover { phase in
                 switch phase {
                 case .active(let location):
@@ -109,45 +111,44 @@ struct RecordingSelectionView: View {
         )
     }
 
-    private func selectionGesture(in geometry: GeometryProxy) -> some Gesture {
+    private func selectionGesture() -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 if !isSelecting {
                     startPoint = value.startLocation
+                    startScreenPoint = NSEvent.mouseLocation
                     isSelecting = true
                 }
                 currentPoint = value.location
+                currentScreenPoint = NSEvent.mouseLocation
             }
             .onEnded { value in
                 if let start = startPoint {
-                    let rect = CGRect(
+                    let localRect = CGRect(
                         x: min(start.x, value.location.x),
                         y: min(start.y, value.location.y),
                         width: abs(value.location.x - start.x),
                         height: abs(value.location.y - start.y)
                     )
 
-                    if rect.width > 5 && rect.height > 5 {
-                        onSelection(convertToScreenCoordinates(rect, in: geometry))
+                    if localRect.width > 5 && localRect.height > 5, let startScreenPoint {
+                        let endScreenPoint = currentScreenPoint ?? NSEvent.mouseLocation
+                        let screenRect = CGRect(
+                            x: min(startScreenPoint.x, endScreenPoint.x),
+                            y: min(startScreenPoint.y, endScreenPoint.y),
+                            width: abs(endScreenPoint.x - startScreenPoint.x),
+                            height: abs(endScreenPoint.y - startScreenPoint.y)
+                        )
+                        onSelection(screenRect.standardized)
                     }
                 }
 
                 isSelecting = false
                 startPoint = nil
                 currentPoint = nil
+                startScreenPoint = nil
+                currentScreenPoint = nil
             }
-    }
-
-    private func convertToScreenCoordinates(_ rect: CGRect, in geometry: GeometryProxy) -> CGRect {
-        guard let screen = NSScreen.main else { return rect }
-        let screenHeight = screen.frame.height
-
-        return CGRect(
-            x: rect.origin.x,
-            y: screenHeight - rect.origin.y - rect.height,
-            width: rect.width,
-            height: rect.height
-        )
     }
 }
 
@@ -248,10 +249,11 @@ struct RecordingControlsView: View {
 
 struct RecordingOverlayView: View {
     let recordingRect: CGRect
+    let screenFrame: CGRect
 
     var body: some View {
         GeometryReader { geometry in
-            let viewRect = convertToViewCoordinates(recordingRect, screenHeight: geometry.size.height)
+            let viewRect = convertToViewCoordinates(recordingRect, localHeight: geometry.size.height)
 
             ZStack {
                 DimmingOverlay(rect: viewRect, size: geometry.size, dimmingOpacity: 0.35)
@@ -267,10 +269,10 @@ struct RecordingOverlayView: View {
         .ignoresSafeArea()
     }
 
-    private func convertToViewCoordinates(_ rect: CGRect, screenHeight: CGFloat) -> CGRect {
+    private func convertToViewCoordinates(_ rect: CGRect, localHeight: CGFloat) -> CGRect {
         CGRect(
-            x: rect.origin.x,
-            y: screenHeight - rect.origin.y - rect.height,
+            x: rect.origin.x - screenFrame.minX,
+            y: localHeight - (rect.origin.y - screenFrame.minY) - rect.height,
             width: rect.width,
             height: rect.height
         )
