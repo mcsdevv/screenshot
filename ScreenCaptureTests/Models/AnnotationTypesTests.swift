@@ -1244,4 +1244,101 @@ final class AnnotationTypesTests: XCTestCase {
         // Should have no effect
         XCTAssertNil(state.annotations.first?.stepNumber)
     }
+
+    // MARK: - Hit Testing and Cursor Policy Tests
+
+    func testLineHitTestUsesDirectionalEndpointsForNegativeDimensions() {
+        let line = Annotation(
+            type: .line,
+            rect: CGRect(x: 100, y: 100, width: -80, height: 60),
+            strokeWidth: 3
+        )
+
+        XCTAssertTrue(
+            line.hitTest(
+                at: CGPoint(x: 80, y: 115),
+                zoom: 1.0,
+                intent: .hover
+            )
+        )
+        XCTAssertFalse(
+            line.hitTest(
+                at: CGPoint(x: 80, y: 145),
+                zoom: 1.0,
+                intent: .hover
+            )
+        )
+    }
+
+    func testLineHoverHitToleranceScalesWithZoom() {
+        let line = Annotation(
+            type: .line,
+            rect: CGRect(x: 10, y: 10, width: 100, height: 0),
+            strokeWidth: 2
+        )
+        let testPoint = CGPoint(x: 60, y: 15)
+
+        XCTAssertTrue(line.hitTest(at: testPoint, zoom: 1.0, intent: .hover))
+        XCTAssertFalse(line.hitTest(at: testPoint, zoom: 4.0, intent: .hover))
+    }
+
+    func testArrowHitTestIncludesArrowheadEdges() {
+        let arrow = Annotation(
+            type: .arrow,
+            rect: CGRect(x: 0, y: 0, width: 100, height: 0),
+            strokeWidth: 3
+        )
+
+        XCTAssertTrue(
+            arrow.hitTest(
+                at: CGPoint(x: 92, y: 4.5),
+                zoom: 1.0,
+                intent: .hover
+            )
+        )
+    }
+
+    func testCursorPolicyLineAndArrowRequireSelection() {
+        let line = Annotation(type: .line, rect: CGRect(x: 0, y: 0, width: 100, height: 0))
+        let arrow = Annotation(type: .arrow, rect: CGRect(x: 0, y: 0, width: 100, height: 0))
+
+        XCTAssertEqual(
+            AnnotationCursorPolicy.cursorKind(for: line, selectedAnnotationId: nil, selectedAnnotationType: nil),
+            .none
+        )
+        XCTAssertEqual(
+            AnnotationCursorPolicy.cursorKind(for: line, selectedAnnotationId: line.id, selectedAnnotationType: .line),
+            .pointingHand
+        )
+        XCTAssertEqual(
+            AnnotationCursorPolicy.cursorKind(for: arrow, selectedAnnotationId: line.id, selectedAnnotationType: .line),
+            .none
+        )
+        XCTAssertEqual(
+            AnnotationCursorPolicy.cursorKind(for: arrow, selectedAnnotationId: arrow.id, selectedAnnotationType: .arrow),
+            .pointingHand
+        )
+    }
+
+    func testCursorPolicyUsesOpenHandForText() {
+        let text = Annotation(type: .text, rect: CGRect(x: 0, y: 0, width: 80, height: 30), text: "Test")
+        XCTAssertEqual(
+            AnnotationCursorPolicy.cursorKind(for: text, selectedAnnotationId: nil, selectedAnnotationType: nil),
+            .openHand
+        )
+    }
+
+    func testCursorPolicySuppressesOtherLayersWhenLineIsSelected() {
+        let line = Annotation(type: .line, rect: CGRect(x: 0, y: 0, width: 100, height: 0))
+        let rectangle = Annotation(type: .rectangleOutline, rect: CGRect(x: 0, y: 0, width: 60, height: 40))
+
+        XCTAssertEqual(
+            AnnotationCursorPolicy.cursorKind(
+                for: rectangle,
+                selectedAnnotationId: line.id,
+                selectedAnnotationType: .line
+            ),
+            .none
+        )
+    }
 }

@@ -150,6 +150,176 @@ struct Annotation: Identifiable, Equatable, Codable, Sendable {
     }
 }
 
+// MARK: - Hit Testing and Cursor Policy
+
+enum AnnotationHitTestIntent {
+    case selection
+    case hover
+
+    var screenSpaceSlop: CGFloat {
+        switch self {
+        case .selection:
+            return 8
+        case .hover:
+            return 10
+        }
+    }
+}
+
+enum AnnotationHoverCursorKind: Equatable, Sendable {
+    case none
+    case pointingHand
+    case openHand
+}
+
+enum AnnotationCursorPolicy {
+    static func cursorKind(
+        for hoveredAnnotation: Annotation?,
+        selectedAnnotationId: UUID?,
+        selectedAnnotationType: AnnotationType?
+    ) -> AnnotationHoverCursorKind {
+        guard let hoveredAnnotation else {
+            return .none
+        }
+
+        if hoveredAnnotation.type == .line || hoveredAnnotation.type == .arrow {
+            guard hoveredAnnotation.id == selectedAnnotationId else {
+                return .none
+            }
+        }
+
+        if selectedAnnotationType == .line || selectedAnnotationType == .arrow {
+            guard hoveredAnnotation.id == selectedAnnotationId else {
+                return .none
+            }
+        }
+
+        return hoveredAnnotation.type == .text ? .openHand : .pointingHand
+    }
+}
+
+extension Annotation {
+    var lineStartPoint: CGPoint {
+        CGPoint(x: cgRect.origin.x, y: cgRect.origin.y)
+    }
+
+    var lineEndPoint: CGPoint {
+        CGPoint(
+            x: cgRect.origin.x + cgRect.size.width,
+            y: cgRect.origin.y + cgRect.size.height
+        )
+    }
+
+    func hitTest(at point: CGPoint, zoom: CGFloat, intent: AnnotationHitTestIntent) -> Bool {
+        let safeZoom = max(zoom, 0.01)
+        let slopInImageSpace = intent.screenSpaceSlop / safeZoom
+
+        switch type {
+        case .line:
+            return hitTestLine(at: point, slopInImageSpace: slopInImageSpace)
+        case .arrow:
+            return hitTestArrow(at: point, slopInImageSpace: slopInImageSpace)
+        case .pencil, .highlighter:
+            return hitTestFreeform(at: point, slopInImageSpace: slopInImageSpace)
+        default:
+            return cgRect
+                .standardized
+                .insetBy(dx: -slopInImageSpace, dy: -slopInImageSpace)
+                .contains(point)
+        }
+    }
+
+    private func hitTestLine(at point: CGPoint, slopInImageSpace: CGFloat) -> Bool {
+        let tolerance = hitStrokeTolerance(baseSlopInImageSpace: slopInImageSpace, renderedStrokeWidth: strokeWidth)
+        return Self.distanceToLineSegment(point: point, start: lineStartPoint, end: lineEndPoint) <= tolerance
+    }
+
+    private func hitTestArrow(at point: CGPoint, slopInImageSpace: CGFloat) -> Bool {
+        let start = lineStartPoint
+        let end = lineEndPoint
+        let tolerance = hitStrokeTolerance(baseSlopInImageSpace: slopInImageSpace, renderedStrokeWidth: strokeWidth)
+        let totalLength = hypot(end.x - start.x, end.y - start.y)
+
+        if totalLength == 0 {
+            return hypot(point.x - start.x, point.y - start.y) <= tolerance
+        }
+
+        // Keep arrowhead geometry in image space so interaction matches rendering at all zoom levels.
+        let angle = atan2(end.y - start.y, end.x - start.x)
+        let arrowLength: CGFloat = 15 + strokeWidth
+        let arrowheadHeight = arrowLength * cos(.pi / 6)
+
+        var segments: [(CGPoint, CGPoint)] = []
+
+        if totalLength > arrowheadHeight {
+            let shaftEnd = CGPoint(
+                x: end.x - arrowheadHeight * cos(angle),
+                y: end.y - arrowheadHeight * sin(angle)
+            )
+            segments.append((start, shaftEnd))
+        }
+
+        let arrowPoint1 = CGPoint(
+            x: end.x - arrowLength * cos(angle - .pi / 6),
+            y: end.y - arrowLength * sin(angle - .pi / 6)
+        )
+        let arrowPoint2 = CGPoint(
+            x: end.x - arrowLength * cos(angle + .pi / 6),
+            y: end.y - arrowLength * sin(angle + .pi / 6)
+        )
+
+        segments.append((end, arrowPoint1))
+        segments.append((end, arrowPoint2))
+
+        return segments.contains { segment in
+            Self.distanceToLineSegment(point: point, start: segment.0, end: segment.1) <= tolerance
+        }
+    }
+
+    private func hitTestFreeform(at point: CGPoint, slopInImageSpace: CGFloat) -> Bool {
+        let points = cgPoints
+        guard !points.isEmpty else { return false }
+
+        let renderedStrokeWidth: CGFloat = type == .highlighter ? strokeWidth * 3 : strokeWidth
+        let tolerance = hitStrokeTolerance(baseSlopInImageSpace: slopInImageSpace, renderedStrokeWidth: renderedStrokeWidth)
+
+        if points.count == 1 {
+            return hypot(point.x - points[0].x, point.y - points[0].y) <= tolerance
+        }
+
+        for index in 0..<(points.count - 1) {
+            let start = points[index]
+            let end = points[index + 1]
+            if Self.distanceToLineSegment(point: point, start: start, end: end) <= tolerance {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private func hitStrokeTolerance(baseSlopInImageSpace: CGFloat, renderedStrokeWidth: CGFloat) -> CGFloat {
+        max(baseSlopInImageSpace, renderedStrokeWidth / 2)
+    }
+
+    private static func distanceToLineSegment(point: CGPoint, start: CGPoint, end: CGPoint) -> CGFloat {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let lengthSquared = dx * dx + dy * dy
+
+        if lengthSquared == 0 {
+            return hypot(point.x - start.x, point.y - start.y)
+        }
+
+        let projection = ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared
+        let t = min(max(projection, 0), 1)
+        let projectedX = start.x + t * dx
+        let projectedY = start.y + t * dy
+
+        return hypot(point.x - projectedX, point.y - projectedY)
+    }
+}
+
 // MARK: - Codable Wrappers for Core Graphics Types
 
 struct CodableRect: Codable, Equatable, Sendable {

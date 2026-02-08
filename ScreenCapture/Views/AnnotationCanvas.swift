@@ -18,6 +18,7 @@ struct AnnotationCanvas: View {
     @State private var dragStartLocation: CGPoint = .zero
     @State private var editingAnnotationId: UUID? = nil  // Track which annotation is being edited (for text)
     @State private var textBoxSize: CGSize = .zero  // Track current textbox dimensions for persistence
+    @State private var currentCanvasCursorKind: AnnotationHoverCursorKind = .none
 
     // For blur caching - only cache committed blur annotations, not during drag
     @State private var cachedBlurImage: NSImage?
@@ -58,18 +59,52 @@ struct AnnotationCanvas: View {
         )
     }
 
-    private func annotationAtPoint(_ point: CGPoint) -> Annotation? {
+    private func annotationAtPoint(_ point: CGPoint, intent: AnnotationHitTestIntent = .selection) -> Annotation? {
         for annotation in state.annotations.reversed() {
-            if state.isAnnotationVisible(annotation.id) && hitTest(annotation: annotation, at: point) {
+            if state.isAnnotationVisible(annotation.id),
+               annotation.hitTest(at: point, zoom: zoom, intent: intent) {
                 return annotation
             }
         }
         return nil
     }
 
-    // Check if a point is over any visible annotation (for hover cursor)
-    private func isPointOverAnnotation(_ point: CGPoint) -> Bool {
-        annotationAtPoint(point) != nil
+    private func updateCanvasCursor(at location: CGPoint) {
+        guard state.currentTool == .select, !showTextInput else {
+            setCanvasCursor(.none)
+            return
+        }
+
+        let imagePoint = clampToImageBounds(gestureLocationToImageCoords(location))
+        let hoveredAnnotation: Annotation?
+
+        if let selected = state.selectedAnnotation {
+            hoveredAnnotation = selected.hitTest(at: imagePoint, zoom: zoom, intent: .hover) ? selected : nil
+        } else {
+            hoveredAnnotation = annotationAtPoint(imagePoint, intent: .hover)
+        }
+
+        let desiredCursor = AnnotationCursorPolicy.cursorKind(
+            for: hoveredAnnotation,
+            selectedAnnotationId: state.selectedAnnotationId,
+            selectedAnnotationType: state.selectedAnnotation?.type
+        )
+        setCanvasCursor(desiredCursor)
+    }
+
+    private func setCanvasCursor(_ kind: AnnotationHoverCursorKind) {
+        guard kind != currentCanvasCursorKind else { return }
+
+        switch kind {
+        case .none:
+            NSCursor.arrow.set()
+        case .pointingHand:
+            NSCursor.pointingHand.set()
+        case .openHand:
+            NSCursor.openHand.set()
+        }
+
+        currentCanvasCursorKind = kind
     }
 
     private var isDrawingGestureActive: Bool {
@@ -133,15 +168,6 @@ struct AnnotationCanvas: View {
                         }
                     }
 
-                    // Hover tracking for cursor changes in select mode
-                    AnnotationHoverTracker(
-                        state: state,
-                        zoom: zoom,
-                        annotationAtPoint: { point in annotationAtPoint(point) },
-                        isEnabled: state.currentTool == .select && !showTextInput
-                    )
-                    .frame(width: scaledImageSize.width, height: scaledImageSize.height)
-
                     // Crop overlay
                     if state.currentTool == .crop {
                         CropOverlay(
@@ -181,6 +207,14 @@ struct AnnotationCanvas: View {
                 .onTapGesture { location in
                     handleTap(at: location)
                 }
+                .onContinuousHover { phase in
+                    switch phase {
+                    case .active(let location):
+                        updateCanvasCursor(at: location)
+                    case .ended:
+                        setCanvasCursor(.none)
+                    }
+                }
             }
         }
         .background(Color(nsColor: .controlBackgroundColor))
@@ -188,6 +222,7 @@ struct AnnotationCanvas: View {
             state.selectedAnnotationId = nil
             showTextInput = false
             editingAnnotationId = nil
+            setCanvasCursor(.none)
         }
         .onChange(of: state.currentTool) { _, newTool in
             // Commit text input when switching to a different tool
@@ -197,6 +232,9 @@ struct AnnotationCanvas: View {
             // Deselect annotation when switching tools (unless switching to select)
             if newTool != .select {
                 state.selectedAnnotationId = nil
+            }
+            if newTool != .select {
+                setCanvasCursor(.none)
             }
         }
         // Keyboard shortcuts for annotation manipulation
@@ -481,7 +519,7 @@ struct AnnotationCanvas: View {
 
         // First, try to select an annotation at this point (regardless of tool)
         // Search in reverse to select topmost annotation
-        let hitAnnotation = annotationAtPoint(unscaledLocation)
+        let hitAnnotation = annotationAtPoint(unscaledLocation, intent: .selection)
 
         // If we hit an annotation, select it
         if let annotation = hitAnnotation {
@@ -543,46 +581,6 @@ struct AnnotationCanvas: View {
             // Deselect on tap for other tools when clicking empty space
             state.selectedAnnotationId = nil
         }
-    }
-
-    private func hitTest(annotation: Annotation, at point: CGPoint) -> Bool {
-        switch annotation.type {
-        case .line, .arrow:
-            // For lines, check distance to line segment
-            let start = CGPoint(x: annotation.cgRect.minX, y: annotation.cgRect.minY)
-            let end = CGPoint(x: annotation.cgRect.maxX, y: annotation.cgRect.maxY)
-            return distanceToLineSegment(point: point, start: start, end: end) < 10
-
-        case .pencil, .highlighter:
-            // Check distance to any segment
-            let points = annotation.cgPoints
-            for i in 0..<(points.count - 1) {
-                if distanceToLineSegment(point: point, start: points[i], end: points[i + 1]) < 10 {
-                    return true
-                }
-            }
-            return false
-
-        default:
-            // For rectangles, circles, etc., use bounding rect
-            return annotation.cgRect.insetBy(dx: -5, dy: -5).contains(point)
-        }
-    }
-
-    private func distanceToLineSegment(point: CGPoint, start: CGPoint, end: CGPoint) -> CGFloat {
-        let dx = end.x - start.x
-        let dy = end.y - start.y
-        let lengthSquared = dx * dx + dy * dy
-
-        if lengthSquared == 0 {
-            return hypot(point.x - start.x, point.y - start.y)
-        }
-
-        let t = max(0, min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared))
-        let projX = start.x + t * dx
-        let projY = start.y + t * dy
-
-        return hypot(point.x - projX, point.y - projY)
     }
 
     private func measureTextSize(text: String, fontSize: CGFloat, fontName: String) -> CGSize {
@@ -2322,6 +2320,8 @@ struct AnnotationHoverTracker: NSViewRepresentable {
         nsView.isEnabled = isEnabled
         if !isEnabled || state.currentTool != .select {
             nsView.resetCursor()
+        } else {
+            nsView.refreshCursorForCurrentMouseLocation()
         }
     }
 }
@@ -2332,13 +2332,7 @@ class HoverTrackingView: NSView {
     var zoom: CGFloat = 1.0
     var isEnabled: Bool = true
     private var trackingArea: NSTrackingArea?
-    private var currentCursorKind: CursorKind = .none
-
-    private enum CursorKind {
-        case none
-        case pointingHand
-        case openHand
-    }
+    private var currentCursorKind: AnnotationHoverCursorKind = .none
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         nil
@@ -2351,7 +2345,7 @@ class HoverTrackingView: NSView {
         }
         trackingArea = NSTrackingArea(
             rect: bounds,
-            options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            options: [.mouseMoved, .mouseEnteredAndExited, .cursorUpdate, .activeInKeyWindow, .inVisibleRect],
             owner: self,
             userInfo: nil
         )
@@ -2360,52 +2354,72 @@ class HoverTrackingView: NSView {
         }
     }
 
+    override func mouseEntered(with event: NSEvent) {
+        updateCursor(for: event)
+    }
+
     override func mouseMoved(with event: NSEvent) {
-        guard isEnabled, state?.currentTool == .select else {
-            resetCursor()
-            return
-        }
+        updateCursor(for: event)
+    }
 
-        let locationInView = convert(event.locationInWindow, from: nil)
-        // Convert to image coordinates (divide by zoom)
-        // Note: SwiftUI flips Y, but NSView also has flipped coordinates when inside SwiftUI
-        let imageCoords = CGPoint(x: locationInView.x / zoom, y: locationInView.y / zoom)
-
-        let annotation = annotationAtPoint?(imageCoords)
-        let desiredCursor: CursorKind
-
-        if let annotation = annotation {
-            desiredCursor = annotation.type == .text ? .openHand : .pointingHand
-        } else {
-            desiredCursor = .none
-        }
-
-        if desiredCursor != currentCursorKind {
-            if currentCursorKind != .none {
-                NSCursor.pop()
-            }
-
-            switch desiredCursor {
-            case .pointingHand:
-                NSCursor.pointingHand.push()
-            case .openHand:
-                NSCursor.openHand.push()
-            case .none:
-                break
-            }
-
-            currentCursorKind = desiredCursor
-        }
+    override func cursorUpdate(with event: NSEvent) {
+        updateCursor(for: event)
     }
 
     override func mouseExited(with event: NSEvent) {
         resetCursor()
     }
 
-    func resetCursor() {
-        if currentCursorKind != .none {
-            NSCursor.pop()
-            currentCursorKind = .none
+    func refreshCursorForCurrentMouseLocation() {
+        guard let window else {
+            resetCursor()
+            return
         }
+
+        let mouseInWindow = window.mouseLocationOutsideOfEventStream
+        let locationInView = convert(mouseInWindow, from: nil)
+        updateCursor(at: locationInView)
+    }
+
+    func resetCursor() {
+        applyCursor(.none)
+    }
+
+    private func updateCursor(for event: NSEvent) {
+        let locationInView = convert(event.locationInWindow, from: nil)
+        updateCursor(at: locationInView)
+    }
+
+    private func updateCursor(at locationInView: CGPoint) {
+        guard isEnabled, state?.currentTool == .select, bounds.contains(locationInView) else {
+            applyCursor(.none)
+            return
+        }
+
+        let imageCoords = CGPoint(x: locationInView.x / zoom, y: locationInView.y / zoom)
+        let hoveredAnnotation = annotationAtPoint?(imageCoords)
+        let desiredCursor = AnnotationCursorPolicy.cursorKind(
+            for: hoveredAnnotation,
+            selectedAnnotationId: state?.selectedAnnotationId,
+            selectedAnnotationType: state?.selectedAnnotation?.type
+        )
+        applyCursor(desiredCursor)
+    }
+
+    private func applyCursor(_ desiredCursor: AnnotationHoverCursorKind) {
+        guard desiredCursor != currentCursorKind else {
+            return
+        }
+
+        switch desiredCursor {
+        case .none:
+            NSCursor.arrow.set()
+        case .pointingHand:
+            NSCursor.pointingHand.set()
+        case .openHand:
+            NSCursor.openHand.set()
+        }
+
+        currentCursorKind = desiredCursor
     }
 }
