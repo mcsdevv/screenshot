@@ -40,6 +40,7 @@
 		SC030 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC128 /* ToastView.swift */; };
 		SC031 /* ToastManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC129 /* ToastManager.swift */; };
 		SC032 /* ToastWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC130 /* ToastWindow.swift */; };
+		C54EEA7994EE4C18A04034F7 /* ScreenCaptureContentProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFDA57E1B9CB4EDE8D66B52C /* ScreenCaptureContentProvider.swift */; };
 		TST001 /* CaptureItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF001 /* CaptureItemTests.swift */; };
 		TST002 /* CaptureHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF002 /* CaptureHistoryTests.swift */; };
 		TST003 /* AnnotationTypesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF003 /* AnnotationTypesTests.swift */; };
@@ -112,6 +113,7 @@
 		SC121 /* GIFEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GIFEncoder.swift; sourceTree = "<group>"; };
 		SC122 /* BackgroundTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTool.swift; sourceTree = "<group>"; };
 		SC123 /* DebugLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogger.swift; sourceTree = "<group>"; };
+		DFDA57E1B9CB4EDE8D66B52C /* ScreenCaptureContentProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureContentProvider.swift; sourceTree = "<group>"; };
 		SC124 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		SC126 /* KeyboardShortcutsOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsOverlay.swift; sourceTree = "<group>"; };
 		SC127 /* LayerPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerPanelView.swift; sourceTree = "<group>"; };
@@ -234,6 +236,7 @@
 				SC120 /* ScrollingCapture.swift */,
 				SC121 /* GIFEncoder.swift */,
 				SC123 /* DebugLogger.swift */,
+				DFDA57E1B9CB4EDE8D66B52C /* ScreenCaptureContentProvider.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -569,6 +572,7 @@
 				SC030 /* ToastView.swift in Sources */,
 				SC031 /* ToastManager.swift in Sources */,
 				SC032 /* ToastWindow.swift in Sources */,
+				C54EEA7994EE4C18A04034F7 /* ScreenCaptureContentProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

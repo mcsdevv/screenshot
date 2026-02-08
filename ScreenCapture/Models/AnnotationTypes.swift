@@ -146,7 +146,19 @@ struct Annotation: Identifiable, Equatable, Codable, Sendable {
     }
 
     static func == (lhs: Annotation, rhs: Annotation) -> Bool {
-        lhs.id == rhs.id
+        lhs.id == rhs.id &&
+        lhs.rect == rhs.rect &&
+        lhs.color == rhs.color &&
+        lhs.strokeWidth == rhs.strokeWidth &&
+        lhs.text == rhs.text &&
+        lhs.fontSize == rhs.fontSize &&
+        lhs.fontName == rhs.fontName &&
+        lhs.points == rhs.points &&
+        lhs.stepNumber == rhs.stepNumber &&
+        lhs.blurRadius == rhs.blurRadius &&
+        lhs.creationOrder == rhs.creationOrder &&
+        lhs.isNumberLocked == rhs.isNumberLocked &&
+        lhs.name == rhs.name
     }
 }
 
@@ -509,11 +521,49 @@ class AnnotationState {
     func selectAnnotationAt(_ point: CGPoint) {
         selectedAnnotationId = nil
         for annotation in annotations.reversed() {
-            if annotation.cgRect.contains(point) {
+            if hitTestAnnotation(annotation, at: point) {
                 selectedAnnotationId = annotation.id
                 break
             }
         }
+    }
+
+    private func hitTestAnnotation(_ annotation: Annotation, at point: CGPoint) -> Bool {
+        switch annotation.type {
+        case .line, .arrow:
+            let start = CGPoint(x: annotation.cgRect.origin.x, y: annotation.cgRect.origin.y)
+            let end = CGPoint(
+                x: annotation.cgRect.origin.x + annotation.cgRect.size.width,
+                y: annotation.cgRect.origin.y + annotation.cgRect.size.height
+            )
+            return distanceToLineSegment(point: point, start: start, end: end) < 10
+        case .pencil, .highlighter:
+            let points = annotation.cgPoints
+            for i in 0..<(points.count - 1) {
+                if distanceToLineSegment(point: point, start: points[i], end: points[i + 1]) < 10 {
+                    return true
+                }
+            }
+            return false
+        default:
+            return annotation.cgRect.insetBy(dx: -5, dy: -5).contains(point)
+        }
+    }
+
+    private func distanceToLineSegment(point: CGPoint, start: CGPoint, end: CGPoint) -> CGFloat {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let lengthSquared = dx * dx + dy * dy
+
+        if lengthSquared == 0 {
+            return hypot(point.x - start.x, point.y - start.y)
+        }
+
+        let t = max(0, min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared))
+        let projX = start.x + t * dx
+        let projY = start.y + t * dy
+
+        return hypot(point.x - projX, point.y - projY)
     }
 
     // MARK: - Layer Panel Methods
@@ -577,7 +627,10 @@ class AnnotationState {
         creationCounter += 1
         let duplicate = Annotation(
             type: original.type,
-            rect: original.cgRect.offsetBy(dx: offset.x, dy: offset.y),
+            rect: CGRect(
+                origin: CGPoint(x: original.cgRect.origin.x + offset.x, y: original.cgRect.origin.y + offset.y),
+                size: original.cgRect.size
+            ),
             color: original.swiftUIColor,
             strokeWidth: original.strokeWidth,
             text: original.text,
@@ -613,7 +666,10 @@ class AnnotationState {
         creationCounter += 1
         let pasted = Annotation(
             type: original.type,
-            rect: original.cgRect.offsetBy(dx: offset.x, dy: offset.y),
+            rect: CGRect(
+                origin: CGPoint(x: original.cgRect.origin.x + offset.x, y: original.cgRect.origin.y + offset.y),
+                size: original.cgRect.size
+            ),
             color: original.swiftUIColor,
             strokeWidth: original.strokeWidth,
             text: original.text,
@@ -682,7 +738,13 @@ class AnnotationState {
               let index = annotations.firstIndex(where: { $0.id == id }) else { return }
 
         var annotation = annotations[index]
-        annotation.cgRect = annotation.cgRect.offsetBy(dx: dx, dy: dy)
+        // Note: Cannot use offsetBy() as it standardizes the rect, destroying negative
+        // width/height that encodes line/arrow direction
+        let r = annotation.cgRect
+        annotation.cgRect = CGRect(
+            origin: CGPoint(x: r.origin.x + dx, y: r.origin.y + dy),
+            size: r.size
+        )
 
         // Also offset points for pencil/highlighter
         if !annotation.cgPoints.isEmpty {

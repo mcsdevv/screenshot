@@ -1063,12 +1063,91 @@ struct DSTrafficLightButtons: View {
     }
 }
 
+// MARK: - Tooltip
+
+struct DSTooltipData: Equatable {
+    let text: String
+    let anchor: Anchor<CGRect>
+}
+
+struct DSTooltipPreferenceKey: PreferenceKey {
+    static var defaultValue: DSTooltipData?
+    static func reduce(value: inout DSTooltipData?, nextValue: () -> DSTooltipData?) {
+        value = nextValue() ?? value
+    }
+}
+
+struct DSTooltipModifier: ViewModifier {
+    let text: String
+    @State private var isHovered = false
+    @State private var showTooltip = false
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { hovering in
+                isHovered = hovering
+                if hovering {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if isHovered { showTooltip = true }
+                    }
+                } else {
+                    showTooltip = false
+                }
+            }
+            .anchorPreference(key: DSTooltipPreferenceKey.self, value: .bounds) { anchor in
+                showTooltip ? DSTooltipData(text: text, anchor: anchor) : nil
+            }
+    }
+}
+
+struct DSTooltipRootModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .overlayPreferenceValue(DSTooltipPreferenceKey.self) { data in
+                GeometryReader { geometry in
+                    if let data = data {
+                        let rect = geometry[data.anchor]
+                        let showAbove = rect.maxY + 32 > geometry.size.height
+                        let tipY = showAbove ? rect.minY - 16 : rect.maxY + 16
+                        Text(data.text)
+                            .font(DSTypography.caption)
+                            .foregroundColor(.dsTextPrimary)
+                            .padding(.horizontal, DSSpacing.sm)
+                            .padding(.vertical, DSSpacing.xxs)
+                            .background(
+                                RoundedRectangle(cornerRadius: DSRadius.xs)
+                                    .fill(Color.dsBackgroundElevated)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: DSRadius.xs)
+                                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                                    )
+                                    .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
+                            )
+                            .fixedSize()
+                            .position(x: rect.midX, y: tipY)
+                    }
+                }
+                .allowsHitTesting(false)
+            }
+    }
+}
+
 // MARK: - View Extensions
 
 extension View {
     /// Apply the design system's dark background
     func dsBackground() -> some View {
         self.background(Color.dsBackgroundGradient)
+    }
+
+    /// Show a tooltip on hover after a short delay (requires dsTooltipRoot() on an ancestor)
+    func dsTooltip(_ text: String) -> some View {
+        modifier(DSTooltipModifier(text: text))
+    }
+
+    /// Renders tooltip overlays from descendant dsTooltip() modifiers. Apply to root view.
+    func dsTooltipRoot() -> some View {
+        modifier(DSTooltipRootModifier())
     }
 
     /// Apply glass panel styling
