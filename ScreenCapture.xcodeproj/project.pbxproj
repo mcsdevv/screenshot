@@ -21,6 +21,8 @@
 		SC010 /* OCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC110 /* OCRService.swift */; };
 		SC011 /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC111 /* PreferencesView.swift */; };
 		SC012 /* SelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC112 /* SelectionOverlay.swift */; };
+		SC040 /* RecordingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC140 /* RecordingViews.swift */; };
+		SC041 /* WindowSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC141 /* WindowSelectionView.swift */; };
 		SC013 /* CaptureModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC113 /* CaptureModel.swift */; };
 		SC014 /* StorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC114 /* StorageManager.swift */; };
 		SC015 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC115 /* KeyboardShortcuts.swift */; };
@@ -102,6 +104,8 @@
 		SC110 /* OCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRService.swift; sourceTree = "<group>"; };
 		SC111 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
 		SC112 /* SelectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionOverlay.swift; sourceTree = "<group>"; };
+		SC140 /* RecordingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingViews.swift; sourceTree = "<group>"; };
+		SC141 /* WindowSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSelectionView.swift; sourceTree = "<group>"; };
 		SC113 /* CaptureModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureModel.swift; sourceTree = "<group>"; };
 		SC114 /* StorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageManager.swift; sourceTree = "<group>"; };
 		SC115 /* KeyboardShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcuts.swift; sourceTree = "<group>"; };
@@ -251,6 +255,8 @@
 				SC109 /* PinnedScreenshotWindow.swift */,
 				SC111 /* PreferencesView.swift */,
 				SC112 /* SelectionOverlay.swift */,
+				SC140 /* RecordingViews.swift */,
+				SC141 /* WindowSelectionView.swift */,
 				SC117 /* AnnotationCanvas.swift */,
 				SC118 /* ToolbarView.swift */,
 				SC119 /* ColorPickerView.swift */,
@@ -562,6 +568,8 @@
 				SC018 /* ToolbarView.swift in Sources */,
 				SC017 /* AnnotationCanvas.swift in Sources */,
 				SC012 /* SelectionOverlay.swift in Sources */,
+				SC040 /* RecordingViews.swift in Sources */,
+				SC041 /* WindowSelectionView.swift in Sources */,
 				SC022 /* BackgroundTool.swift in Sources */,
 				SC006 /* AnnotationEditor.swift in Sources */,
 				SC007 /* QuickAccessOverlay.swift in Sources */,
