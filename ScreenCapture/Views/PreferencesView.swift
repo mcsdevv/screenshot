@@ -490,6 +490,8 @@ struct ShortcutsPreferencesView: View {
                 ShortcutRow(name: "Pin Screenshot", shortcut: shortcut(for: .pinScreenshot))
                 DSDivider()
                 ShortcutRow(name: "All-in-One Menu", shortcut: shortcut(for: .allInOne))
+                DSDivider()
+                ShortcutRow(name: "Open Screenshots Folder", shortcut: shortcut(for: .openScreenshotsFolder))
             }
         }
     }
