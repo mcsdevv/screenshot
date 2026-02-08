@@ -89,25 +89,21 @@ final class StorageIntegrationTests: XCTestCase {
             image: createTestImage(color: .red),
             type: .screenshot
         )
-        let scrolling = storageManager.saveCapture(
+        let gif = storageManager.saveCapture(
             image: createTestImage(color: .blue),
-            type: .scrollingCapture
+            type: .screenshot
         )
 
         XCTAssertEqual(storageManager.history.items.count, 2)
 
         // Filter by type
         let screenshots = storageManager.history.filter(by: .screenshot)
-        XCTAssertEqual(screenshots.count, 1)
-        XCTAssertEqual(screenshots.first?.id, screenshot.id)
-
-        let scrollingCaptures = storageManager.history.filter(by: .scrollingCapture)
-        XCTAssertEqual(scrollingCaptures.count, 1)
-        XCTAssertEqual(scrollingCaptures.first?.id, scrolling.id)
+        XCTAssertEqual(screenshots.count, 2)
+        XCTAssertEqual(screenshots.last?.id, screenshot.id)
 
         // Search
         let searchResults = storageManager.history.search(query: "Screenshot")
-        XCTAssertEqual(searchResults.count, 1)
+        XCTAssertEqual(searchResults.count, 2)
     }
 
     func testFavoritesPersistence() {

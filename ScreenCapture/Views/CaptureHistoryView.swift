@@ -762,7 +762,7 @@ private func makeThumbnailImage(for type: CaptureType, at url: URL, maxPixelSize
         }
         return nil
 
-    case .screenshot, .scrollingCapture, .gif:
+    case .screenshot, .gif:
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,

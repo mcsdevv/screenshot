@@ -39,11 +39,6 @@ final class CaptureItemTests: XCTestCase {
         XCTAssertEqual(item.fileExtension, "png")
     }
 
-    func testFileExtensionScrollingCapture() {
-        let item = CaptureItem(type: .scrollingCapture, filename: "test.png")
-        XCTAssertEqual(item.fileExtension, "png")
-    }
-
     func testFileExtensionRecording() {
         let item = CaptureItem(type: .recording, filename: "test.mp4")
         XCTAssertEqual(item.fileExtension, "mp4")
@@ -65,9 +60,6 @@ final class CaptureItemTests: XCTestCase {
 
         let gifItem = CaptureItem(type: .gif, filename: "test.gif")
         XCTAssertTrue(gifItem.displayName.contains("GIF"))
-
-        let scrollingItem = CaptureItem(type: .scrollingCapture, filename: "test.png")
-        XCTAssertTrue(scrollingItem.displayName.contains("Scrolling"))
     }
 
     func testDisplayNameContainsFormattedDate() {
@@ -142,47 +134,41 @@ final class CaptureItemTests: XCTestCase {
     func testSamples() {
         let samples = CaptureItem.samples()
 
-        XCTAssertEqual(samples.count, 4)
+        XCTAssertEqual(samples.count, 3)
         XCTAssertEqual(samples[0].type, .screenshot)
         XCTAssertEqual(samples[1].type, .recording)
         XCTAssertEqual(samples[2].type, .gif)
-        XCTAssertEqual(samples[3].type, .scrollingCapture)
     }
 
     // MARK: - CaptureType Tests
 
     func testCaptureTypePrefixes() {
         XCTAssertEqual(CaptureType.screenshot.prefix, "Screenshot")
-        XCTAssertEqual(CaptureType.scrollingCapture.prefix, "Scrolling Capture")
         XCTAssertEqual(CaptureType.recording.prefix, "Recording")
         XCTAssertEqual(CaptureType.gif.prefix, "GIF")
     }
 
     func testCaptureTypeIcons() {
         XCTAssertEqual(CaptureType.screenshot.icon, "camera.fill")
-        XCTAssertEqual(CaptureType.scrollingCapture.icon, "scroll.fill")
         XCTAssertEqual(CaptureType.recording.icon, "video.fill")
         XCTAssertEqual(CaptureType.gif.icon, "photo.on.rectangle.angled")
     }
 
     func testCaptureTypeColors() {
         XCTAssertEqual(CaptureType.screenshot.color, .systemBlue)
-        XCTAssertEqual(CaptureType.scrollingCapture.color, .systemPurple)
         XCTAssertEqual(CaptureType.recording.color, .systemRed)
         XCTAssertEqual(CaptureType.gif.color, .systemOrange)
     }
 
     func testCaptureTypeRawValues() {
         XCTAssertEqual(CaptureType.screenshot.rawValue, "Screenshot")
-        XCTAssertEqual(CaptureType.scrollingCapture.rawValue, "Scrolling")
         XCTAssertEqual(CaptureType.recording.rawValue, "Recording")
         XCTAssertEqual(CaptureType.gif.rawValue, "GIF")
     }
 
     func testCaptureTypeAllCases() {
-        XCTAssertEqual(CaptureType.allCases.count, 4)
+        XCTAssertEqual(CaptureType.allCases.count, 3)
         XCTAssertTrue(CaptureType.allCases.contains(.screenshot))
-        XCTAssertTrue(CaptureType.allCases.contains(.scrollingCapture))
         XCTAssertTrue(CaptureType.allCases.contains(.recording))
         XCTAssertTrue(CaptureType.allCases.contains(.gif))
     }

@@ -39,17 +39,6 @@ Capture the entire primary display instantly.
 | Shortcut (Native Mode) | `Cmd+Shift+3` |
 | Format | PNG |
 
-### Scrolling Capture
-Multi-frame capture with automatic image stitching for long content.
-
-| Setting | Value |
-|---------|-------|
-| Shortcut (Safe Mode) | `Ctrl+Shift+6` |
-| Shortcut (Native Mode) | `Cmd+Shift+6` |
-| Format | PNG (stitched) |
-| Resolution | 2x (Retina) |
-| Overlap Detection | 10% |
-
 ---
 
 ## Screen Recording
@@ -229,7 +218,7 @@ Floating camera feed during captures.
 - **List:** Compact rows with thumbnails
 
 ### Filtering
-- By type: All, Screenshot, Scrolling, Recording, GIF
+- By type: All, Screenshot, Recording, GIF
 - Search by filename
 - Real-time filtering
 
@@ -268,7 +257,6 @@ Removes non-favorite captures after retention period (default: 30 days).
 | Screenshots | PNG |
 | Recordings | MP4 (H.264/AAC) |
 | GIFs | Animated GIF |
-| Scrolling Captures | PNG (stitched) |
 
 ### Features
 - Security-scoped bookmarks for custom folders
@@ -287,7 +275,6 @@ Removes non-favorite captures after retention period (default: 30 days).
 | Capture Fullscreen | `Ctrl+Shift+3` | `Cmd+Shift+3` |
 | Capture Area | `Ctrl+Shift+4` | `Cmd+Shift+4` |
 | Capture Window | `Ctrl+Shift+5` | `Cmd+Shift+5` |
-| Scrolling Capture | `Ctrl+Shift+6` | `Cmd+Shift+6` |
 | Record Screen | `Ctrl+Shift+7` | `Cmd+Shift+7` |
 | Record GIF | `Ctrl+Shift+8` | `Cmd+Shift+8` |
 | Capture Text (OCR) | `Ctrl+Shift+O` | `Cmd+Shift+O` |

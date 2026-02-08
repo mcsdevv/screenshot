@@ -385,7 +385,7 @@ class StorageManager: ObservableObject {
 
         let ext: String
         switch type {
-        case .screenshot, .scrollingCapture:
+        case .screenshot:
             ext = screenshotFileExtension
         case .recording: ext = "mp4"
         case .gif: ext = "gif"
@@ -434,7 +434,7 @@ class StorageManager: ObservableObject {
         }
 
         switch capture.type {
-        case .screenshot, .scrollingCapture:
+        case .screenshot:
             if let image = NSImage(contentsOf: url) {
                 metadata.width = Int(image.size.width)
                 metadata.height = Int(image.size.height)
@@ -545,7 +545,7 @@ private extension StorageManager {
         }
 
         switch type {
-        case .screenshot, .scrollingCapture:
+        case .screenshot:
             switch screenshotFormat {
             case .png:
                 return bitmap.representation(using: .png, properties: [:])

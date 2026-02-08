@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C54EEA7994EE4C18A04034F7 /* ScreenCaptureContentProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFDA57E1B9CB4EDE8D66B52C /* ScreenCaptureContentProvider.swift */; };
 		DACD5AD92F140FF500B8D83F /* SystemShortcutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DACD5AD72F140FF500B8D83F /* SystemShortcutManager.swift */; };
 		DACD5ADA2F140FF500B8D83F /* WebcamManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DACD5AD82F140FF500B8D83F /* WebcamManager.swift */; };
 		SC001 /* ScreenCaptureApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC101 /* ScreenCaptureApp.swift */; };
@@ -21,15 +22,6 @@
 		SC010 /* OCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC110 /* OCRService.swift */; };
 		SC011 /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC111 /* PreferencesView.swift */; };
 		SC012 /* SelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC112 /* SelectionOverlay.swift */; };
-		SC040 /* RecordingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC140 /* RecordingViews.swift */; };
-		SC041 /* WindowSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC141 /* WindowSelectionView.swift */; };
-			SC042 /* RecordingSessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC142 /* RecordingSessionState.swift */; };
-			SC043 /* RecordingSessionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC143 /* RecordingSessionModel.swift */; };
-			SC044 /* RecordingConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC144 /* RecordingConfig.swift */; };
-			SC045 /* CaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC145 /* CaptureEngine.swift */; };
-			SC046 /* SCRecordingOutputEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC146 /* SCRecordingOutputEngine.swift */; };
-			SC047 /* AVAssetWriterCaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC147 /* AVAssetWriterCaptureEngine.swift */; };
-			SC048 /* GIFExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC148 /* GIFExportService.swift */; };
 		SC013 /* CaptureModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC113 /* CaptureModel.swift */; };
 		SC014 /* StorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC114 /* StorageManager.swift */; };
 		SC015 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC115 /* KeyboardShortcuts.swift */; };
@@ -37,7 +29,6 @@
 		SC017 /* AnnotationCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC117 /* AnnotationCanvas.swift */; };
 		SC018 /* ToolbarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC118 /* ToolbarView.swift */; };
 		SC019 /* ColorPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC119 /* ColorPickerView.swift */; };
-		SC020 /* ScrollingCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC120 /* ScrollingCapture.swift */; };
 		SC021 /* GIFEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC121 /* GIFEncoder.swift */; };
 		SC022 /* BackgroundTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC122 /* BackgroundTool.swift */; };
 		SC023 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = SC150 /* Assets.xcassets */; };
@@ -49,7 +40,15 @@
 		SC030 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC128 /* ToastView.swift */; };
 		SC031 /* ToastManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC129 /* ToastManager.swift */; };
 		SC032 /* ToastWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC130 /* ToastWindow.swift */; };
-		C54EEA7994EE4C18A04034F7 /* ScreenCaptureContentProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFDA57E1B9CB4EDE8D66B52C /* ScreenCaptureContentProvider.swift */; };
+		SC040 /* RecordingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC140 /* RecordingViews.swift */; };
+		SC041 /* WindowSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC141 /* WindowSelectionView.swift */; };
+		SC042 /* RecordingSessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC142 /* RecordingSessionState.swift */; };
+		SC043 /* RecordingSessionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC143 /* RecordingSessionModel.swift */; };
+		SC044 /* RecordingConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC144 /* RecordingConfig.swift */; };
+		SC045 /* CaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC145 /* CaptureEngine.swift */; };
+		SC046 /* SCRecordingOutputEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC146 /* SCRecordingOutputEngine.swift */; };
+		SC047 /* AVAssetWriterCaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC147 /* AVAssetWriterCaptureEngine.swift */; };
+		SC048 /* GIFExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC148 /* GIFExportService.swift */; };
 		TST001 /* CaptureItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF001 /* CaptureItemTests.swift */; };
 		TST002 /* CaptureHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF002 /* CaptureHistoryTests.swift */; };
 		TST003 /* AnnotationTypesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF003 /* AnnotationTypesTests.swift */; };
@@ -67,10 +66,9 @@
 		TST016 /* ScreenshotManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF016 /* ScreenshotManagerTests.swift */; };
 		TST017 /* ScreenRecordingManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF017 /* ScreenRecordingManagerTests.swift */; };
 		TST018 /* WebcamManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF018 /* WebcamManagerTests.swift */; };
-		TST019 /* ScrollingCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF019 /* ScrollingCaptureTests.swift */; };
-			TST020 /* MenuBarControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF020 /* MenuBarControllerTests.swift */; };
-			TST021 /* RecordingSessionModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF021 /* RecordingSessionModelTests.swift */; };
-			TST022 /* RecordingConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF022 /* RecordingConfigTests.swift */; };
+		TST020 /* MenuBarControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF020 /* MenuBarControllerTests.swift */; };
+		TST021 /* RecordingSessionModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF021 /* RecordingSessionModelTests.swift */; };
+		TST022 /* RecordingConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF022 /* RecordingConfigTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -100,6 +98,7 @@
 /* Begin PBXFileReference section */
 		DACD5AD72F140FF500B8D83F /* SystemShortcutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemShortcutManager.swift; sourceTree = "<group>"; };
 		DACD5AD82F140FF500B8D83F /* WebcamManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamManager.swift; sourceTree = "<group>"; };
+		DFDA57E1B9CB4EDE8D66B52C /* ScreenCaptureContentProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureContentProvider.swift; sourceTree = "<group>"; };
 		SC100 /* ScreenCapture.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScreenCapture.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		SC101 /* ScreenCaptureApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureApp.swift; sourceTree = "<group>"; };
 		SC102 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -113,15 +112,6 @@
 		SC110 /* OCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRService.swift; sourceTree = "<group>"; };
 		SC111 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
 		SC112 /* SelectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionOverlay.swift; sourceTree = "<group>"; };
-		SC140 /* RecordingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingViews.swift; sourceTree = "<group>"; };
-		SC141 /* WindowSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSelectionView.swift; sourceTree = "<group>"; };
-			SC142 /* RecordingSessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSessionState.swift; sourceTree = "<group>"; };
-			SC143 /* RecordingSessionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSessionModel.swift; sourceTree = "<group>"; };
-			SC144 /* RecordingConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingConfig.swift; sourceTree = "<group>"; };
-			SC145 /* CaptureEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureEngine.swift; sourceTree = "<group>"; };
-			SC146 /* SCRecordingOutputEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SCRecordingOutputEngine.swift; sourceTree = "<group>"; };
-			SC147 /* AVAssetWriterCaptureEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVAssetWriterCaptureEngine.swift; sourceTree = "<group>"; };
-			SC148 /* GIFExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GIFExportService.swift; sourceTree = "<group>"; };
 		SC113 /* CaptureModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureModel.swift; sourceTree = "<group>"; };
 		SC114 /* StorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageManager.swift; sourceTree = "<group>"; };
 		SC115 /* KeyboardShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcuts.swift; sourceTree = "<group>"; };
@@ -129,24 +119,28 @@
 		SC117 /* AnnotationCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationCanvas.swift; sourceTree = "<group>"; };
 		SC118 /* ToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarView.swift; sourceTree = "<group>"; };
 		SC119 /* ColorPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorPickerView.swift; sourceTree = "<group>"; };
-		SC120 /* ScrollingCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollingCapture.swift; sourceTree = "<group>"; };
 		SC121 /* GIFEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GIFEncoder.swift; sourceTree = "<group>"; };
 		SC122 /* BackgroundTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTool.swift; sourceTree = "<group>"; };
 		SC123 /* DebugLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogger.swift; sourceTree = "<group>"; };
-		DFDA57E1B9CB4EDE8D66B52C /* ScreenCaptureContentProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureContentProvider.swift; sourceTree = "<group>"; };
 		SC124 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		SC126 /* KeyboardShortcutsOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsOverlay.swift; sourceTree = "<group>"; };
 		SC127 /* LayerPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerPanelView.swift; sourceTree = "<group>"; };
 		SC128 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
 		SC129 /* ToastManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastManager.swift; sourceTree = "<group>"; };
 		SC130 /* ToastWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastWindow.swift; sourceTree = "<group>"; };
+		SC140 /* RecordingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingViews.swift; sourceTree = "<group>"; };
+		SC141 /* WindowSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSelectionView.swift; sourceTree = "<group>"; };
+		SC142 /* RecordingSessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSessionState.swift; sourceTree = "<group>"; };
+		SC143 /* RecordingSessionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSessionModel.swift; sourceTree = "<group>"; };
+		SC144 /* RecordingConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingConfig.swift; sourceTree = "<group>"; };
+		SC145 /* CaptureEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureEngine.swift; sourceTree = "<group>"; };
+		SC146 /* SCRecordingOutputEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SCRecordingOutputEngine.swift; sourceTree = "<group>"; };
+		SC147 /* AVAssetWriterCaptureEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVAssetWriterCaptureEngine.swift; sourceTree = "<group>"; };
+		SC148 /* GIFExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GIFExportService.swift; sourceTree = "<group>"; };
 		SC150 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		SC151 /* MainMenu.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = MainMenu.xib; sourceTree = "<group>"; };
 		SC152 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		SC153 /* ScreenCapture.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScreenCapture.entitlements; sourceTree = "<group>"; };
-		TSTPROD001 /* ScreenCaptureTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScreenCaptureTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		TSTPROD002 /* ScreenCaptureIntegrationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScreenCaptureIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		TSTPROD003 /* ScreenCaptureUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScreenCaptureUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		TSTF001 /* CaptureItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureItemTests.swift; sourceTree = "<group>"; };
 		TSTF002 /* CaptureHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureHistoryTests.swift; sourceTree = "<group>"; };
 		TSTF003 /* AnnotationTypesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationTypesTests.swift; sourceTree = "<group>"; };
@@ -164,10 +158,12 @@
 		TSTF016 /* ScreenshotManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotManagerTests.swift; sourceTree = "<group>"; };
 		TSTF017 /* ScreenRecordingManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecordingManagerTests.swift; sourceTree = "<group>"; };
 		TSTF018 /* WebcamManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamManagerTests.swift; sourceTree = "<group>"; };
-			TSTF019 /* ScrollingCaptureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollingCaptureTests.swift; sourceTree = "<group>"; };
-			TSTF020 /* MenuBarControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarControllerTests.swift; sourceTree = "<group>"; };
-			TSTF021 /* RecordingSessionModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSessionModelTests.swift; sourceTree = "<group>"; };
-			TSTF022 /* RecordingConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingConfigTests.swift; sourceTree = "<group>"; };
+		TSTF020 /* MenuBarControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarControllerTests.swift; sourceTree = "<group>"; };
+		TSTF021 /* RecordingSessionModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSessionModelTests.swift; sourceTree = "<group>"; };
+		TSTF022 /* RecordingConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingConfigTests.swift; sourceTree = "<group>"; };
+		TSTPROD001 /* ScreenCaptureTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScreenCaptureTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		TSTPROD002 /* ScreenCaptureIntegrationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScreenCaptureIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		TSTPROD003 /* ScreenCaptureUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScreenCaptureUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -249,23 +245,22 @@
 		};
 		SC304 /* Core */ = {
 			isa = PBXGroup;
-				children = (
-					DACD5AD72F140FF500B8D83F /* SystemShortcutManager.swift */,
-					DACD5AD82F140FF500B8D83F /* WebcamManager.swift */,
-					SC104 /* ScreenshotManager.swift */,
-					SC105 /* ScreenRecordingManager.swift */,
-						SC142 /* RecordingSessionState.swift */,
-						SC143 /* RecordingSessionModel.swift */,
-						SC144 /* RecordingConfig.swift */,
-						SC145 /* CaptureEngine.swift */,
-						SC146 /* SCRecordingOutputEngine.swift */,
-						SC147 /* AVAssetWriterCaptureEngine.swift */,
-						SC148 /* GIFExportService.swift */,
-						SC115 /* KeyboardShortcuts.swift */,
-						SC120 /* ScrollingCapture.swift */,
-						SC121 /* GIFEncoder.swift */,
-					SC123 /* DebugLogger.swift */,
-					DFDA57E1B9CB4EDE8D66B52C /* ScreenCaptureContentProvider.swift */,
+			children = (
+				DACD5AD72F140FF500B8D83F /* SystemShortcutManager.swift */,
+				DACD5AD82F140FF500B8D83F /* WebcamManager.swift */,
+				SC104 /* ScreenshotManager.swift */,
+				SC105 /* ScreenRecordingManager.swift */,
+				SC142 /* RecordingSessionState.swift */,
+				SC143 /* RecordingSessionModel.swift */,
+				SC144 /* RecordingConfig.swift */,
+				SC145 /* CaptureEngine.swift */,
+				SC146 /* SCRecordingOutputEngine.swift */,
+				SC147 /* AVAssetWriterCaptureEngine.swift */,
+				SC148 /* GIFExportService.swift */,
+				SC115 /* KeyboardShortcuts.swift */,
+				SC121 /* GIFEncoder.swift */,
+				SC123 /* DebugLogger.swift */,
+				DFDA57E1B9CB4EDE8D66B52C /* ScreenCaptureContentProvider.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -291,16 +286,6 @@
 				SC309 /* Toast */,
 			);
 			path = Views;
-			sourceTree = "<group>";
-		};
-		SC309 /* Toast */ = {
-			isa = PBXGroup;
-			children = (
-				SC128 /* ToastView.swift */,
-				SC129 /* ToastManager.swift */,
-				SC130 /* ToastWindow.swift */,
-			);
-			path = Toast;
 			sourceTree = "<group>";
 		};
 		SC306 /* Services */ = {
@@ -330,6 +315,16 @@
 				SC153 /* ScreenCapture.entitlements */,
 			);
 			path = Resources;
+			sourceTree = "<group>";
+		};
+		SC309 /* Toast */ = {
+			isa = PBXGroup;
+			children = (
+				SC128 /* ToastView.swift */,
+				SC129 /* ToastManager.swift */,
+				SC130 /* ToastWindow.swift */,
+			);
+			path = Toast;
 			sourceTree = "<group>";
 		};
 		TSTGRP001 /* ScreenCaptureTests */ = {
@@ -387,13 +382,12 @@
 				TSTF011 /* ImageStitcherTests.swift */,
 				TSTF012 /* DebugLoggerTests.swift */,
 				TSTF014 /* SystemShortcutManagerTests.swift */,
-					TSTF016 /* ScreenshotManagerTests.swift */,
-						TSTF017 /* ScreenRecordingManagerTests.swift */,
-						TSTF021 /* RecordingSessionModelTests.swift */,
-						TSTF022 /* RecordingConfigTests.swift */,
-						TSTF018 /* WebcamManagerTests.swift */,
-						TSTF019 /* ScrollingCaptureTests.swift */,
-					);
+				TSTF016 /* ScreenshotManagerTests.swift */,
+				TSTF017 /* ScreenRecordingManagerTests.swift */,
+				TSTF021 /* RecordingSessionModelTests.swift */,
+				TSTF022 /* RecordingConfigTests.swift */,
+				TSTF018 /* WebcamManagerTests.swift */,
+			);
 			path = Core;
 			sourceTree = "<group>";
 		};
@@ -496,7 +490,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1500;
-				LastUpgradeCheck = 1610;
+				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					SC400 = {
 						CreatedOnToolsVersion = 15.0;
@@ -584,18 +578,17 @@
 				SC001 /* ScreenCaptureApp.swift in Sources */,
 				SC002 /* AppDelegate.swift in Sources */,
 				SC003 /* MenuBarController.swift in Sources */,
-					SC004 /* ScreenshotManager.swift in Sources */,
-					SC005 /* ScreenRecordingManager.swift in Sources */,
-						SC042 /* RecordingSessionState.swift in Sources */,
-						SC043 /* RecordingSessionModel.swift in Sources */,
-						SC044 /* RecordingConfig.swift in Sources */,
-						SC045 /* CaptureEngine.swift in Sources */,
-						SC046 /* SCRecordingOutputEngine.swift in Sources */,
-						SC047 /* AVAssetWriterCaptureEngine.swift in Sources */,
-						SC048 /* GIFExportService.swift in Sources */,
-						SC015 /* KeyboardShortcuts.swift in Sources */,
-						SC010 /* OCRService.swift in Sources */,
-				SC020 /* ScrollingCapture.swift in Sources */,
+				SC004 /* ScreenshotManager.swift in Sources */,
+				SC005 /* ScreenRecordingManager.swift in Sources */,
+				SC042 /* RecordingSessionState.swift in Sources */,
+				SC043 /* RecordingSessionModel.swift in Sources */,
+				SC044 /* RecordingConfig.swift in Sources */,
+				SC045 /* CaptureEngine.swift in Sources */,
+				SC046 /* SCRecordingOutputEngine.swift in Sources */,
+				SC047 /* AVAssetWriterCaptureEngine.swift in Sources */,
+				SC048 /* GIFExportService.swift in Sources */,
+				SC015 /* KeyboardShortcuts.swift in Sources */,
+				SC010 /* OCRService.swift in Sources */,
 				SC021 /* GIFEncoder.swift in Sources */,
 				SC009 /* PinnedScreenshotWindow.swift in Sources */,
 				SC019 /* ColorPickerView.swift in Sources */,
@@ -634,13 +627,12 @@
 				TST012 /* DebugLoggerTests.swift in Sources */,
 				TST013 /* Mocks.swift in Sources */,
 				TST014 /* SystemShortcutManagerTests.swift in Sources */,
-					TST016 /* ScreenshotManagerTests.swift in Sources */,
-						TST017 /* ScreenRecordingManagerTests.swift in Sources */,
-						TST021 /* RecordingSessionModelTests.swift in Sources */,
-						TST022 /* RecordingConfigTests.swift in Sources */,
-						TST018 /* WebcamManagerTests.swift in Sources */,
-						TST019 /* ScrollingCaptureTests.swift in Sources */,
-						TST020 /* MenuBarControllerTests.swift in Sources */,
+				TST016 /* ScreenshotManagerTests.swift in Sources */,
+				TST017 /* ScreenRecordingManagerTests.swift in Sources */,
+				TST021 /* RecordingSessionModelTests.swift in Sources */,
+				TST022 /* RecordingConfigTests.swift in Sources */,
+				TST018 /* WebcamManagerTests.swift in Sources */,
+				TST020 /* MenuBarControllerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -685,12 +677,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				DEAD_CODE_STRIPPING = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ScreenCapture/Resources/ScreenCapture.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = G3S7X373CJ;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -714,12 +706,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				DEAD_CODE_STRIPPING = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ScreenCapture/Resources/ScreenCapture.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -773,6 +765,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -796,6 +789,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -835,6 +829,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -851,116 +846,117 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
 		};
-			TSTCFGDBG001 /* Debug */ = {
-				isa = XCBuildConfiguration;
-				buildSettings = {
-					BUNDLE_LOADER = "$(TEST_HOST)";
-					CODE_SIGN_STYLE = Automatic;
-					CURRENT_PROJECT_VERSION = 1;
-					DEAD_CODE_STRIPPING = YES;
-					DEVELOPMENT_TEAM = G3S7X373CJ;
-					GENERATE_INFOPLIST_FILE = YES;
-					MACOSX_DEPLOYMENT_TARGET = 15.0;
-					MARKETING_VERSION = 1.0;
-					PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app.tests;
-					PRODUCT_NAME = "$(TARGET_NAME)";
+		TSTCFGDBG001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = G3S7X373CJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ScreenCapture.app/Contents/MacOS/ScreenCapture";
 			};
 			name = Debug;
 		};
-			TSTCFGREL001 /* Release */ = {
-				isa = XCBuildConfiguration;
-				buildSettings = {
-					BUNDLE_LOADER = "$(TEST_HOST)";
-					CODE_SIGN_STYLE = Automatic;
-					CURRENT_PROJECT_VERSION = 1;
-					DEAD_CODE_STRIPPING = YES;
-					DEVELOPMENT_TEAM = G3S7X373CJ;
-					GENERATE_INFOPLIST_FILE = YES;
-					MACOSX_DEPLOYMENT_TARGET = 15.0;
-					MARKETING_VERSION = 1.0;
-					PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app.tests;
-					PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ScreenCapture.app/Contents/MacOS/ScreenCapture";
-			};
-			name = Release;
-		};
-			TSTCFGDBG002 /* Debug */ = {
-				isa = XCBuildConfiguration;
-				buildSettings = {
-					BUNDLE_LOADER = "$(TEST_HOST)";
-					CODE_SIGN_STYLE = Automatic;
-					CURRENT_PROJECT_VERSION = 1;
-					DEAD_CODE_STRIPPING = YES;
-					DEVELOPMENT_TEAM = G3S7X373CJ;
-					GENERATE_INFOPLIST_FILE = YES;
-					MACOSX_DEPLOYMENT_TARGET = 15.0;
-					MARKETING_VERSION = 1.0;
-					PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app.integrationtests;
-					PRODUCT_NAME = "$(TARGET_NAME)";
+		TSTCFGDBG002 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = G3S7X373CJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app.integrationtests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ScreenCapture.app/Contents/MacOS/ScreenCapture";
 			};
 			name = Debug;
 		};
-			TSTCFGREL002 /* Release */ = {
-				isa = XCBuildConfiguration;
-				buildSettings = {
-					BUNDLE_LOADER = "$(TEST_HOST)";
-					CODE_SIGN_STYLE = Automatic;
-					CURRENT_PROJECT_VERSION = 1;
-					DEAD_CODE_STRIPPING = YES;
-					DEVELOPMENT_TEAM = G3S7X373CJ;
-					GENERATE_INFOPLIST_FILE = YES;
-					MACOSX_DEPLOYMENT_TARGET = 15.0;
-					MARKETING_VERSION = 1.0;
-					PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app.integrationtests;
-					PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ScreenCapture.app/Contents/MacOS/ScreenCapture";
-			};
-			name = Release;
-		};
-			TSTCFGDBG003 /* Debug */ = {
-				isa = XCBuildConfiguration;
-				buildSettings = {
-					CODE_SIGN_STYLE = Automatic;
-					CURRENT_PROJECT_VERSION = 1;
-					DEAD_CODE_STRIPPING = YES;
-					DEVELOPMENT_TEAM = G3S7X373CJ;
-					GENERATE_INFOPLIST_FILE = YES;
-					MACOSX_DEPLOYMENT_TARGET = 15.0;
-					MARKETING_VERSION = 1.0;
-					PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app.uitests;
-					PRODUCT_NAME = "$(TARGET_NAME)";
+		TSTCFGDBG003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = G3S7X373CJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TEST_TARGET_NAME = ScreenCapture;
 			};
 			name = Debug;
 		};
-			TSTCFGREL003 /* Release */ = {
-				isa = XCBuildConfiguration;
-				buildSettings = {
-					CODE_SIGN_STYLE = Automatic;
-					CURRENT_PROJECT_VERSION = 1;
-					DEAD_CODE_STRIPPING = YES;
-					DEVELOPMENT_TEAM = G3S7X373CJ;
-					GENERATE_INFOPLIST_FILE = YES;
-					MACOSX_DEPLOYMENT_TARGET = 15.0;
-					MARKETING_VERSION = 1.0;
-					PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app.uitests;
-					PRODUCT_NAME = "$(TARGET_NAME)";
+		TSTCFGREL001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = G3S7X373CJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ScreenCapture.app/Contents/MacOS/ScreenCapture";
+			};
+			name = Release;
+		};
+		TSTCFGREL002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = G3S7X373CJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app.integrationtests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ScreenCapture.app/Contents/MacOS/ScreenCapture";
+			};
+			name = Release;
+		};
+		TSTCFGREL003 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = G3S7X373CJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screencapture.app.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TEST_TARGET_NAME = ScreenCapture;

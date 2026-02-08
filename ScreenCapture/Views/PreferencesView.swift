@@ -474,8 +474,6 @@ struct ShortcutsPreferencesView: View {
                 ShortcutRow(name: "Capture Window", shortcut: shortcut(for: .captureWindow))
                 DSDivider()
                 ShortcutRow(name: "Capture Fullscreen", shortcut: shortcut(for: .captureFullscreen))
-                DSDivider()
-                ShortcutRow(name: "Scrolling Capture", shortcut: shortcut(for: .captureScrolling))
             }
 
             PreferenceSection("Recording Shortcuts") {

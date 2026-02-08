@@ -65,15 +65,6 @@ final class StorageManagerTests: XCTestCase {
         XCTAssertEqual(storageManager.history.items.count, 1)
     }
 
-    func testSaveCaptureScrolling() {
-        let testImage = createTestImage(size: CGSize(width: 200, height: 800), color: .blue)
-
-        let capture = storageManager.saveCapture(image: testImage, type: .scrollingCapture)
-
-        XCTAssertEqual(capture.type, .scrollingCapture)
-        XCTAssertTrue(capture.filename.contains("Scrolling"))
-    }
-
     func testSaveCaptureAddsToHistory() {
         let initialCount = storageManager.history.items.count
         let testImage = createTestImage(size: CGSize(width: 50, height: 50), color: .green)

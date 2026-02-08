@@ -6,7 +6,6 @@ class KeyboardShortcuts {
         case captureArea = "captureArea"
         case captureWindow = "captureWindow"
         case captureFullscreen = "captureFullscreen"
-        case captureScrolling = "captureScrolling"
         case recordScreen = "recordScreen"
         case recordWindow = "recordWindow"
         case recordGIF = "recordGIF"
@@ -20,7 +19,6 @@ class KeyboardShortcuts {
             case .captureArea: return UInt32(kVK_ANSI_4)
             case .captureWindow: return UInt32(kVK_ANSI_5)
             case .captureFullscreen: return UInt32(kVK_ANSI_3)
-            case .captureScrolling: return UInt32(kVK_ANSI_6)
             case .recordScreen: return UInt32(kVK_ANSI_7)
             case .recordWindow: return UInt32(kVK_ANSI_8)
             case .recordGIF: return UInt32(kVK_ANSI_8)
@@ -38,8 +36,6 @@ class KeyboardShortcuts {
                 switch self {
                 case .captureArea, .captureWindow, .captureFullscreen:
                     return UInt32(cmdKey | shiftKey)
-                case .captureScrolling:
-                    return UInt32(cmdKey | shiftKey)
                 case .recordWindow:
                     return UInt32(optionKey | shiftKey)
                 case .recordScreen, .recordGIF, .ocr, .pinScreenshot:
@@ -52,7 +48,7 @@ class KeyboardShortcuts {
             } else {
                 // Use Control+Shift to avoid conflicts with macOS built-in ⌘⇧3/4/5
                 switch self {
-                case .captureArea, .captureWindow, .captureFullscreen, .captureScrolling:
+                case .captureArea, .captureWindow, .captureFullscreen:
                     return UInt32(controlKey | shiftKey)
                 case .recordWindow:
                     return UInt32(optionKey | shiftKey)
@@ -76,7 +72,6 @@ class KeyboardShortcuts {
             case .captureArea: return "Capture Area"
             case .captureWindow: return "Capture Window"
             case .captureFullscreen: return "Capture Fullscreen"
-            case .captureScrolling: return "Scrolling Capture"
             case .recordScreen: return "Record Screen"
             case .recordWindow: return "Record Window"
             case .recordGIF: return "Record GIF"
@@ -94,7 +89,6 @@ class KeyboardShortcuts {
                 case .captureArea: return "⌘⇧4"
                 case .captureWindow: return "⌘⇧5"
                 case .captureFullscreen: return "⌘⇧3"
-                case .captureScrolling: return "⌘⇧6"
                 case .recordScreen: return "⌘⇧7"
                 case .recordWindow: return "⌥⇧8"
                 case .recordGIF: return "⌘⇧8"
@@ -108,7 +102,6 @@ class KeyboardShortcuts {
                 case .captureArea: return "⌃⇧4"
                 case .captureWindow: return "⌃⇧5"
                 case .captureFullscreen: return "⌃⇧3"
-                case .captureScrolling: return "⌃⇧6"
                 case .recordScreen: return "⌃⇧7"
                 case .recordWindow: return "⌥⇧8"
                 case .recordGIF: return "⌃⇧8"

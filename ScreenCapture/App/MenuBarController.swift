@@ -100,8 +100,6 @@ class MenuBarController: NSObject {
         addMenuItem(title: "Capture Area", icon: "rectangle.dashed", action: #selector(captureArea), keyEquivalent: "4", modifiers: [.control, .shift])
         addMenuItem(title: "Capture Window", icon: "macwindow", action: #selector(captureWindow), keyEquivalent: "5", modifiers: [.control, .shift])
         addMenuItem(title: "Capture Fullscreen", icon: "rectangle.fill.on.rectangle.fill", action: #selector(captureFullscreen), keyEquivalent: "3", modifiers: [.control, .shift])
-        addMenuItem(title: "Scrolling Capture", icon: "scroll", action: #selector(captureScrolling), keyEquivalent: "6", modifiers: [.control, .shift])
-
         menu.addItem(NSMenuItem.separator())
 
         let recordHeader = NSMenuItem(title: "Record", action: nil, keyEquivalent: "")
@@ -187,10 +185,6 @@ class MenuBarController: NSObject {
 
     @objc private func captureFullscreen() {
         screenshotManager.captureFullscreen()
-    }
-
-    @objc private func captureScrolling() {
-        screenshotManager.captureScrolling()
     }
 
     @objc private func toggleRecording() {

@@ -39,7 +39,6 @@ struct KeyboardShortcutsOverlay: View {
                     ShortcutItem(keys: "\(mod)3", description: "Capture Fullscreen"),
                     ShortcutItem(keys: "\(mod)4", description: "Capture Area"),
                     ShortcutItem(keys: "\(mod)5", description: "Capture Window"),
-                    ShortcutItem(keys: "\(mod)6", description: "Scrolling Capture"),
                 ]
             ),
             ShortcutGroup(

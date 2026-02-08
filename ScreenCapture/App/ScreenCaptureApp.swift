@@ -86,13 +86,6 @@ struct MenuBarMenuView: View {
                 }
                 .keyboardShortcut("3", modifiers: captureModifiers)
 
-                Button {
-                    debugLog("MenuBar: Scrolling Capture clicked")
-                    appDelegate.screenshotManager.captureScrolling()
-                } label: {
-                    Label("Scrolling Capture", systemImage: "scroll")
-                }
-                .keyboardShortcut("6", modifiers: captureModifiers)
             } header: {
                 Label("Capture", systemImage: "camera.fill")
             }
