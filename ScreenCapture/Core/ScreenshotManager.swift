@@ -155,6 +155,9 @@ class ScreenshotManager: NSObject, ObservableObject {
         window.backgroundColor = .clear
         window.level = .screenSaver
 
+        window.onEscapeKey = { [weak self] in
+            self?.closeSelectionWindow()
+        }
         selectionWindow = window
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
