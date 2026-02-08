@@ -215,3 +215,116 @@ final class MenuBarMenuItemTests: XCTestCase {
         XCTAssertNotNil(normalIcon)
     }
 }
+
+final class PreferencesSettingsContractTests: XCTestCase {
+    private let actionBackedKeys: Set<String> = [
+        "launchAtLogin"
+    ]
+
+    func testPreferencesExposeOnlySupportedSettingsKeys() throws {
+        let root = try repositoryRoot()
+        let preferencesURL = root.appendingPathComponent("ScreenCapture/Views/PreferencesView.swift")
+        let keys = try exposedPreferenceKeys(in: preferencesURL)
+
+        let expectedKeys: Set<String> = [
+            "launchAtLogin",
+            "showMenuBarIcon",
+            "playSound",
+            "showQuickAccess",
+            "quickAccessDuration",
+            "popupCorner",
+            "afterCaptureAction",
+            "showCursor",
+            "captureFormat",
+            "jpegQuality",
+            "recordingQuality",
+            "recordingFPS",
+            "recordShowCursor",
+            "recordMicrophone",
+            "recordSystemAudio",
+            "showMouseClicks",
+            "autoCleanup",
+            "cleanupDays"
+        ]
+
+        XCTAssertEqual(Set(keys), expectedKeys)
+        XCTAssertFalse(keys.contains("hideDesktopIcons"))
+        XCTAssertFalse(keys.contains("showDimensions"))
+        XCTAssertFalse(keys.contains("showMagnifier"))
+    }
+
+    func testEachExposedPreferenceKeyHasRuntimeConsumer() throws {
+        let root = try repositoryRoot()
+        let preferencesURL = root.appendingPathComponent("ScreenCapture/Views/PreferencesView.swift")
+        let keys = try exposedPreferenceKeys(in: preferencesURL)
+        let appSourceURLs = swiftFiles(in: root.appendingPathComponent("ScreenCapture"))
+
+        for key in keys where !actionBackedKeys.contains(key) {
+            let consumers = try appSourceURLs
+                .filter { $0.standardizedFileURL != preferencesURL.standardizedFileURL }
+                .filter { url in
+                    let contents = try String(contentsOf: url)
+                    return contents.contains("\"\(key)\"")
+                }
+
+            XCTAssertFalse(
+                consumers.isEmpty,
+                "Preference key '\(key)' has no runtime consumer outside PreferencesView.swift"
+            )
+        }
+    }
+
+    private func repositoryRoot() throws -> URL {
+        var candidate = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        let fileManager = FileManager.default
+
+        while candidate.path != "/" {
+            if fileManager.fileExists(atPath: candidate.appendingPathComponent("ScreenCapture.xcodeproj").path) {
+                return candidate
+            }
+            candidate.deleteLastPathComponent()
+        }
+
+        throw NSError(
+            domain: "PreferencesSettingsContractTests",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "Unable to locate repository root from \(#filePath)"]
+        )
+    }
+
+    private func exposedPreferenceKeys(in fileURL: URL) throws -> [String] {
+        let source = try String(contentsOf: fileURL)
+        let regex = try NSRegularExpression(pattern: #"\@AppStorage\(\"([^\"]+)\"\)"#)
+        let fullRange = NSRange(source.startIndex..<source.endIndex, in: source)
+
+        var keys: [String] = []
+        for match in regex.matches(in: source, range: fullRange) {
+            guard let keyRange = Range(match.range(at: 1), in: source) else { continue }
+            let key = String(source[keyRange])
+            if !keys.contains(key) {
+                keys.append(key)
+            }
+        }
+
+        return keys
+    }
+
+    private func swiftFiles(in directory: URL) -> [URL] {
+        let fileManager = FileManager.default
+        guard let enumerator = fileManager.enumerator(
+            at: directory,
+            includingPropertiesForKeys: nil
+        ) else {
+            return []
+        }
+
+        var urls: [URL] = []
+        while let item = enumerator.nextObject() as? URL {
+            if item.pathExtension == "swift" {
+                urls.append(item)
+            }
+        }
+
+        return urls
+    }
+}

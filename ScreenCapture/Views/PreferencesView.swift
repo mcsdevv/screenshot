@@ -3,7 +3,6 @@ import ServiceManagement
 
 struct PreferencesView: View {
     @State private var selectedTab: PreferencesTab = .general
-    @State private var isAppearing = false
 
     enum PreferencesTab: String, CaseIterable {
         case general = "General"
@@ -72,7 +71,7 @@ struct PreferencesView: View {
 
                 // Version info
                 VStack(spacing: DSSpacing.xxs) {
-                    Text("Version 1.0.0")
+                    Text(AppVersionInfo.sidebarVersionLabel)
                         .font(DSTypography.caption)
                         .foregroundColor(.dsTextTertiary)
                 }
@@ -149,8 +148,26 @@ struct PreferencesView: View {
         case .capture: return "Screenshot capture options"
         case .recording: return "Screen recording configuration"
         case .storage: return "File storage and cleanup settings"
-        case .advanced: return "Performance and developer options"
+        case .advanced: return "Diagnostics and reset tools"
         }
+    }
+}
+
+private enum AppVersionInfo {
+    static var shortVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+    }
+
+    static var buildNumber: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
+    }
+
+    static var sidebarVersionLabel: String {
+        "Version \(shortVersion)"
+    }
+
+    static var aboutVersionLabel: String {
+        "Version \(shortVersion) (Build \(buildNumber))"
     }
 }
 
@@ -290,6 +307,7 @@ struct DSToggle: View {
             Toggle("", isOn: $isOn)
                 .toggleStyle(SwitchToggleStyle(tint: .dsAccent))
                 .labelsHidden()
+                .accessibilityLabel(label)
         }
     }
 }
@@ -308,10 +326,17 @@ struct GeneralPreferencesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xl) {
             PreferenceSection("Startup") {
-                DSToggle(isOn: $launchAtLogin, label: "Launch ScreenCapture at login")
-                    .onChange(of: launchAtLogin) { _, newValue in
-                        updateLaunchAtLogin(newValue)
-                    }
+                DSToggle(
+                    isOn: Binding(
+                        get: { launchAtLogin },
+                        set: { newValue in
+                            guard launchAtLogin != newValue else { return }
+                            launchAtLogin = newValue
+                            updateLaunchAtLogin(newValue)
+                        }
+                    ),
+                    label: "Launch ScreenCapture at login"
+                )
 
                 DSDivider()
 
@@ -338,6 +363,7 @@ struct GeneralPreferencesView: View {
                         .pickerStyle(.menu)
                         .frame(width: 130)
                         .tint(.dsAccent)
+                        .accessibilityLabel("Auto-dismiss after")
                     }
                 }
 
@@ -353,6 +379,7 @@ struct GeneralPreferencesView: View {
                     .pickerStyle(.menu)
                     .frame(width: 150)
                     .tint(.dsAccent)
+                    .accessibilityLabel("Popup position")
                 }
             }
 
@@ -367,8 +394,12 @@ struct GeneralPreferencesView: View {
                     .pickerStyle(.menu)
                     .frame(width: 160)
                     .tint(.dsAccent)
+                    .accessibilityLabel("After capture")
                 }
             }
+        }
+        .onAppear {
+            syncLaunchAtLoginState()
         }
     }
 
@@ -380,8 +411,19 @@ struct GeneralPreferencesView: View {
                 try SMAppService.mainApp.unregister()
             }
         } catch {
-            print("Failed to update launch at login: \(error)")
+            errorLog("Failed to update launch-at-login preference", error: error)
+            syncLaunchAtLoginState()
+
+            let alert = NSAlert()
+            alert.messageText = "Launch at Login Update Failed"
+            alert.informativeText = "ScreenCapture couldn't update the login item. macOS may require you to update this setting in System Settings → General → Login Items."
+            alert.alertStyle = .warning
+            alert.runModal()
         }
+    }
+
+    private func syncLaunchAtLoginState() {
+        launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 }
 
@@ -501,15 +543,16 @@ struct ShortcutsPreferencesView: View {
     }
 
     private func toggleShortcutMode() {
+        let wasUsingNativeShortcuts = useNativeShortcuts
         isUpdating = true
-        let success = useNativeShortcuts
+        let success = wasUsingNativeShortcuts
             ? shortcutManager.enableNativeShortcuts()
             : shortcutManager.disableNativeShortcuts()
         isUpdating = false
 
         if success {
             NotificationCenter.default.post(name: .shortcutsRemapped, object: nil)
-            if !useNativeShortcuts {
+            if !wasUsingNativeShortcuts {
                 showManualShortcutInstructions()
             }
         }
@@ -556,23 +599,14 @@ struct ShortcutRow: View {
 // MARK: - Capture Preferences
 
 struct CapturePreferencesView: View {
-    @AppStorage("hideDesktopIcons") private var hideDesktopIcons = false
     @AppStorage("showCursor") private var showCursor = false
-    @AppStorage("showDimensions") private var showDimensions = true
-    @AppStorage("showMagnifier") private var showMagnifier = true
     @AppStorage("captureFormat") private var captureFormat = "png"
     @AppStorage("jpegQuality") private var jpegQuality = 0.9
 
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xl) {
             PreferenceSection("Capture Options") {
-                DSToggle(isOn: $hideDesktopIcons, label: "Hide desktop icons during capture")
-                DSDivider()
                 DSToggle(isOn: $showCursor, label: "Include cursor in screenshots")
-                DSDivider()
-                DSToggle(isOn: $showDimensions, label: "Show selection dimensions")
-                DSDivider()
-                DSToggle(isOn: $showMagnifier, label: "Show magnifier when selecting")
             }
 
             PreferenceSection("Image Format") {
@@ -584,6 +618,7 @@ struct CapturePreferencesView: View {
                     }
                     .pickerStyle(.segmented)
                     .frame(width: 180)
+                    .accessibilityLabel("Default format")
                 }
 
                 if captureFormat == "jpeg" {
@@ -593,14 +628,9 @@ struct CapturePreferencesView: View {
                         Slider(value: $jpegQuality, in: 0.1...1.0, step: 0.1)
                             .frame(width: 150)
                             .tint(.dsAccent)
+                            .accessibilityLabel("JPEG Quality")
                     }
                 }
-            }
-
-            PreferenceSection("Window Capture") {
-                DSToggle(isOn: .constant(true), label: "Capture window shadow")
-                DSDivider()
-                DSToggle(isOn: .constant(true), label: "Capture rounded corners")
             }
         }
     }
@@ -627,6 +657,7 @@ struct RecordingPreferencesView: View {
                     .pickerStyle(.menu)
                     .frame(width: 150)
                     .tint(.dsAccent)
+                    .accessibilityLabel("Video quality")
                 }
 
                 DSDivider()
@@ -638,6 +669,7 @@ struct RecordingPreferencesView: View {
                     }
                     .pickerStyle(.segmented)
                     .frame(width: 140)
+                    .accessibilityLabel("Frame rate")
                 }
 
                 DSDivider()
@@ -707,6 +739,7 @@ struct StoragePreferencesView: View {
                     .pickerStyle(.menu)
                     .frame(width: 180)
                     .tint(.dsAccent)
+                    .accessibilityLabel("Save screenshots to")
                     .onChange(of: storageLocation) { _, newValue in
                         if newValue != "custom" {
                             storageManager.setStorageLocation(newValue)
@@ -775,6 +808,7 @@ struct StoragePreferencesView: View {
                         .pickerStyle(.menu)
                         .frame(width: 120)
                         .tint(.dsAccent)
+                        .accessibilityLabel("Cleanup retention period")
                     }
 
                     Button(action: clearAllCaptures) {
@@ -797,6 +831,7 @@ struct StoragePreferencesView: View {
                     Toggle("", isOn: $autoCleanup)
                         .toggleStyle(SwitchToggleStyle(tint: .dsAccent))
                         .labelsHidden()
+                        .accessibilityLabel("Automatically delete old captures")
                 }
             }
         }
@@ -894,19 +929,28 @@ struct StoragePreferencesView: View {
 struct AdvancedPreferencesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xl) {
-            PreferenceSection("Performance") {
-                PreferenceRow("Rendering") {
-                    Text("Native GPU accelerated")
-                        .font(DSTypography.labelSmall)
-                        .foregroundColor(.dsSuccess)
+            PreferenceSection("Diagnostics") {
+                PreferenceRow("Debug log file") {
+                    HStack(spacing: DSSpacing.sm) {
+                        Text(DebugLogger.shared.logFilePath)
+                            .font(DSTypography.monoSmall)
+                            .foregroundColor(.dsTextTertiary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(width: 300, alignment: .trailing)
+
+                        DSSecondaryButton("Open Log", icon: "doc.text") {
+                            openDebugLogFile()
+                        }
+                    }
                 }
 
                 DSDivider()
 
-                PreferenceRow("Animations") {
-                    Text("System default")
-                        .font(DSTypography.labelSmall)
-                        .foregroundColor(.dsTextTertiary)
+                PreferenceRow("Log directory") {
+                    DSSecondaryButton("Open Folder", icon: "folder") {
+                        openDebugLogFolder()
+                    }
                 }
             }
 
@@ -943,37 +987,25 @@ struct AdvancedPreferencesView: View {
                         Text("ScreenCapture")
                             .font(DSTypography.headlineSmall)
                             .foregroundColor(.dsTextPrimary)
-                        Text("Version 1.0.0 (Build 1)")
+                        Text(AppVersionInfo.aboutVersionLabel)
                             .font(DSTypography.caption)
                             .foregroundColor(.dsTextTertiary)
                     }
 
                     Spacer()
-
-                    HStack(spacing: DSSpacing.sm) {
-                        Link(destination: URL(string: "https://github.com")!) {
-                            HStack(spacing: DSSpacing.xxs) {
-                                Image(systemName: "link")
-                                    .font(.system(size: 11))
-                                Text("GitHub")
-                                    .font(DSTypography.labelSmall)
-                            }
-                            .foregroundColor(.dsAccent)
-                        }
-
-                        Link(destination: URL(string: "https://github.com")!) {
-                            HStack(spacing: DSSpacing.xxs) {
-                                Image(systemName: "exclamationmark.bubble")
-                                    .font(.system(size: 11))
-                                Text("Report Issue")
-                                    .font(DSTypography.labelSmall)
-                            }
-                            .foregroundColor(.dsAccent)
-                        }
-                    }
                 }
             }
         }
+    }
+
+    private func openDebugLogFile() {
+        let url = URL(fileURLWithPath: DebugLogger.shared.logFilePath)
+        NSWorkspace.shared.open(url)
+    }
+
+    private func openDebugLogFolder() {
+        let url = URL(fileURLWithPath: DebugLogger.shared.logFilePath).deletingLastPathComponent()
+        NSWorkspace.shared.open(url)
     }
 
     private func resetPreferences() {
