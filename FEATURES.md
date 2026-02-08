@@ -16,19 +16,19 @@ Interactive region selection for precise screenshots.
 |---------|-------|
 | Shortcut (Safe Mode) | `Ctrl+Shift+4` |
 | Shortcut (Native Mode) | `Cmd+Shift+4` |
-| Format | PNG |
+| Format | Configured screenshot format (PNG/JPEG/TIFF) |
 | Cancel | `Esc` (immediate) |
 
 ### Capture Window
-Capture a specific window with optional shadow.
+Capture a specific window with native picker behavior.
 
 | Setting | Value |
 |---------|-------|
 | Shortcut (Safe Mode) | `Ctrl+Shift+5` |
 | Shortcut (Native Mode) | `Cmd+Shift+5` |
-| Format | PNG |
+| Format | Configured screenshot format (PNG/JPEG/TIFF) |
 | Cancel | `Esc` (immediate) |
-| Options | Include/exclude window shadow |
+| Shadow | Not included in native quick capture mode |
 
 ### Capture Fullscreen
 Capture the entire primary display instantly.
@@ -37,7 +37,7 @@ Capture the entire primary display instantly.
 |---------|-------|
 | Shortcut (Safe Mode) | `Ctrl+Shift+3` |
 | Shortcut (Native Mode) | `Cmd+Shift+3` |
-| Format | PNG |
+| Format | Configured screenshot format (PNG/JPEG/TIFF) |
 
 ---
 
@@ -285,6 +285,7 @@ Removes non-favorite captures after retention period (default: 30 days).
 - Play sound after capture
 - Show Quick Access overlay
 - Quick Access auto-dismiss timing
+- Popup position
 - Default action after capture
 
 ### Shortcuts
@@ -293,22 +294,18 @@ Removes non-favorite captures after retention period (default: 30 days).
 - System shortcut integration status
 
 ### Capture
-- Hide desktop icons during capture
 - Include cursor in screenshots
-- Show selection dimensions
-- Show magnifier during selection
 - Image format (PNG, JPEG, TIFF)
 - JPEG quality (10-100%)
-- Window shadow capture
-- Rounded corners capture
 
 ### Recording
 - Video quality (Low, Medium, High)
 - Frame rate (30/60 FPS)
+- Show cursor
 - Microphone recording
 - System audio recording
 - Mouse click highlighting
-- Keystroke display
+- Keystroke overlay status (currently unavailable in native capture mode)
 
 ### Storage
 - Save location
@@ -319,9 +316,8 @@ Removes non-favorite captures after retention period (default: 30 days).
 - Open folder button
 
 ### Advanced
-- Hardware acceleration
-- Reduce motion effects
-- Debug mode
+- Debug log file access
+- Open logs folder
 - Reset preferences
 - Version information
 
