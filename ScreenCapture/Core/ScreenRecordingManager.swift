@@ -4,6 +4,10 @@ import ScreenCaptureKit
 import Combine
 import AVFoundation
 
+final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
 @MainActor
 class ScreenRecordingManager: NSObject, ObservableObject {
     private struct PendingOutput {
@@ -219,7 +223,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             }
         )
 
-        let hostingView = NSHostingView(rootView: selectionView)
+        let hostingView = FirstMouseHostingView(rootView: selectionView)
         hostingView.frame = NSRect(origin: .zero, size: screen.frame.size)
 
         let window = KeyableWindow(
@@ -236,6 +240,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         window.level = .screenSaver
 
         selectionWindow = window
+        NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(hostingView)
     }
@@ -270,7 +275,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             }
         )
 
-        let hostingView = NSHostingView(rootView: windowView)
+        let hostingView = FirstMouseHostingView(rootView: windowView)
         hostingView.frame = NSRect(origin: .zero, size: screen.frame.size)
 
         let window = KeyableWindow(
@@ -287,6 +292,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         window.level = .screenSaver
 
         windowSelectionWindow = window
+        NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(hostingView)
     }
