@@ -12,6 +12,7 @@ final class AVAssetWriterCaptureEngine: NSObject, CaptureEngine {
         let baseWidthPoints: CGFloat
         let baseHeightPoints: CGFloat
         let scaleFactor: CGFloat
+        let sourceRect: CGRect?
     }
 
     private let statusSubject = CurrentValueSubject<CaptureEngineStatus, Never>(.idle)
@@ -247,17 +248,20 @@ final class AVAssetWriterCaptureEngine: NSObject, CaptureEngine {
                 filter: filter,
                 baseWidthPoints: CGFloat(display.width),
                 baseHeightPoints: CGFloat(display.height),
-                scaleFactor: displayScaleFactor(for: display.displayID)
+                scaleFactor: displayScaleFactor(for: display.displayID),
+                sourceRect: nil
             )
 
         case let .area(rect):
-            let display = try await ScreenCaptureContentProvider.shared.getPrimaryDisplay()
+            let display = try await ScreenCaptureContentProvider.shared.getDisplay(containing: rect)
             let filter = SCContentFilter(display: display, excludingWindows: [])
+            let sourceRect = localizedSourceRect(for: rect, displayID: display.displayID)
             return FilterContext(
                 filter: filter,
-                baseWidthPoints: rect.width,
-                baseHeightPoints: rect.height,
-                scaleFactor: displayScaleFactor(for: display.displayID)
+                baseWidthPoints: sourceRect.width,
+                baseHeightPoints: sourceRect.height,
+                scaleFactor: displayScaleFactor(for: display.displayID),
+                sourceRect: sourceRect
             )
 
         case let .window(windowID):
@@ -270,7 +274,8 @@ final class AVAssetWriterCaptureEngine: NSObject, CaptureEngine {
                 filter: filter,
                 baseWidthPoints: window.frame.width,
                 baseHeightPoints: window.frame.height,
-                scaleFactor: NSScreen.main?.backingScaleFactor ?? 2.0
+                scaleFactor: NSScreen.main?.backingScaleFactor ?? 2.0,
+                sourceRect: nil
             )
         }
     }
@@ -288,8 +293,8 @@ final class AVAssetWriterCaptureEngine: NSObject, CaptureEngine {
         streamConfig.queueDepth = 6
         streamConfig.showsCursor = config.includeCursor
 
-        if case let .area(rect) = config.target {
-            streamConfig.sourceRect = rect
+        if let sourceRect = context.sourceRect {
+            streamConfig.sourceRect = sourceRect
         }
 
         streamConfig.capturesAudio = config.includeSystemAudio
@@ -297,10 +302,12 @@ final class AVAssetWriterCaptureEngine: NSObject, CaptureEngine {
         streamConfig.channelCount = 2
         streamConfig.excludesCurrentProcessAudio = config.excludesCurrentProcessAudio
 
+        #if compiler(>=6.0)
         if #available(macOS 15.0, *) {
             streamConfig.captureMicrophone = config.includeMicrophone
             streamConfig.showMouseClicks = config.includeCursor && config.showMouseClicks
         }
+        #endif
 
         return streamConfig
     }
@@ -329,6 +336,47 @@ final class AVAssetWriterCaptureEngine: NSObject, CaptureEngine {
         }
 
         return NSScreen.main?.backingScaleFactor ?? 2.0
+    }
+
+    private func displayFrame(for displayID: CGDirectDisplayID) -> CGRect? {
+        for screen in NSScreen.screens {
+            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
+                continue
+            }
+
+            if CGDirectDisplayID(number.uint32Value) == displayID {
+                return screen.frame
+            }
+        }
+
+        return nil
+    }
+
+    private func localizedSourceRect(for globalRect: CGRect, displayID: CGDirectDisplayID) -> CGRect {
+        guard let displayFrame = displayFrame(for: displayID) else {
+            return globalRect.standardized
+        }
+
+        // ScreenCaptureKit sourceRect uses the display logical coordinate system
+        // (origin at top-left). NSEvent/NSScreen global coordinates are bottom-left.
+        let localX = globalRect.minX - displayFrame.minX
+        let localYBottom = globalRect.minY - displayFrame.minY
+        let localYTop = displayFrame.height - localYBottom - globalRect.height
+
+        let localizedRect = CGRect(
+            x: localX,
+            y: localYTop,
+            width: globalRect.width,
+            height: globalRect.height
+        ).standardized
+
+        let displayBounds = CGRect(x: 0, y: 0, width: displayFrame.width, height: displayFrame.height)
+        let clippedRect = localizedRect.intersection(displayBounds)
+        guard !clippedRect.isNull, clippedRect.width >= 2, clippedRect.height >= 2 else {
+            return localizedRect
+        }
+
+        return clippedRect
     }
 }
 

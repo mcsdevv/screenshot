@@ -195,7 +195,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     private func showAreaSelection(onSelection: @escaping (CGRect?) -> Void, onCancel: @escaping () -> Void) {
         closeSelectionWindow()
 
-        guard let screen = NSScreen.main else {
+        guard let screen = currentInteractionScreen() else {
             onCancel()
             return
         }
@@ -220,7 +220,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         )
 
         let hostingView = NSHostingView(rootView: selectionView)
-        hostingView.frame = screen.frame
+        hostingView.frame = NSRect(origin: .zero, size: screen.frame.size)
 
         let window = KeyableWindow(
             contentRect: screen.frame,
@@ -255,7 +255,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     // MARK: - Window Selection
 
     private func showWindowSelection() {
-        guard let screen = NSScreen.main else { return }
+        guard let screen = currentInteractionScreen() else { return }
 
         let windowView = WindowSelectionView(
             onWindowSelected: { [weak self] window in
@@ -271,7 +271,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         )
 
         let hostingView = NSHostingView(rootView: windowView)
-        hostingView.frame = screen.frame
+        hostingView.frame = NSRect(origin: .zero, size: screen.frame.size)
 
         let window = KeyableWindow(
             contentRect: screen.frame,
@@ -591,12 +591,12 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
     private func makeCaptureEngine() -> CaptureEngine {
         // Prefer native ScreenCaptureKit recording output on macOS 15+.
-        // AVAssetWriter has shown intermittent empty-output failures in the field.
-        // Set forceAVAssetWriterEngine=true only for targeted fallback/debugging.
-        if #available(macOS 15.0, *),
-           !UserDefaults.standard.bool(forKey: "forceAVAssetWriterEngine") {
+        // AVAssetWriter has shown intermittent output routing and stability issues.
+        #if compiler(>=6.0)
+        if #available(macOS 15.0, *) {
             return SCRecordingOutputEngine()
         }
+        #endif
 
         return AVAssetWriterCaptureEngine()
     }
@@ -604,7 +604,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     // MARK: - Recording Controls
 
     private func showRecordingControls() {
-        guard let screen = NSScreen.main else { return }
+        guard let screen = recordingScreen() ?? currentInteractionScreen() else { return }
 
         hideRecordingControls()
 
@@ -650,13 +650,13 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
     private func showRecordingOverlay() {
         guard case .area(let rect) = currentConfig?.target else { return }
-        guard let screen = NSScreen.main else { return }
+        guard let screen = screenContaining(rect) ?? recordingScreen() ?? currentInteractionScreen() else { return }
 
         hideRecordingOverlay()
 
-        let overlayView = RecordingOverlayView(recordingRect: rect)
+        let overlayView = RecordingOverlayView(recordingRect: rect, screenFrame: screen.frame)
         let hostingView = NSHostingView(rootView: overlayView)
-        hostingView.frame = screen.frame
+        hostingView.frame = NSRect(origin: .zero, size: screen.frame.size)
 
         let window = KeyableWindow(
             contentRect: screen.frame,
@@ -702,5 +702,51 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             windowToClose.contentView = nil
             windowToClose.close()
         }
+    }
+
+    private func currentInteractionScreen() -> NSScreen? {
+        let mouseLocation = NSEvent.mouseLocation
+        return NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) })
+            ?? NSScreen.main
+            ?? NSScreen.screens.first
+    }
+
+    private func recordingScreen() -> NSScreen? {
+        guard let target = currentConfig?.target else {
+            return nil
+        }
+
+        switch target {
+        case .fullscreen:
+            return currentInteractionScreen()
+
+        case .window:
+            return NSScreen.main ?? NSScreen.screens.first
+
+        case let .area(rect):
+            return screenContaining(rect)
+        }
+    }
+
+    private func screenContaining(_ rect: CGRect) -> NSScreen? {
+        let midpoint = CGPoint(x: rect.midX, y: rect.midY)
+        if let directMatch = NSScreen.screens.first(where: { $0.frame.contains(midpoint) }) {
+            return directMatch
+        }
+
+        var bestScreen: NSScreen?
+        var bestIntersectionArea: CGFloat = 0
+        for screen in NSScreen.screens {
+            let intersection = screen.frame.intersection(rect)
+            guard !intersection.isNull else { continue }
+
+            let area = max(0, intersection.width) * max(0, intersection.height)
+            if area > bestIntersectionArea {
+                bestIntersectionArea = area
+                bestScreen = screen
+            }
+        }
+
+        return bestScreen
     }
 }
