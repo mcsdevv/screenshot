@@ -5,8 +5,6 @@ import AppKit
 
 struct RecordingSelectionView: View {
     let onSelection: (CGRect) -> Void
-    let onFullscreen: () -> Void
-    let onWindowSelect: (() -> Void)?
     let onCancel: () -> Void
 
     @State private var startPoint: CGPoint?
@@ -15,18 +13,6 @@ struct RecordingSelectionView: View {
     @State private var currentScreenPoint: CGPoint?
     @State private var isSelecting = false
     @State private var mousePosition: CGPoint = .zero
-
-    init(
-        onSelection: @escaping (CGRect) -> Void,
-        onFullscreen: @escaping () -> Void,
-        onWindowSelect: (() -> Void)? = nil,
-        onCancel: @escaping () -> Void
-    ) {
-        self.onSelection = onSelection
-        self.onFullscreen = onFullscreen
-        self.onWindowSelect = onWindowSelect
-        self.onCancel = onCancel
-    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -73,21 +59,11 @@ struct RecordingSelectionView: View {
 
     private var instructionBar: some View {
         VStack(spacing: DSSpacing.sm) {
-            Text("Drag to select area, or choose an option below")
+            Text("Drag to select recording area")
                 .font(DSTypography.bodyMedium)
                 .foregroundColor(.dsTextSecondary)
 
             HStack(spacing: DSSpacing.md) {
-                DSPrimaryButton("Record Fullscreen", icon: "rectangle.inset.filled") {
-                    onFullscreen()
-                }
-
-                if let onWindowSelect = onWindowSelect {
-                    DSSecondaryButton("Record Window", icon: "video") {
-                        onWindowSelect()
-                    }
-                }
-
                 DSSecondaryButton("Cancel", icon: "xmark") {
                     onCancel()
                 }
@@ -211,11 +187,6 @@ struct RecordingControlsView: View {
                 }
             }
 
-            if isExportingGIF {
-                ProgressView(value: session.gifExportProgress)
-                    .progressViewStyle(.linear)
-                    .tint(.dsAccent)
-            }
         }
         .padding(.horizontal, DSSpacing.lg)
         .padding(.vertical, DSSpacing.md)
@@ -241,21 +212,11 @@ struct RecordingControlsView: View {
         return false
     }
 
-    private var isExportingGIF: Bool {
-        if case .exportingGIF = session.state { return true }
-        return false
-    }
-
     private var canStop: Bool {
-        !isExportingGIF
+        !isStoppingState
     }
 
     private var statusText: String {
-        if isExportingGIF {
-            let percent = Int((session.gifExportProgress * 100).rounded())
-            return "Exporting GIF \(percent)%"
-        }
-
         if isStoppingState {
             return "Finalizing..."
         }
@@ -272,7 +233,6 @@ struct RecordingControlsView: View {
     }
 
     private var statusColor: Color {
-        if isExportingGIF { return .dsAccent }
         if isStoppingState { return .dsWarmAccent }
         if controlsState.countdownValue != nil && controlsState.showRecordButton { return .dsWarmAccent }
         if controlsState.showRecordButton && !isRecordingState { return .white.opacity(0.9) }

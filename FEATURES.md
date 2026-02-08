@@ -43,8 +43,8 @@ Capture the entire primary display instantly.
 
 ## Screen Recording
 
-### Video Recording
-Record screen activity as MP4 video.
+### Record Area
+Record a selected screen region as MP4 video.
 
 | Setting | Value |
 |---------|-------|
@@ -58,30 +58,27 @@ Record screen activity as MP4 video.
 | Audio Bitrate | 128 kbps |
 | Audio Sample Rate | 48 kHz stereo |
 
+### Record Window
+Record a specific window as MP4 video.
+
+| Setting | Value |
+|---------|-------|
+| Shortcut | `Option+Shift+8` |
+| Format | MP4 |
+
+### Record Fullscreen
+Record the entire primary display as MP4 video.
+
+| Setting | Value |
+|---------|-------|
+| Shortcut (Safe Mode) | `Ctrl+Shift+9` |
+| Shortcut (Native Mode) | `Cmd+Shift+9` |
+| Format | MP4 |
+
 **Recording Controls:**
 - Stop button with duration timer
 - Optional cursor display
 - Optional microphone/system audio
-
-### GIF Recording
-Record screen as animated GIF.
-
-| Setting | Value |
-|---------|-------|
-| Shortcut (Safe Mode) | `Ctrl+Shift+8` |
-| Shortcut (Native Mode) | `Cmd+Shift+8` |
-| Format | Animated GIF |
-| Frame Rate | 10, 15, or 20 FPS |
-| Loop | Infinite |
-
-**Quality Presets:**
-| Preset | Max Dimension | Frame Skip |
-|--------|---------------|------------|
-| Low | 640px | 3 |
-| Medium | 960px | 2 |
-| High | 1280px | 1 |
-
-**GIF Export Pipeline:** ScreenCapture records a temporary MP4, then exports the final GIF via `ffmpeg` palette generation/encoding for better quality and reliability.
 
 ---
 
@@ -204,7 +201,7 @@ Compact single-row toolbar with tooltips and keyboard shortcuts:
 - **List:** Compact rows with thumbnails
 
 ### Filtering
-- By type: All, Screenshot, Recording, GIF
+- By type: All, Screenshot, Recording
 - Search by filename
 - Real-time filtering
 
@@ -242,7 +239,6 @@ Removes non-favorite captures after retention period (default: 30 days).
 |------|--------|
 | Screenshots | PNG |
 | Recordings | MP4 (H.264/AAC) |
-| GIFs | Animated GIF |
 
 ### Features
 - Security-scoped bookmarks for custom folders
@@ -261,8 +257,9 @@ Removes non-favorite captures after retention period (default: 30 days).
 | Capture Fullscreen | `Ctrl+Shift+3` | `Cmd+Shift+3` |
 | Capture Area | `Ctrl+Shift+4` | `Cmd+Shift+4` |
 | Capture Window | `Ctrl+Shift+5` | `Cmd+Shift+5` |
-| Record Screen | `Ctrl+Shift+7` | `Cmd+Shift+7` |
-| Record GIF | `Ctrl+Shift+8` | `Cmd+Shift+8` |
+| Record Area | `Ctrl+Shift+7` | `Cmd+Shift+7` |
+| Record Window | `Option+Shift+8` | `Option+Shift+8` |
+| Record Fullscreen | `Ctrl+Shift+9` | `Cmd+Shift+9` |
 | Capture Text (OCR) | `Ctrl+Shift+O` | `Cmd+Shift+O` |
 | Pin Screenshot | `Ctrl+Shift+P` | `Cmd+Shift+P` |
 | All-in-One Menu | `Ctrl+Shift+Option+A` | `Cmd+Shift+Option+A` |
@@ -312,8 +309,6 @@ Removes non-favorite captures after retention period (default: 30 days).
 - System audio recording
 - Mouse click highlighting
 - Keystroke display
-- GIF frame rate (10, 15, 20)
-- GIF quality preset
 
 ### Storage
 - Save location

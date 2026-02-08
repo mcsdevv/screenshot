@@ -28,7 +28,6 @@
 		SC017 /* AnnotationCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC117 /* AnnotationCanvas.swift */; };
 		SC018 /* ToolbarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC118 /* ToolbarView.swift */; };
 		SC019 /* ColorPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC119 /* ColorPickerView.swift */; };
-		SC021 /* GIFEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC121 /* GIFEncoder.swift */; };
 		SC022 /* BackgroundTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC122 /* BackgroundTool.swift */; };
 		SC023 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = SC150 /* Assets.xcassets */; };
 		SC024 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = SC151 /* MainMenu.xib */; };
@@ -47,12 +46,10 @@
 		SC045 /* CaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC145 /* CaptureEngine.swift */; };
 		SC046 /* SCRecordingOutputEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC146 /* SCRecordingOutputEngine.swift */; };
 		SC047 /* AVAssetWriterCaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC147 /* AVAssetWriterCaptureEngine.swift */; };
-		SC048 /* GIFExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC148 /* GIFExportService.swift */; };
 		TST001 /* CaptureItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF001 /* CaptureItemTests.swift */; };
 		TST002 /* CaptureHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF002 /* CaptureHistoryTests.swift */; };
 		TST003 /* AnnotationTypesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF003 /* AnnotationTypesTests.swift */; };
 		TST004 /* StorageManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF004 /* StorageManagerTests.swift */; };
-		TST005 /* GIFEncoderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF005 /* GIFEncoderTests.swift */; };
 		TST006 /* TestImageGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF006 /* TestImageGenerator.swift */; };
 		TST007 /* StorageIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF007 /* StorageIntegrationTests.swift */; };
 		TST008 /* ScreenCaptureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF008 /* ScreenCaptureUITests.swift */; };
@@ -116,7 +113,6 @@
 		SC117 /* AnnotationCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationCanvas.swift; sourceTree = "<group>"; };
 		SC118 /* ToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarView.swift; sourceTree = "<group>"; };
 		SC119 /* ColorPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorPickerView.swift; sourceTree = "<group>"; };
-		SC121 /* GIFEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GIFEncoder.swift; sourceTree = "<group>"; };
 		SC122 /* BackgroundTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTool.swift; sourceTree = "<group>"; };
 		SC123 /* DebugLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogger.swift; sourceTree = "<group>"; };
 		SC124 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
@@ -133,7 +129,6 @@
 		SC145 /* CaptureEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureEngine.swift; sourceTree = "<group>"; };
 		SC146 /* SCRecordingOutputEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SCRecordingOutputEngine.swift; sourceTree = "<group>"; };
 		SC147 /* AVAssetWriterCaptureEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVAssetWriterCaptureEngine.swift; sourceTree = "<group>"; };
-		SC148 /* GIFExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GIFExportService.swift; sourceTree = "<group>"; };
 		SC150 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		SC151 /* MainMenu.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = MainMenu.xib; sourceTree = "<group>"; };
 		SC152 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -142,7 +137,6 @@
 		TSTF002 /* CaptureHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureHistoryTests.swift; sourceTree = "<group>"; };
 		TSTF003 /* AnnotationTypesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationTypesTests.swift; sourceTree = "<group>"; };
 		TSTF004 /* StorageManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageManagerTests.swift; sourceTree = "<group>"; };
-		TSTF005 /* GIFEncoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GIFEncoderTests.swift; sourceTree = "<group>"; };
 		TSTF006 /* TestImageGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestImageGenerator.swift; sourceTree = "<group>"; };
 		TSTF007 /* StorageIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageIntegrationTests.swift; sourceTree = "<group>"; };
 		TSTF008 /* ScreenCaptureUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureUITests.swift; sourceTree = "<group>"; };
@@ -251,9 +245,7 @@
 				SC145 /* CaptureEngine.swift */,
 				SC146 /* SCRecordingOutputEngine.swift */,
 				SC147 /* AVAssetWriterCaptureEngine.swift */,
-				SC148 /* GIFExportService.swift */,
 				SC115 /* KeyboardShortcuts.swift */,
-				SC121 /* GIFEncoder.swift */,
 				SC123 /* DebugLogger.swift */,
 				DFDA57E1B9CB4EDE8D66B52C /* ScreenCaptureContentProvider.swift */,
 			);
@@ -372,7 +364,6 @@
 		TSTGRP006 /* Core */ = {
 			isa = PBXGroup;
 			children = (
-				TSTF005 /* GIFEncoderTests.swift */,
 				TSTF009 /* KeyboardShortcutsTests.swift */,
 				TSTF011 /* ImageStitcherTests.swift */,
 				TSTF012 /* DebugLoggerTests.swift */,
@@ -579,10 +570,8 @@
 				SC045 /* CaptureEngine.swift in Sources */,
 				SC046 /* SCRecordingOutputEngine.swift in Sources */,
 				SC047 /* AVAssetWriterCaptureEngine.swift in Sources */,
-				SC048 /* GIFExportService.swift in Sources */,
 				SC015 /* KeyboardShortcuts.swift in Sources */,
 				SC010 /* OCRService.swift in Sources */,
-				SC021 /* GIFEncoder.swift in Sources */,
 				SC009 /* PinnedScreenshotWindow.swift in Sources */,
 				SC019 /* ColorPickerView.swift in Sources */,
 				SC018 /* ToolbarView.swift in Sources */,
@@ -612,7 +601,6 @@
 				TST002 /* CaptureHistoryTests.swift in Sources */,
 				TST003 /* AnnotationTypesTests.swift in Sources */,
 				TST004 /* StorageManagerTests.swift in Sources */,
-				TST005 /* GIFEncoderTests.swift in Sources */,
 				TST006 /* TestImageGenerator.swift in Sources */,
 				TST009 /* KeyboardShortcutsTests.swift in Sources */,
 				TST010 /* OCRServiceTests.swift in Sources */,

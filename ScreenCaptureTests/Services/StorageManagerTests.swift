@@ -162,13 +162,6 @@ final class StorageManagerTests: XCTestCase {
         XCTAssertTrue(recordingURL.lastPathComponent.contains("Recording"))
     }
 
-    func testGenerateGIFURL() {
-        let gifURL = storageManager.generateGIFURL()
-
-        XCTAssertEqual(gifURL.pathExtension, "gif")
-        XCTAssertTrue(gifURL.lastPathComponent.contains("GIF"))
-    }
-
     // MARK: - Storage Location Tests
 
     func testGetStorageLocationDefault() {
@@ -342,18 +335,6 @@ final class StorageManagerTests: XCTestCase {
         XCTAssertEqual(storageManager.history.items.count, 1)
     }
 
-    func testSaveGIFAddsToHistory() {
-        let gifURL = tempDirectory.appendingPathComponent("Test GIF.gif")
-        let dummyData = "dummy gif".data(using: .utf8)!
-        try? dummyData.write(to: gifURL)
-
-        let capture = storageManager.saveGIF(url: gifURL)
-
-        XCTAssertEqual(capture.type, .gif)
-        XCTAssertEqual(capture.filename, "Test GIF.gif")
-        XCTAssertEqual(storageManager.history.items.count, 1)
-    }
-
     // MARK: - Storage Location Resolved Tests
 
     func testStorageLocationDesktop() {
@@ -430,17 +411,6 @@ final class StorageManagerTests: XCTestCase {
         XCTAssertGreaterThan(metadata.fileSize, 0)
     }
 
-    func testGetMetadataForGIF() {
-        let gifURL = storageManager.generateGIFURL()
-        let dummyData = "dummy gif data for size test".data(using: .utf8)!
-        try? dummyData.write(to: gifURL)
-
-        let capture = storageManager.saveGIF(url: gifURL)
-        let metadata = storageManager.getMetadata(for: capture)
-
-        XCTAssertGreaterThan(metadata.fileSize, 0)
-    }
-
     // MARK: - Update Annotations for Non-existent Capture
 
     func testUpdateAnnotationsForNonexistentCapture() {
@@ -485,19 +455,15 @@ final class StorageManagerTests: XCTestCase {
     func testMultipleCapturesDifferentTypes() {
         let testImage = createTestImage(size: CGSize(width: 100, height: 100), color: .red)
         let recordingURL = storageManager.generateRecordingURL()
-        let gifURL = storageManager.generateGIFURL()
 
         XCTAssertNoThrow(try writeTestVideo(to: recordingURL, fileType: .mp4))
-        XCTAssertNoThrow(try makeMinimalGIFData().write(to: gifURL))
 
         let screenshot = storageManager.saveCapture(image: testImage, type: .screenshot)
         let recording = storageManager.saveRecording(url: recordingURL)
-        let gif = storageManager.saveGIF(url: gifURL)
 
-        XCTAssertEqual(storageManager.history.items.count, 3)
+        XCTAssertEqual(storageManager.history.items.count, 2)
         XCTAssertEqual(screenshot.type, .screenshot)
         XCTAssertEqual(recording.type, .recording)
-        XCTAssertEqual(gif.type, .gif)
     }
 
     // MARK: - Storage Verified Tests

@@ -20,23 +20,11 @@ final class RecordingSessionModelTests: XCTestCase {
         XCTAssertEqual(model.elapsedDuration, 0)
     }
 
-    func testVideoTransitionPathIsValid() throws {
-        try model.beginSelection(for: .video)
-        try model.beginStarting(for: .video)
-        try model.beginRecording(for: .video)
-        try model.beginStopping(for: .video)
-        try model.markCompleted()
-        try model.markIdle()
-
-        XCTAssertEqual(model.state, .idle)
-    }
-
-    func testGIFTransitionPathIsValid() throws {
-        try model.beginSelection(for: .gif)
-        try model.beginStarting(for: .gif)
-        try model.beginRecording(for: .gif)
-        try model.beginStopping(for: .gif)
-        try model.beginGIFExport()
+    func testTransitionPathIsValid() throws {
+        try model.beginSelection()
+        try model.beginStarting()
+        try model.beginRecording()
+        try model.beginStopping()
         try model.markCompleted()
         try model.markIdle()
 
@@ -44,17 +32,17 @@ final class RecordingSessionModelTests: XCTestCase {
     }
 
     func testInvalidTransitionThrows() {
-        XCTAssertThrowsError(try model.beginRecording(for: .video)) { error in
+        XCTAssertThrowsError(try model.beginRecording()) { error in
             XCTAssertEqual(
                 error as? RecordingSessionTransitionError,
-                .illegalTransition(from: .idle, to: .recording(.video))
+                .illegalTransition(from: .idle, to: .recording)
             )
         }
     }
 
     func testElapsedDurationAdvancesDuringRecording() async throws {
-        try model.beginStarting(for: .video)
-        try model.beginRecording(for: .video)
+        try model.beginStarting()
+        try model.beginRecording()
 
         let initialDuration = model.elapsedDuration
         try await Task.sleep(nanoseconds: 350_000_000)
@@ -63,9 +51,9 @@ final class RecordingSessionModelTests: XCTestCase {
     }
 
     func testElapsedDurationResetsWhenReturningToIdle() throws {
-        try model.beginStarting(for: .video)
-        try model.beginRecording(for: .video)
-        try model.beginStopping(for: .video)
+        try model.beginStarting()
+        try model.beginRecording()
+        try model.beginStopping()
         try model.markCompleted()
         try model.markIdle()
 

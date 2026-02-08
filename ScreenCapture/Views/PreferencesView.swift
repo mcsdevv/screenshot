@@ -477,11 +477,11 @@ struct ShortcutsPreferencesView: View {
             }
 
             PreferenceSection("Recording Shortcuts") {
-                ShortcutRow(name: "Record Screen", shortcut: shortcut(for: .recordScreen))
+                ShortcutRow(name: "Record Area", shortcut: shortcut(for: .recordArea))
                 DSDivider()
                 ShortcutRow(name: "Record Window", shortcut: shortcut(for: .recordWindow))
                 DSDivider()
-                ShortcutRow(name: "Record GIF", shortcut: shortcut(for: .recordGIF))
+                ShortcutRow(name: "Record Fullscreen", shortcut: shortcut(for: .recordFullscreen))
             }
 
             PreferenceSection("Tool Shortcuts") {
@@ -615,9 +615,6 @@ struct RecordingPreferencesView: View {
     @AppStorage("recordMicrophone") private var recordMicrophone = false
     @AppStorage("recordSystemAudio") private var recordSystemAudio = true
     @AppStorage("showMouseClicks") private var showMouseClicks = true
-    @AppStorage("gifFPS") private var gifFPS = 15
-    @AppStorage("gifQuality") private var gifQuality = "medium"
-
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xl) {
             PreferenceSection("Video Recording") {
@@ -664,29 +661,6 @@ struct RecordingPreferencesView: View {
                 }
             }
 
-            PreferenceSection("GIF Recording") {
-                PreferenceRow("Frame Rate") {
-                    Picker("", selection: $gifFPS) {
-                        Text("10").tag(10)
-                        Text("15").tag(15)
-                        Text("20").tag(20)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 160)
-                }
-
-                DSDivider()
-
-                PreferenceRow("Quality") {
-                    Picker("", selection: $gifQuality) {
-                        Text("Low").tag("low")
-                        Text("Medium").tag("medium")
-                        Text("High").tag("high")
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 160)
-                }
-            }
         }
     }
 }

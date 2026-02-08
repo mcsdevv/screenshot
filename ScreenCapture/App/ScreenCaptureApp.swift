@@ -95,10 +95,10 @@ struct MenuBarMenuView: View {
             // Record section
             Section {
                 Button {
-                    debugLog("MenuBar: Record Screen clicked")
+                    debugLog("MenuBar: Record Area clicked")
                     appDelegate.screenRecordingManager.toggleRecording()
                 } label: {
-                    Label("Record Screen", systemImage: "record.circle")
+                    Label("Record Area", systemImage: "rectangle.dashed.and.record")
                 }
                 .keyboardShortcut("7", modifiers: captureModifiers)
 
@@ -109,6 +109,14 @@ struct MenuBarMenuView: View {
                     Label("Record Window", systemImage: "video")
                 }
                 .keyboardShortcut("8", modifiers: [.shift, .option])
+
+                Button {
+                    debugLog("MenuBar: Record Fullscreen clicked")
+                    appDelegate.screenRecordingManager.startFullscreenRecording()
+                } label: {
+                    Label("Record Fullscreen", systemImage: "rectangle.inset.filled.and.record")
+                }
+                .keyboardShortcut("9", modifiers: captureModifiers)
             } header: {
                 Label("Record", systemImage: "video.fill")
             }

@@ -4,7 +4,6 @@ import Foundation
 final class RecordingSessionModel: ObservableObject {
     @Published private(set) var state: RecordingSessionState = .idle
     @Published private(set) var elapsedDuration: TimeInterval = 0
-    @Published private(set) var gifExportProgress: Double = 0
 
     private var timer: Timer?
     private var recordingStartUptime: TimeInterval?
@@ -22,24 +21,20 @@ final class RecordingSessionModel: ObservableObject {
         handleTransition(to: next)
     }
 
-    func beginSelection(for kind: RecordingSessionKind) throws {
-        try transition(to: .selecting(kind))
+    func beginSelection() throws {
+        try transition(to: .selecting)
     }
 
-    func beginStarting(for kind: RecordingSessionKind) throws {
-        try transition(to: .starting(kind))
+    func beginStarting() throws {
+        try transition(to: .starting)
     }
 
-    func beginRecording(for kind: RecordingSessionKind) throws {
-        try transition(to: .recording(kind))
+    func beginRecording() throws {
+        try transition(to: .recording)
     }
 
-    func beginStopping(for kind: RecordingSessionKind) throws {
-        try transition(to: .stopping(kind))
-    }
-
-    func beginGIFExport() throws {
-        try transition(to: .exportingGIF)
+    func beginStopping() throws {
+        try transition(to: .stopping)
     }
 
     func markCompleted() throws {
@@ -58,13 +53,8 @@ final class RecordingSessionModel: ObservableObject {
         try transition(to: .idle)
     }
 
-    func updateGIFExportProgress(_ progress: Double) {
-        gifExportProgress = min(max(progress, 0), 1)
-    }
-
     func forceIdle() {
         stopTimer(resetDuration: true)
-        gifExportProgress = 0
         state = .idle
     }
 
@@ -76,17 +66,11 @@ final class RecordingSessionModel: ObservableObject {
         case .stopping, .completed, .failed, .cancelled:
             stopTimer(resetDuration: false)
 
-        case .exportingGIF:
-            stopTimer(resetDuration: false)
-            gifExportProgress = 0
-
         case .idle:
             stopTimer(resetDuration: true)
-            gifExportProgress = 0
 
         case .selecting, .starting:
             stopTimer(resetDuration: true)
-            gifExportProgress = 0
         }
     }
 
