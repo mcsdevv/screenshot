@@ -131,22 +131,6 @@ struct MenuBarMenuView: View {
                     Label("Pin Screenshot", systemImage: "pin.fill")
                 }
                 .keyboardShortcut("p", modifiers: captureModifiers)
-                
-                Divider()
-                
-                Button {
-                    debugLog("MenuBar: Toggle Webcam clicked")
-                    if let webcamManager = appDelegate.webcamManager {
-                        webcamManager.toggleWebcam()
-                    }
-                } label: {
-                    if let webcamManager = appDelegate.webcamManager, webcamManager.isWebcamVisible {
-                        Label("Hide Webcam", systemImage: "video.slash")
-                    } else {
-                        Label("Show Webcam", systemImage: "video")
-                    }
-                }
-                .keyboardShortcut("w", modifiers: captureModifiers)
             } header: {
                 Label("Tools", systemImage: "wrench.and.screwdriver")
             }
