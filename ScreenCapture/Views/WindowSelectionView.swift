@@ -180,8 +180,9 @@ struct WindowSelectionView: View {
                 appWindowsMap[appName]?.windows.append(window)
             }
 
+            let sortedWindows = appWindowsMap.values.sorted { $0.appName < $1.appName }
             await MainActor.run {
-                self.windows = appWindowsMap.values.sorted { $0.appName < $1.appName }
+                self.windows = sortedWindows
                 self.isLoading = false
             }
         } catch {
