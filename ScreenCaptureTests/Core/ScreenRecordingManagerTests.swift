@@ -1,5 +1,6 @@
 import XCTest
 import Combine
+import SwiftUI
 @testable import ScreenCapture
 
 @MainActor
@@ -55,6 +56,11 @@ final class ScreenRecordingManagerTests: XCTestCase {
         XCTAssertFalse(recordingManager.isExportingGIF)
         XCTAssertEqual(recordingManager.recordingDuration, 0)
         XCTAssertEqual(recordingManager.sessionState, .idle)
+    }
+
+    func testFirstMouseHostingViewAcceptsFirstMouse() {
+        let hostingView = FirstMouseHostingView(rootView: EmptyView())
+        XCTAssertTrue(hostingView.acceptsFirstMouse(for: nil))
     }
 
     // MARK: - Published Properties Tests
