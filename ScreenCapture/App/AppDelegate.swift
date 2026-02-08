@@ -289,7 +289,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
         let overlayView = QuickAccessOverlay(controller: controller, corner: corner)
 
-        let windowSize = NSSize(width: 340, height: 340)
+        let windowSize = NSSize(width: 360, height: 340)
         let hostingView = NSHostingView(rootView: overlayView)
         hostingView.frame = NSRect(origin: .zero, size: windowSize)
 
@@ -302,7 +302,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             let frameRect = NSWindow.frameRect(forContentRect: contentRect, styleMask: styleMask)
 
             // Position using the full frame size so title bar doesn't push content down
-            let origin = corner.windowOrigin(screenFrame: screenFrame, windowSize: frameRect.size)
+            let origin = corner.windowOrigin(screenFrame: screenFrame, windowSize: frameRect.size, padding: DSSpacing.lg)
 
             let window = NSWindow(
                 contentRect: NSRect(origin: .zero, size: windowSize),
