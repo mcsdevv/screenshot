@@ -106,9 +106,9 @@ class MenuBarController: NSObject {
         recordHeader.isEnabled = false
         menu.addItem(recordHeader)
 
-        recordingMenuItem = addMenuItem(title: "Record Area", icon: "rectangle.dashed.and.record", action: #selector(recordArea), keyEquivalent: "7", modifiers: [.control, .shift])
+        recordingMenuItem = addMenuItem(title: "Record Area", icon: "video.badge.plus", action: #selector(recordArea), keyEquivalent: "7", modifiers: [.control, .shift])
         addMenuItem(title: "Record Window", icon: "video", action: #selector(recordWindow), keyEquivalent: "8", modifiers: [.option, .shift])
-        addMenuItem(title: "Record Fullscreen", icon: "rectangle.inset.filled.and.record", action: #selector(recordFullscreen), keyEquivalent: "9", modifiers: [.control, .shift])
+        addMenuItem(title: "Record Fullscreen", icon: "video.fill", action: #selector(recordFullscreen), keyEquivalent: "9", modifiers: [.control, .shift])
 
         menu.addItem(NSMenuItem.separator())
 

@@ -859,7 +859,7 @@ struct AllInOneMenuView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
 
-                MenuButton(icon: "video.fill", title: "Record Area", shortcut: "⌃⇧7") {
+                MenuButton(icon: "video.badge.plus", title: "Record Area", shortcut: "⌃⇧7") {
                     onDismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onRecordArea() }
                 }
@@ -869,7 +869,7 @@ struct AllInOneMenuView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onRecordWindow() }
                 }
 
-                MenuButton(icon: "rectangle.inset.filled.and.record", title: "Record Fullscreen", shortcut: "⌃⇧9") {
+                MenuButton(icon: "video.fill", title: "Record Fullscreen", shortcut: "⌃⇧9") {
                     onDismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onRecordFullscreen() }
                 }
