@@ -875,7 +875,13 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     }
 
     private func makeCaptureEngine() -> CaptureEngine {
-        SCRecordingOutputEngine()
+        #if compiler(>=6.0)
+        return SCRecordingOutputEngine()
+        #else
+        // Xcode 15/Swift 5 toolchains cannot compile SCRecordingOutputEngine.
+        // Fall back to the AVAssetWriter engine so CI can still build.
+        return AVAssetWriterCaptureEngine()
+        #endif
     }
 
     private func bindCaptureEngineStatus(_ engine: CaptureEngine) {
