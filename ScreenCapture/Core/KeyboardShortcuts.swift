@@ -12,6 +12,7 @@ class KeyboardShortcuts {
         case allInOne = "allInOne"
         case ocr = "ocr"
         case pinScreenshot = "pinScreenshot"
+        case openScreenshotsFolder = "openScreenshotsFolder"
         case showKeyboardShortcuts = "showKeyboardShortcuts"
 
         var defaultKeyCode: UInt32 {
@@ -25,6 +26,7 @@ class KeyboardShortcuts {
             case .allInOne: return UInt32(kVK_ANSI_A)
             case .ocr: return UInt32(kVK_ANSI_O)
             case .pinScreenshot: return UInt32(kVK_ANSI_P)
+            case .openScreenshotsFolder: return UInt32(kVK_ANSI_S)
             case .showKeyboardShortcuts: return UInt32(kVK_ANSI_Slash)
             }
         }
@@ -38,7 +40,7 @@ class KeyboardShortcuts {
                     return UInt32(cmdKey | shiftKey)
                 case .recordWindow:
                     return UInt32(optionKey | shiftKey)
-                case .recordScreen, .recordGIF, .ocr, .pinScreenshot:
+                case .recordScreen, .recordGIF, .ocr, .pinScreenshot, .openScreenshotsFolder:
                     return UInt32(cmdKey | shiftKey)
                 case .allInOne:
                     return UInt32(cmdKey | shiftKey | optionKey)
@@ -52,7 +54,7 @@ class KeyboardShortcuts {
                     return UInt32(controlKey | shiftKey)
                 case .recordWindow:
                     return UInt32(optionKey | shiftKey)
-                case .recordScreen, .recordGIF, .ocr, .pinScreenshot:
+                case .recordScreen, .recordGIF, .ocr, .pinScreenshot, .openScreenshotsFolder:
                     return UInt32(controlKey | shiftKey)
                 case .allInOne:
                     return UInt32(controlKey | shiftKey | optionKey)
@@ -78,6 +80,7 @@ class KeyboardShortcuts {
             case .allInOne: return "All-in-One Menu"
             case .ocr: return "Capture Text (OCR)"
             case .pinScreenshot: return "Pin Screenshot"
+            case .openScreenshotsFolder: return "Open Screenshots Folder"
             case .showKeyboardShortcuts: return "Keyboard Shortcuts"
             }
         }
@@ -95,6 +98,7 @@ class KeyboardShortcuts {
                 case .allInOne: return "⌘⇧⌥A"
                 case .ocr: return "⌘⇧O"
                 case .pinScreenshot: return "⌘⇧P"
+                case .openScreenshotsFolder: return "⌘⇧S"
                 case .showKeyboardShortcuts: return "⌘/"
                 }
             } else {
@@ -108,6 +112,7 @@ class KeyboardShortcuts {
                 case .allInOne: return "⌃⇧⌥A"
                 case .ocr: return "⌃⇧O"
                 case .pinScreenshot: return "⌃⇧P"
+                case .openScreenshotsFolder: return "⌃⇧S"
                 case .showKeyboardShortcuts: return "⌘/"
                 }
             }

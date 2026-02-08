@@ -126,7 +126,7 @@ class MenuBarController: NSObject {
         menu.addItem(NSMenuItem.separator())
 
         addMenuItem(title: "Preferences...", icon: "gear", action: #selector(showPreferences), keyEquivalent: ",", modifiers: [.command])
-        addMenuItem(title: "Open Screenshots Folder", icon: "folder", action: #selector(openScreenshotsFolder), keyEquivalent: "", modifiers: [])
+        addMenuItem(title: "Open Screenshots Folder", icon: "folder", action: #selector(openScreenshotsFolder), keyEquivalent: "s", modifiers: [.control, .shift])
 
         menu.addItem(NSMenuItem.separator())
 

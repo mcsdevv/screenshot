@@ -160,6 +160,7 @@ struct MenuBarMenuView: View {
             } label: {
                 Label("Open Screenshots Folder", systemImage: "folder")
             }
+            .keyboardShortcut("s", modifiers: captureModifiers)
 
             SettingsLink {
                 Label("Preferences...", systemImage: "gearshape")

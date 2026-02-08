@@ -55,6 +55,7 @@ struct KeyboardShortcutsOverlay: View {
                 shortcuts: [
                     ShortcutItem(keys: "\(mod)O", description: "Capture Text (OCR)"),
                     ShortcutItem(keys: "\(mod)P", description: "Pin Screenshot"),
+                    ShortcutItem(keys: "\(mod)S", description: "Open Screenshots Folder"),
                     ShortcutItem(keys: "\(mod)W", description: "Toggle Webcam"),
                     ShortcutItem(keys: "\(modOpt)A", description: "All-in-One Menu"),
                 ]
