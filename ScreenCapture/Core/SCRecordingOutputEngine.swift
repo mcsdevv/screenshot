@@ -43,6 +43,8 @@ enum CaptureEngineError: LocalizedError {
     }
 }
 
+#if compiler(>=6.0)
+
 @available(macOS 15.0, *)
 @MainActor
 final class SCRecordingOutputEngine: NSObject, CaptureEngine {
@@ -363,3 +365,5 @@ extension SCRecordingOutputEngine: SCStreamDelegate {
         }
     }
 }
+
+#endif

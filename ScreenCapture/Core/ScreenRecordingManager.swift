@@ -592,9 +592,11 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     private func makeCaptureEngine() -> CaptureEngine {
         // Prefer native ScreenCaptureKit recording output on macOS 15+.
         // AVAssetWriter has shown intermittent output routing and stability issues.
+        #if compiler(>=6.0)
         if #available(macOS 15.0, *) {
             return SCRecordingOutputEngine()
         }
+        #endif
 
         return AVAssetWriterCaptureEngine()
     }

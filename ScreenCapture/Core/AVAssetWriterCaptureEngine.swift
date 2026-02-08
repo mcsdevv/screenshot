@@ -302,10 +302,12 @@ final class AVAssetWriterCaptureEngine: NSObject, CaptureEngine {
         streamConfig.channelCount = 2
         streamConfig.excludesCurrentProcessAudio = config.excludesCurrentProcessAudio
 
+        #if compiler(>=6.0)
         if #available(macOS 15.0, *) {
             streamConfig.captureMicrophone = config.includeMicrophone
             streamConfig.showMouseClicks = config.includeCursor && config.showMouseClicks
         }
+        #endif
 
         return streamConfig
     }
