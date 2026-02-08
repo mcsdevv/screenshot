@@ -30,13 +30,6 @@ struct RecordingSelectionView: View {
 
                 SelectionInfoPanel(position: mousePosition, selection: currentSelectionRect)
 
-                if !isSelecting {
-                    VStack {
-                        instructionBar
-                            .padding(.top, DSSpacing.xxl)
-                        Spacer()
-                    }
-                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
@@ -53,26 +46,6 @@ struct RecordingSelectionView: View {
                 onCancel()
             }
         }
-    }
-
-    // MARK: - Instruction Bar
-
-    private var instructionBar: some View {
-        VStack(spacing: DSSpacing.sm) {
-            Text("Drag to select recording area")
-                .font(DSTypography.bodyMedium)
-                .foregroundColor(.dsTextSecondary)
-
-            HStack(spacing: DSSpacing.md) {
-                DSSecondaryButton("Cancel", icon: "xmark") {
-                    onCancel()
-                }
-            }
-        }
-        .padding(.horizontal, DSSpacing.xxl)
-        .padding(.vertical, DSSpacing.lg)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: DSRadius.lg))
     }
 
     // MARK: - Selection Geometry
