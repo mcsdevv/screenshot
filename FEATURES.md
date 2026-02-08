@@ -17,6 +17,7 @@ Interactive region selection for precise screenshots.
 | Shortcut (Safe Mode) | `Ctrl+Shift+4` |
 | Shortcut (Native Mode) | `Cmd+Shift+4` |
 | Format | PNG |
+| Cancel | `Esc` (immediate) |
 
 ### Capture Window
 Capture a specific window with optional shadow.
@@ -26,6 +27,7 @@ Capture a specific window with optional shadow.
 | Shortcut (Safe Mode) | `Ctrl+Shift+5` |
 | Shortcut (Native Mode) | `Cmd+Shift+5` |
 | Format | PNG |
+| Cancel | `Esc` (immediate) |
 | Options | Include/exclude window shadow |
 
 ### Capture Fullscreen

@@ -269,6 +269,10 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.level = .screenSaver
+        window.onEscapeKey = { [weak self] in
+            self?.closeSelectionWindow()
+            onCancel()
+        }
 
         selectionWindow = window
         NSApp.activate(ignoringOtherApps: true)
@@ -321,6 +325,12 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.level = .screenSaver
+        window.onEscapeKey = { [weak self] in
+            self?.closeWindowSelectionWindow()
+            guard let self else { return }
+            self.transitionSession { try self.sessionModel.markCancelled() }
+            self.transitionSession { try self.sessionModel.markIdle() }
+        }
 
         windowSelectionWindow = window
         NSApp.activate(ignoringOtherApps: true)
@@ -785,6 +795,11 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         window.hasShadow = false
         window.isMovableByWindowBackground = true
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        if showRecordButton {
+            window.onEscapeKey = { [weak self] in
+                self?.cancelPendingRecordingPreparation()
+            }
+        }
 
         controlWindow = window
         controlWindowOrigin = origin

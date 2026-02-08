@@ -6,6 +6,8 @@ import Vision
 // Custom window class that accepts key events (required for borderless windows)
 // Used by ScreenRecordingManager and other components
 class KeyableWindow: NSWindow {
+    var onEscapeKey: (() -> Void)?
+
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 
@@ -13,6 +15,15 @@ class KeyableWindow: NSWindow {
         super.init(contentRect: contentRect, styleMask: style, backing: backingStoreType, defer: flag)
         // Keep helper overlays visible to the user while preventing them from being encoded in captures.
         sharingType = .none
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53, let onEscapeKey {
+            onEscapeKey()
+            return
+        }
+
+        super.keyDown(with: event)
     }
 }
 
@@ -23,6 +34,8 @@ class ScreenshotManager: NSObject, ObservableObject {
     private var currentCaptureTask: Process?
     private var currentTempFile: URL?
     private var scrollingCapture: ScrollingCapture?
+    private var localEscapeMonitor: Any?
+    private var globalEscapeMonitor: Any?
 
     enum PendingAction {
         case save, ocr, pin
@@ -80,9 +93,12 @@ class ScreenshotManager: NSObject, ObservableObject {
     }
 
     func cancelPendingCapture(reason: String) {
+        removeEscapeCancellationMonitors()
+
         guard let task = currentCaptureTask else { return }
         debugLog("Cancelling screencapture task (\(reason))")
         if task.isRunning {
+            task.interrupt()
             task.terminate()
         }
         currentCaptureTask = nil
@@ -121,6 +137,12 @@ class ScreenshotManager: NSObject, ObservableObject {
         task.arguments = arguments
         currentCaptureTask = task
 
+        if interactive || windowMode {
+            installEscapeCancellationMonitors()
+        } else {
+            removeEscapeCancellationMonitors()
+        }
+
         debugLog("Running: screencapture \(arguments.joined(separator: " "))")
 
         task.terminationHandler = { [weak self] process in
@@ -130,6 +152,7 @@ class ScreenshotManager: NSObject, ObservableObject {
                 if isCurrentTask {
                     self.currentCaptureTask = nil
                     self.currentTempFile = nil
+                    self.removeEscapeCancellationMonitors()
                 }
 
                 guard isCurrentTask else {
@@ -162,6 +185,44 @@ class ScreenshotManager: NSObject, ObservableObject {
             try task.run()
         } catch {
             errorLog("Failed to run screencapture", error: error)
+            removeEscapeCancellationMonitors()
+            currentCaptureTask = nil
+            currentTempFile = nil
+            try? FileManager.default.removeItem(at: tempFile)
+        }
+    }
+
+    private func installEscapeCancellationMonitors() {
+        removeEscapeCancellationMonitors()
+
+        localEscapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard event.keyCode == 53 else { return event }
+
+            DispatchQueue.main.async {
+                self?.cancelPendingCapture(reason: "escape key pressed")
+            }
+
+            return nil
+        }
+
+        globalEscapeMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard event.keyCode == 53 else { return }
+
+            DispatchQueue.main.async {
+                self?.cancelPendingCapture(reason: "escape key pressed")
+            }
+        }
+    }
+
+    private func removeEscapeCancellationMonitors() {
+        if let localEscapeMonitor {
+            NSEvent.removeMonitor(localEscapeMonitor)
+            self.localEscapeMonitor = nil
+        }
+
+        if let globalEscapeMonitor {
+            NSEvent.removeMonitor(globalEscapeMonitor)
+            self.globalEscapeMonitor = nil
         }
     }
 
