@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		C54EEA7994EE4C18A04034F7 /* ScreenCaptureContentProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFDA57E1B9CB4EDE8D66B52C /* ScreenCaptureContentProvider.swift */; };
 		DACD5AD92F140FF500B8D83F /* SystemShortcutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DACD5AD72F140FF500B8D83F /* SystemShortcutManager.swift */; };
-		DACD5ADA2F140FF500B8D83F /* WebcamManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DACD5AD82F140FF500B8D83F /* WebcamManager.swift */; };
 		SC001 /* ScreenCaptureApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC101 /* ScreenCaptureApp.swift */; };
 		SC002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC102 /* AppDelegate.swift */; };
 		SC003 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC103 /* MenuBarController.swift */; };
@@ -65,7 +64,6 @@
 		TST014 /* SystemShortcutManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF014 /* SystemShortcutManagerTests.swift */; };
 		TST016 /* ScreenshotManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF016 /* ScreenshotManagerTests.swift */; };
 		TST017 /* ScreenRecordingManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF017 /* ScreenRecordingManagerTests.swift */; };
-		TST018 /* WebcamManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF018 /* WebcamManagerTests.swift */; };
 		TST020 /* MenuBarControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF020 /* MenuBarControllerTests.swift */; };
 		TST021 /* RecordingSessionModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF021 /* RecordingSessionModelTests.swift */; };
 		TST022 /* RecordingConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF022 /* RecordingConfigTests.swift */; };
@@ -97,7 +95,6 @@
 
 /* Begin PBXFileReference section */
 		DACD5AD72F140FF500B8D83F /* SystemShortcutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemShortcutManager.swift; sourceTree = "<group>"; };
-		DACD5AD82F140FF500B8D83F /* WebcamManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamManager.swift; sourceTree = "<group>"; };
 		DFDA57E1B9CB4EDE8D66B52C /* ScreenCaptureContentProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureContentProvider.swift; sourceTree = "<group>"; };
 		SC100 /* ScreenCapture.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScreenCapture.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		SC101 /* ScreenCaptureApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureApp.swift; sourceTree = "<group>"; };
@@ -157,7 +154,6 @@
 		TSTF014 /* SystemShortcutManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemShortcutManagerTests.swift; sourceTree = "<group>"; };
 		TSTF016 /* ScreenshotManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotManagerTests.swift; sourceTree = "<group>"; };
 		TSTF017 /* ScreenRecordingManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecordingManagerTests.swift; sourceTree = "<group>"; };
-		TSTF018 /* WebcamManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamManagerTests.swift; sourceTree = "<group>"; };
 		TSTF020 /* MenuBarControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarControllerTests.swift; sourceTree = "<group>"; };
 		TSTF021 /* RecordingSessionModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSessionModelTests.swift; sourceTree = "<group>"; };
 		TSTF022 /* RecordingConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingConfigTests.swift; sourceTree = "<group>"; };
@@ -247,7 +243,6 @@
 			isa = PBXGroup;
 			children = (
 				DACD5AD72F140FF500B8D83F /* SystemShortcutManager.swift */,
-				DACD5AD82F140FF500B8D83F /* WebcamManager.swift */,
 				SC104 /* ScreenshotManager.swift */,
 				SC105 /* ScreenRecordingManager.swift */,
 				SC142 /* RecordingSessionState.swift */,
@@ -386,7 +381,6 @@
 				TSTF017 /* ScreenRecordingManagerTests.swift */,
 				TSTF021 /* RecordingSessionModelTests.swift */,
 				TSTF022 /* RecordingConfigTests.swift */,
-				TSTF018 /* WebcamManagerTests.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -574,7 +568,6 @@
 				SC016 /* AnnotationTypes.swift in Sources */,
 				SC014 /* StorageManager.swift in Sources */,
 				DACD5AD92F140FF500B8D83F /* SystemShortcutManager.swift in Sources */,
-				DACD5ADA2F140FF500B8D83F /* WebcamManager.swift in Sources */,
 				SC001 /* ScreenCaptureApp.swift in Sources */,
 				SC002 /* AppDelegate.swift in Sources */,
 				SC003 /* MenuBarController.swift in Sources */,
@@ -631,7 +624,6 @@
 				TST017 /* ScreenRecordingManagerTests.swift in Sources */,
 				TST021 /* RecordingSessionModelTests.swift in Sources */,
 				TST022 /* RecordingConfigTests.swift in Sources */,
-				TST018 /* WebcamManagerTests.swift in Sources */,
 				TST020 /* MenuBarControllerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -197,20 +197,6 @@ Compact single-row toolbar with tooltips and keyboard shortcuts:
 
 ---
 
-## Webcam Overlay
-
-Floating camera feed during captures.
-
-| Setting | Value |
-|---------|-------|
-| Position | Top-right corner |
-| Size | 200x200px |
-| Camera | Front-facing (wide-angle) |
-| Mirroring | Enabled |
-| Corner Radius | 32pt |
-
----
-
 ## Capture History
 
 ### Views
@@ -362,7 +348,6 @@ screencapture://history    # Opens Capture History window
 | Permission | Usage |
 |------------|-------|
 | Screen Recording | ScreenCaptureKit capture |
-| Camera | Webcam overlay |
 | Microphone | Audio recording (optional) |
 | Files & Folders | Custom save locations |
 
@@ -383,6 +368,7 @@ When adding or modifying features, document changes here:
 | 2026-01-21 | 1.1.0 | Added Quick Access toast notifications and position config | FEATURES.md, quick-access.mdx |
 | 2026-01-21 | 1.1.0 | Added Text tool styling (frosted glass, resize handles, persistence) | FEATURES.md, tools.mdx |
 | 2026-01-21 | 1.1.0 | Added Pinned Screenshots toolbar details and shortcuts | FEATURES.md, pinned.mdx |
+| 2026-02-08 | 1.1.1 | Removed Webcam Overlay feature and camera permission usage | FEATURES.md, ScreenCaptureApp.swift, Info.plist, docs/features |
 
 ### Guidelines for Updating
 

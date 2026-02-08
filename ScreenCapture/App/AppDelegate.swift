@@ -8,7 +8,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     lazy var storageManager = StorageManager()
     lazy var screenshotManager = ScreenshotManager(storageManager: storageManager)
     lazy var screenRecordingManager = ScreenRecordingManager(storageManager: storageManager)
-    lazy var webcamManager: WebcamManager? = WebcamManager()
     lazy var keyboardShortcuts = KeyboardShortcuts()
     var quickAccessWindow: NSWindow?
     var quickAccessController: QuickAccessOverlayController?
@@ -155,7 +154,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         }
         quickAccessDismissWorkItem?.cancel()
         quickAccessDismissWorkItem = nil
-        webcamManager?.hideWebcam()
         toastController?.teardown()
         storageManager.saveHistory()
         storageManager.releaseSecurityScopedAccess()
