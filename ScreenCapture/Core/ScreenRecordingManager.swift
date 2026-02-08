@@ -56,6 +56,13 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
     private var controlWindow: NSWindow?
     private var selectionWindow: NSWindow?
+    private var windowSelectionWindow: NSWindow?
+    private var pendingRecordingMode: RecordingMode = .video
+
+    private enum RecordingMode {
+        case video
+        case gif
+    }
 
     init(storageManager: StorageManager) {
         self.storageManager = storageManager
@@ -90,20 +97,23 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Selection Flow
+
     private func startRecordingWithSelection() {
+        pendingRecordingMode = .video
         showAreaSelection { [weak self] rect in
             self?.startRecording(in: rect)
         }
     }
 
     private func startGIFRecordingWithSelection() {
+        pendingRecordingMode = .gif
         showAreaSelection { [weak self] rect in
             self?.startGIFRecording(in: rect)
         }
     }
 
     private func showAreaSelection(completion: @escaping (CGRect?) -> Void) {
-        // Dismiss any existing selection window first
         closeSelectionWindow()
 
         guard let screen = NSScreen.main else {
@@ -118,7 +128,11 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             },
             onFullscreen: { [weak self] in
                 self?.closeSelectionWindow()
-                completion(screen.frame)
+                completion(nil)
+            },
+            onWindowSelect: { [weak self] in
+                self?.closeSelectionWindow()
+                self?.showWindowSelection()
             },
             onCancel: { [weak self] in
                 self?.closeSelectionWindow()
@@ -153,7 +167,6 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         guard let windowToClose = selectionWindow else { return }
         selectionWindow = nil
 
-        // Hide window immediately but defer all cleanup to next run loop
         windowToClose.orderOut(nil)
 
         Task { @MainActor in
@@ -161,6 +174,67 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             windowToClose.close()
         }
     }
+
+    // MARK: - Window Selection
+
+    private func showWindowSelection() {
+        guard let screen = NSScreen.main else { return }
+
+        let windowView = WindowSelectionView(
+            onWindowSelected: { [weak self] window in
+                self?.closeWindowSelectionWindow()
+                self?.startRecordingForWindow(window)
+            },
+            onCancel: { [weak self] in
+                self?.closeWindowSelectionWindow()
+            }
+        )
+
+        let hostingView = NSHostingView(rootView: windowView)
+        hostingView.frame = screen.frame
+
+        let window = KeyableWindow(
+            contentRect: screen.frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+
+        // CRITICAL: Prevent double-release crash under ARC
+        window.isReleasedWhenClosed = false
+
+        window.contentView = hostingView
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.level = .screenSaver
+
+        windowSelectionWindow = window
+        window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(hostingView)
+    }
+
+    private func closeWindowSelectionWindow() {
+        guard let windowToClose = windowSelectionWindow else { return }
+        windowSelectionWindow = nil
+
+        windowToClose.orderOut(nil)
+
+        Task { @MainActor in
+            windowToClose.contentView = nil
+            windowToClose.close()
+        }
+    }
+
+    private func startRecordingForWindow(_ window: SCWindow) {
+        switch pendingRecordingMode {
+        case .video:
+            startRecording(window: window)
+        case .gif:
+            startGIFRecording(window: window)
+        }
+    }
+
+    // MARK: - Video Recording (Area/Fullscreen)
 
     private func startRecording(in rect: CGRect?) {
         Task {
@@ -182,64 +256,102 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                 config.sampleRate = 48000
                 config.channelCount = 2
 
-                let outputURL = storageManager.generateRecordingURL()
-                assetWriter = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
-
-                let videoSettings: [String: Any] = [
-                    AVVideoCodecKey: AVVideoCodecType.h264,
-                    AVVideoWidthKey: config.width,
-                    AVVideoHeightKey: config.height,
-                    AVVideoCompressionPropertiesKey: [
-                        AVVideoAverageBitRateKey: 10_000_000,
-                        AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
-                    ]
-                ]
-
-                videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
-                videoInput?.expectsMediaDataInRealTime = true
-
-                let audioSettings: [String: Any] = [
-                    AVFormatIDKey: kAudioFormatMPEG4AAC,
-                    AVSampleRateKey: 48000,
-                    AVNumberOfChannelsKey: 2,
-                    AVEncoderBitRateKey: 128000
-                ]
-
-                audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
-                audioInput?.expectsMediaDataInRealTime = true
-
-                if let videoInput = videoInput {
-                    assetWriter?.add(videoInput)
-                }
-                if let audioInput = audioInput {
-                    assetWriter?.add(audioInput)
-                }
-
-                streamOutput = CaptureOutput(
-                    videoInput: videoInput,
-                    audioInput: audioInput,
-                    assetWriter: assetWriter
-                )
-
-                stream = SCStream(filter: filter, configuration: config, delegate: nil)
-
-                try stream?.addStreamOutput(streamOutput!, type: .screen, sampleHandlerQueue: .global(qos: .userInteractive))
-                try stream?.addStreamOutput(streamOutput!, type: .audio, sampleHandlerQueue: .global(qos: .userInteractive))
-
-                assetWriter?.startWriting()
-                try await stream?.startCapture()
-
-                await MainActor.run {
-                    self.isRecording = true
-                    self.recordingStartTime = Date()
-                    self.recordingRect = rect
-                    self.startRecordingTimer()
-                    self.showRecordingControls()
-                    NotificationCenter.default.post(name: .recordingStarted, object: nil)
-                }
+                try await beginVideoRecording(filter: filter, config: config)
             } catch {
-                print("Recording error: \(error)")
+                errorLog("Failed to start recording", error: error)
             }
+        }
+    }
+
+    // MARK: - Video Recording (Window)
+
+    private func startRecording(window scWindow: SCWindow) {
+        Task {
+            do {
+                let filter = SCContentFilter(desktopIndependentWindow: scWindow)
+
+                let scaleFactor = NSScreen.main?.backingScaleFactor ?? 2.0
+                let config = SCStreamConfiguration()
+                config.width = Int(scWindow.frame.width * scaleFactor)
+                config.height = Int(scWindow.frame.height * scaleFactor)
+                config.showsCursor = true
+                config.captureResolution = .best
+                config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
+                config.capturesAudio = true
+                config.sampleRate = 48000
+                config.channelCount = 2
+
+                debugLog("Starting window recording: \(scWindow.owningApplication?.applicationName ?? "unknown") - \(config.width)x\(config.height)")
+                try await beginVideoRecording(filter: filter, config: config)
+            } catch {
+                errorLog("Failed to start window recording", error: error)
+            }
+        }
+    }
+
+    /// Shared video recording setup used by both area and window recording
+    private func beginVideoRecording(filter: SCContentFilter, config: SCStreamConfiguration) async throws {
+        let outputURL = storageManager.generateRecordingURL()
+        assetWriter = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
+
+        let videoSettings: [String: Any] = [
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: config.width,
+            AVVideoHeightKey: config.height,
+            AVVideoCompressionPropertiesKey: [
+                AVVideoAverageBitRateKey: 10_000_000,
+                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
+            ]
+        ]
+
+        videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
+        videoInput?.expectsMediaDataInRealTime = true
+
+        let audioSettings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVSampleRateKey: 48000,
+            AVNumberOfChannelsKey: 2,
+            AVEncoderBitRateKey: 128000
+        ]
+
+        audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
+        audioInput?.expectsMediaDataInRealTime = true
+
+        if let videoInput = videoInput {
+            assetWriter?.add(videoInput)
+        }
+        if let audioInput = audioInput {
+            assetWriter?.add(audioInput)
+        }
+
+        streamOutput = CaptureOutput(
+            videoInput: videoInput,
+            audioInput: audioInput,
+            assetWriter: assetWriter
+        )
+
+        stream = SCStream(filter: filter, configuration: config, delegate: nil)
+
+        try stream?.addStreamOutput(streamOutput!, type: .screen, sampleHandlerQueue: .global(qos: .userInteractive))
+        try stream?.addStreamOutput(streamOutput!, type: .audio, sampleHandlerQueue: .global(qos: .userInteractive))
+
+        assetWriter?.startWriting()
+
+        guard assetWriter?.status == .writing else {
+            errorLog("AssetWriter failed to start: \(assetWriter?.error?.localizedDescription ?? "unknown")")
+            return
+        }
+
+        try await stream?.startCapture()
+
+        debugLog("Recording started - \(config.width)x\(config.height)")
+
+        await MainActor.run {
+            self.isRecording = true
+            self.recordingStartTime = Date()
+            self.startRecordingTimer()
+            self.showRecordingControls()
+            NotificationCenter.default.post(name: .recordingStarted, object: nil)
         }
     }
 
@@ -264,6 +376,12 @@ class ScreenRecordingManager: NSObject, ObservableObject {
 
                 let outputURL = assetWriter?.outputURL
 
+                if assetWriter?.status == .failed {
+                    errorLog("AssetWriter failed: \(assetWriter?.error?.localizedDescription ?? "unknown")")
+                }
+
+                debugLog("Recording stopped - output: \(outputURL?.lastPathComponent ?? "none")")
+
                 await MainActor.run {
                     self.isRecording = false
                     self.recordingTimer?.invalidate()
@@ -278,7 +396,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                     }
                 }
             } catch {
-                print("Stop recording error: \(error)")
+                errorLog("Failed to stop recording", error: error)
             }
 
             if let completion = completion {
@@ -289,9 +407,10 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - GIF Recording (Area/Fullscreen)
+
     private func startGIFRecording(in rect: CGRect?) {
         Task {
-            // Reset the frame collector
             await gifFrameCollector.reset()
 
             do {
@@ -308,30 +427,58 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                 config.showsCursor = true
                 config.minimumFrameInterval = CMTime(value: 1, timescale: 15)
 
-                // Capture reference to collector for use in callback
-                let collector = self.gifFrameCollector
-                streamOutput = GIFCaptureOutput { frame in
-                    Task {
-                        await collector.addFrame(frame)
-                    }
-                }
-
-                stream = SCStream(filter: filter, configuration: config, delegate: nil)
-                try stream?.addStreamOutput(streamOutput!, type: .screen, sampleHandlerQueue: .global(qos: .userInteractive))
-
-                try await stream?.startCapture()
-
-                await MainActor.run {
-                    self.isGIFRecording = true
-                    self.recordingStartTime = Date()
-                    self.recordingRect = rect
-                    self.startRecordingTimer()
-                    self.showRecordingControls()
-                    NotificationCenter.default.post(name: .recordingStarted, object: nil)
-                }
+                try await beginGIFRecording(filter: filter, config: config)
             } catch {
-                print("GIF recording error: \(error)")
+                errorLog("Failed to start GIF recording", error: error)
             }
+        }
+    }
+
+    // MARK: - GIF Recording (Window)
+
+    private func startGIFRecording(window scWindow: SCWindow) {
+        Task {
+            await gifFrameCollector.reset()
+
+            do {
+                let filter = SCContentFilter(desktopIndependentWindow: scWindow)
+
+                let config = SCStreamConfiguration()
+                config.width = Int(scWindow.frame.width)
+                config.height = Int(scWindow.frame.height)
+                config.showsCursor = true
+                config.minimumFrameInterval = CMTime(value: 1, timescale: 15)
+
+                debugLog("Starting window GIF recording: \(scWindow.owningApplication?.applicationName ?? "unknown") - \(config.width)x\(config.height)")
+                try await beginGIFRecording(filter: filter, config: config)
+            } catch {
+                errorLog("Failed to start window GIF recording", error: error)
+            }
+        }
+    }
+
+    /// Shared GIF recording setup used by both area and window recording
+    private func beginGIFRecording(filter: SCContentFilter, config: SCStreamConfiguration) async throws {
+        let collector = self.gifFrameCollector
+        streamOutput = GIFCaptureOutput { frame in
+            Task {
+                await collector.addFrame(frame)
+            }
+        }
+
+        stream = SCStream(filter: filter, configuration: config, delegate: nil)
+        try stream?.addStreamOutput(streamOutput!, type: .screen, sampleHandlerQueue: .global(qos: .userInteractive))
+
+        try await stream?.startCapture()
+
+        debugLog("GIF recording started - \(config.width)x\(config.height), fps: 15")
+
+        await MainActor.run {
+            self.isGIFRecording = true
+            self.recordingStartTime = Date()
+            self.startRecordingTimer()
+            self.showRecordingControls()
+            NotificationCenter.default.post(name: .recordingStarted, object: nil)
         }
     }
 
@@ -341,8 +488,8 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                 try await stream?.stopCapture()
                 stream = nil
 
-                // Get all collected frames from the actor
                 let gifFrames = await gifFrameCollector.getFramesAndReset()
+                debugLog("GIF recording stopped - \(gifFrames.count) frames collected")
 
                 let encoder = GIFEncoder()
                 let outputURL = storageManager.generateGIFURL()
@@ -356,17 +503,19 @@ class ScreenRecordingManager: NSObject, ObservableObject {
                     NotificationCenter.default.post(name: .recordingStopped, object: nil)
                 }
 
-                // Use async API for GIF creation
                 let success = await encoder.createGIF(from: gifFrames, outputURL: outputURL, frameDelay: 1.0/15.0)
 
                 if success {
+                    debugLog("GIF created at \(outputURL.lastPathComponent)")
                     await MainActor.run {
                         let capture = self.storageManager.saveGIF(url: outputURL)
                         NotificationCenter.default.post(name: .recordingCompleted, object: capture)
                     }
+                } else {
+                    errorLog("GIF creation failed - \(gifFrames.count) frames, output: \(outputURL.lastPathComponent)")
                 }
             } catch {
-                print("Stop GIF recording error: \(error)")
+                errorLog("Failed to stop GIF recording", error: error)
             }
 
             if let completion = completion {
@@ -376,6 +525,8 @@ class ScreenRecordingManager: NSObject, ObservableObject {
             }
         }
     }
+
+    // MARK: - Recording Controls
 
     private func startRecordingTimer() {
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
@@ -390,7 +541,6 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     private func showRecordingControls() {
         guard let screen = NSScreen.main else { return }
 
-        // Close any existing control window first
         hideRecordingControls()
 
         let controlView = RecordingControlsView(
@@ -415,7 +565,6 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         let centerX = screen.frame.midX - controlSize.width / 2
         let bottomY = screen.visibleFrame.minY + 20
 
-        // Use KeyableWindow for proper event handling
         let window = KeyableWindow(
             contentRect: NSRect(x: centerX, y: bottomY, width: controlSize.width, height: controlSize.height),
             styleMask: [.borderless],
@@ -441,7 +590,6 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         guard let windowToClose = controlWindow else { return }
         controlWindow = nil
 
-        // Hide window immediately but defer all cleanup to next run loop
         windowToClose.orderOut(nil)
 
         Task { @MainActor in
@@ -454,6 +602,8 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         isPaused.toggle()
     }
 }
+
+// MARK: - Video Capture Output
 
 class CaptureOutput: NSObject, SCStreamOutput {
     private let videoInput: AVAssetWriterInput?
@@ -474,6 +624,7 @@ class CaptureOutput: NSObject, SCStreamOutput {
 
         queue.async { [weak self] in
             guard let self = self else { return }
+            guard self.assetWriter?.status == .writing || !self.sessionStarted else { return }
 
             if !self.sessionStarted {
                 let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
@@ -509,9 +660,12 @@ class CaptureOutput: NSObject, SCStreamOutput {
     }
 }
 
+// MARK: - GIF Capture Output
+
 class GIFCaptureOutput: NSObject, SCStreamOutput {
     private let onFrame: (CGImage) -> Void
     private let ciContext = CIContext(options: [.cacheIntermediates: false])
+    private var frameCount = 0
 
     init(onFrame: @escaping (CGImage) -> Void) {
         self.onFrame = onFrame
@@ -525,94 +679,8 @@ class GIFCaptureOutput: NSObject, SCStreamOutput {
         let ciImage = CIImage(cvPixelBuffer: imageBuffer)
 
         if let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) {
+            frameCount += 1
             onFrame(cgImage)
         }
-    }
-}
-
-struct RecordingSelectionView: View {
-    let onSelection: (CGRect) -> Void
-    let onFullscreen: () -> Void
-    let onCancel: () -> Void
-
-    @State private var startPoint: CGPoint? = nil
-    @State private var currentPoint: CGPoint? = nil
-
-    init(onSelection: @escaping (CGRect) -> Void, onFullscreen: @escaping () -> Void, onCancel: @escaping () -> Void) {
-        self.onSelection = onSelection
-        self.onFullscreen = onFullscreen
-        self.onCancel = onCancel
-    }
-
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.3)
-
-            VStack(spacing: 20) {
-                Text("Select Recording Area")
-                    .font(.title)
-                    .foregroundColor(.white)
-
-                HStack(spacing: 16) {
-                    Button("Record Fullscreen") {
-                        onFullscreen()
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    Button("Cancel") {
-                        onCancel()
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-        }
-        .ignoresSafeArea()
-    }
-}
-
-struct RecordingControlsView: View {
-    @Binding var duration: TimeInterval
-    @Binding var isPaused: Bool
-    let onStop: () -> Void
-    let onPause: () -> Void
-
-    var body: some View {
-        HStack(spacing: 16) {
-            Circle()
-                .fill(Color.red)
-                .frame(width: 12, height: 12)
-                .opacity(isPaused ? 0.5 : 1.0)
-                .animation(.easeInOut(duration: 0.5).repeatForever(), value: !isPaused)
-
-            Text(formatDuration(duration))
-                .font(.system(size: 14, weight: .medium, design: .monospaced))
-                .foregroundColor(.white)
-
-            Spacer()
-
-            Button(action: onPause) {
-                Image(systemName: isPaused ? "play.fill" : "pause.fill")
-                    .foregroundColor(.white)
-            }
-            .buttonStyle(.plain)
-
-            Button(action: onStop) {
-                Image(systemName: "stop.fill")
-                    .foregroundColor(.white)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
-        .clipShape(Capsule())
-        .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
-    }
-
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        let tenths = Int((duration.truncatingRemainder(dividingBy: 1)) * 10)
-        return String(format: "%02d:%02d.%d", minutes, seconds, tenths)
     }
 }
