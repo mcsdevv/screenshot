@@ -303,6 +303,13 @@ struct QuickAccessOverlay: View {
 
     // MARK: - Thumbnail Section
 
+    private var overlayBadgeStyle: DSBadge.Style {
+        switch controller.capture.type {
+        case .recording, .gif: return .systemAccent
+        case .screenshot, .scrollingCapture: return .accent
+        }
+    }
+
     private var thumbnailSection: some View {
         Group {
             if let thumbnail = controller.thumbnail {
@@ -318,7 +325,7 @@ struct QuickAccessOverlay: View {
 
                     DSBadge(
                         text: controller.capture.type.rawValue.uppercased(),
-                        style: .accent
+                        style: overlayBadgeStyle
                     )
                     .padding(.top, DSSpacing.sm)
                     .padding(.trailing, DSSpacing.sm)
@@ -352,7 +359,7 @@ struct QuickAccessOverlay: View {
 
                     DSBadge(
                         text: controller.capture.type.rawValue.uppercased(),
-                        style: .accent
+                        style: overlayBadgeStyle
                     )
                     .padding(.top, DSSpacing.sm)
                     .padding(.trailing, DSSpacing.sm)

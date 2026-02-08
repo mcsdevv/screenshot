@@ -954,6 +954,7 @@ struct DSBadge: View {
 
     enum Style {
         case accent
+        case systemAccent
         case success
         case warning
         case danger
@@ -962,6 +963,7 @@ struct DSBadge: View {
         var color: Color {
             switch self {
             case .accent: return .dsAccent
+            case .systemAccent: return Color.accentColor
             case .success: return .dsSuccess
             case .warning: return .dsWarmAccent
             case .danger: return .dsDanger
