@@ -25,7 +25,7 @@ final class ScrollingCaptureTests: XCTestCase {
                 userDefaults: testDefaults ?? .standard
             )
         )
-        scrollingCapture = ScrollingCapture(storageManager: storageManager)
+        scrollingCapture = ScrollingCapture(storageManager: storageManager, onComplete: {})
     }
 
     override func tearDown() async throws {

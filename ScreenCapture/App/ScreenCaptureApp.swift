@@ -102,14 +102,6 @@ struct MenuBarMenuView: View {
                     Label("Record Screen", systemImage: "record.circle")
                 }
                 .keyboardShortcut("7", modifiers: captureModifiers)
-
-                Button {
-                    debugLog("MenuBar: Record GIF clicked")
-                    appDelegate.screenRecordingManager.toggleGIFRecording()
-                } label: {
-                    Label("Record GIF", systemImage: "gift")
-                }
-                .keyboardShortcut("8", modifiers: captureModifiers)
             } header: {
                 Label("Record", systemImage: "video.fill")
             }

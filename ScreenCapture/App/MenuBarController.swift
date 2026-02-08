@@ -80,6 +80,16 @@ class MenuBarController: NSObject {
         }
     }
 
+#if DEBUG
+    func menuItemExistsForTesting(_ title: String) -> Bool {
+        menu.items.contains { $0.title == title }
+    }
+
+    func keyEquivalentForMenuItemForTesting(_ title: String) -> String? {
+        menu.items.first { $0.title == title }?.keyEquivalent
+    }
+#endif
+
     private func setupMenu() {
         menu = NSMenu()
 
@@ -99,7 +109,6 @@ class MenuBarController: NSObject {
         menu.addItem(recordHeader)
 
         recordingMenuItem = addMenuItem(title: "Record Screen", icon: "video.fill", action: #selector(toggleRecording), keyEquivalent: "7", modifiers: [.control, .shift])
-        addMenuItem(title: "Record GIF", icon: "photo.on.rectangle.angled", action: #selector(recordGIF), keyEquivalent: "8", modifiers: [.control, .shift])
 
         menu.addItem(NSMenuItem.separator())
 
@@ -185,10 +194,6 @@ class MenuBarController: NSObject {
 
     @objc private func toggleRecording() {
         screenRecordingManager.toggleRecording()
-    }
-
-    @objc private func recordGIF() {
-        screenRecordingManager.toggleGIFRecording()
     }
 
     @objc private func captureOCR() {

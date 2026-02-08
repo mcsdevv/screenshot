@@ -100,10 +100,13 @@ final class AnnotationTypesTests: XCTestCase {
 
     func testAnnotationEquatable() {
         let id = UUID()
-        let annotation1 = Annotation(id: id, type: .arrow, rect: .zero)
-        let annotation2 = Annotation(id: id, type: .line, rect: CGRect(x: 10, y: 10, width: 20, height: 20))
+        let rect = CGRect(x: 10, y: 10, width: 20, height: 20)
+        let annotation1 = Annotation(id: id, type: .arrow, rect: rect)
+        let annotation2 = Annotation(id: id, type: .arrow, rect: rect)
+        let differentType = Annotation(id: id, type: .line, rect: rect)
 
-        XCTAssertEqual(annotation1, annotation2) // Same ID
+        XCTAssertEqual(annotation1, annotation2)
+        XCTAssertNotEqual(annotation1, differentType)
     }
 
     func testAnnotationCodable() throws {

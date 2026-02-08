@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
+import AVFoundation
 
 // Custom NSView that accepts first mouse to allow clicks without activation
 class FirstMouseView: NSView {
@@ -19,7 +20,9 @@ class QuickAccessOverlayController: ObservableObject {
     // NOT @Published - we manually control when SwiftUI updates
     // This prevents crashes from @Published updates during teardown
     var thumbnail: NSImage?
+    var thumbnailLoadFailed = false
     var isVisible = true
+    private var isLoadingThumbnail = false
 
     init(capture: CaptureItem, storageManager: StorageManager) {
         self.capture = capture
@@ -32,13 +35,56 @@ class QuickAccessOverlayController: ObservableObject {
     }
 
     func loadThumbnailIfNeeded() {
-        guard thumbnail == nil, isVisible else { return }
+        guard thumbnail == nil, !isLoadingThumbnail, isVisible else { return }
+        isLoadingThumbnail = true
+
         let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-        if let image = NSImage(contentsOf: url) {
-            self.thumbnail = image
-            // Manually trigger SwiftUI update - only do this when visible
-            objectWillChange.send()
+        let captureType = capture.type
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let image: NSImage?
+
+            switch captureType {
+            case .recording:
+                image = Self.generateVideoThumbnail(at: url)
+            default:
+                image = NSImage(contentsOf: url)
+            }
+
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isLoadingThumbnail = false
+
+                if let image {
+                    self.thumbnail = image
+                    self.thumbnailLoadFailed = false
+                } else {
+                    self.thumbnailLoadFailed = true
+                }
+
+                // Manually trigger SwiftUI update - only do this when visible
+                if self.isVisible {
+                    self.objectWillChange.send()
+                }
+            }
         }
+    }
+
+    private nonisolated static func generateVideoThumbnail(at url: URL) -> NSImage? {
+        let asset = AVURLAsset(url: url)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 1280, height: 720)
+
+        if let image = try? generator.copyCGImage(at: CMTime(seconds: 0.1, preferredTimescale: 600), actualTime: nil) {
+            return NSImage(cgImage: image, size: .zero)
+        }
+
+        if let image = try? generator.copyCGImage(at: .zero, actualTime: nil) {
+            return NSImage(cgImage: image, size: .zero)
+        }
+
+        return nil
     }
 
     func dismiss() {
@@ -293,7 +339,7 @@ struct QuickAccessOverlay: View {
                                 Image(systemName: controller.capture.type.icon)
                                     .font(.system(size: 40, weight: .light))
                                     .foregroundColor(.dsTextTertiary)
-                                Text("Loading...")
+                                Text(controller.thumbnailLoadFailed ? "Preview unavailable" : "Loading...")
                                     .font(DSTypography.caption)
                                     .foregroundColor(.dsTextTertiary)
                             }

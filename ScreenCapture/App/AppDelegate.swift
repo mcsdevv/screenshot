@@ -52,7 +52,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             return .terminateLater
         }
 
-        if screenRecordingManager.isRecording || screenRecordingManager.isGIFRecording {
+        if screenRecordingManager.isRecording || screenRecordingManager.isGIFRecording || screenRecordingManager.isExportingGIF {
             terminationReplyPending = true
             performTerminationCleanup(reason: reason) { [weak self] in
                 guard let self = self else { return }
@@ -405,11 +405,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
                     self?.screenRecordingManager.toggleRecording()
                 }
             },
-            onRecordGIF: { [weak self] in
-                DispatchQueue.main.async {
-                    self?.screenRecordingManager.toggleGIFRecording()
-                }
-            },
             onOCR: { [weak self] in
                 DispatchQueue.main.async {
                     self?.screenshotManager.captureForOCR()
@@ -740,7 +735,6 @@ struct AllInOneMenuView: View {
     let onCaptureFullscreen: () -> Void
     let onCaptureScrolling: () -> Void
     let onRecordVideo: () -> Void
-    let onRecordGIF: () -> Void
     let onOCR: () -> Void
     let onDismiss: () -> Void
 
@@ -783,11 +777,6 @@ struct AllInOneMenuView: View {
                 MenuButton(icon: "video.fill", title: "Record Video", shortcut: "⌃⇧7") {
                     onDismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onRecordVideo() }
-                }
-
-                MenuButton(icon: "photo.on.rectangle.angled", title: "Record GIF", shortcut: "⌃⇧8") {
-                    onDismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { onRecordGIF() }
                 }
 
                 Divider()

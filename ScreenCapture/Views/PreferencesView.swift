@@ -616,6 +616,7 @@ struct CapturePreferencesView: View {
 struct RecordingPreferencesView: View {
     @AppStorage("recordingQuality") private var recordingQuality = "high"
     @AppStorage("recordingFPS") private var recordingFPS = 60
+    @AppStorage("recordShowCursor") private var recordShowCursor = true
     @AppStorage("recordMicrophone") private var recordMicrophone = false
     @AppStorage("recordSystemAudio") private var recordSystemAudio = true
     @AppStorage("showMouseClicks") private var showMouseClicks = true
@@ -647,6 +648,10 @@ struct RecordingPreferencesView: View {
                     .pickerStyle(.segmented)
                     .frame(width: 140)
                 }
+
+                DSDivider()
+
+                DSToggle(isOn: $recordShowCursor, label: "Show cursor")
             }
 
             PreferenceSection("Audio") {

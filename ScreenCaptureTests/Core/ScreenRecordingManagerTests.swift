@@ -52,8 +52,9 @@ final class ScreenRecordingManagerTests: XCTestCase {
     func testInitialStateIsNotRecording() {
         XCTAssertFalse(recordingManager.isRecording)
         XCTAssertFalse(recordingManager.isGIFRecording)
-        XCTAssertFalse(recordingManager.isPaused)
+        XCTAssertFalse(recordingManager.isExportingGIF)
         XCTAssertEqual(recordingManager.recordingDuration, 0)
+        XCTAssertEqual(recordingManager.sessionState, .idle)
     }
 
     // MARK: - Published Properties Tests
@@ -89,9 +90,9 @@ final class ScreenRecordingManagerTests: XCTestCase {
         cancellable.cancel()
     }
 
-    func testIsPausedIsPublished() {
+    func testSessionStateIsPublished() {
         var changeCount = 0
-        let cancellable = recordingManager.$isPaused.sink { _ in
+        let cancellable = recordingManager.$sessionState.sink { _ in
             changeCount += 1
         }
 
@@ -174,38 +175,17 @@ final class RecordingControlsViewTests: XCTestCase {
     }
 }
 
-// MARK: - CaptureOutput Tests
+// MARK: - AVAssetWriterStreamOutput Tests
 
-final class CaptureOutputTests: XCTestCase {
+final class AVAssetWriterStreamOutputTests: XCTestCase {
 
-    func testCaptureOutputInitialization() {
-        let output = CaptureOutput(videoInput: nil, audioInput: nil, assetWriter: nil)
+    func testAVAssetWriterStreamOutputInitialization() {
+        let output = AVAssetWriterStreamOutput(
+            videoInput: nil,
+            systemAudioInput: nil,
+            microphoneAudioInput: nil,
+            assetWriter: nil
+        )
         XCTAssertNotNil(output)
-    }
-}
-
-// MARK: - GIFCaptureOutput Tests
-
-final class GIFCaptureOutputTests: XCTestCase {
-
-    func testGIFCaptureOutputInitialization() {
-        var frameCount = 0
-        let output = GIFCaptureOutput { _ in
-            frameCount += 1
-        }
-        XCTAssertNotNil(output)
-    }
-
-    func testGIFCaptureOutputCallbackType() {
-        var receivedFrame: CGImage?
-
-        let output = GIFCaptureOutput { frame in
-            receivedFrame = frame
-        }
-
-        // We can't easily trigger the callback without a real SCStream
-        // but we verify the output is properly initialized
-        XCTAssertNotNil(output)
-        XCTAssertNil(receivedFrame) // No frame received yet
     }
 }

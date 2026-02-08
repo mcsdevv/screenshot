@@ -21,22 +21,22 @@ Create animated GIFs for quick sharing and documentation.
 | Format | Animated GIF |
 | Frame Rate | 10, 15, or 20 FPS |
 | Loop | Infinite |
+| Export Pipeline | Temporary MP4 capture + `ffmpeg` GIF export |
 
 ## Quality Presets
 
 | Preset | Max Dimension | Frame Skip | Best For |
 |--------|---------------|------------|----------|
-| Low | 400px | 3 | Small file size |
-| Medium | 600px | 2 | Balanced quality |
-| High | 800px | 1 | High quality |
-| Original | Full | 0 | Maximum quality |
+| Low | 640px | 3 | Small file size |
+| Medium | 960px | 2 | Balanced quality |
+| High | 1280px | 1 | High quality |
 
 ## Tips
 
 - **Low preset** - Best for chat apps and quick sharing
 - **Medium preset** - Good balance for documentation
 - **High preset** - Detailed tutorials and demos
-- **Original preset** - When file size isn't a concern
+- GIF export requires `ffmpeg` to be installed
 
 ## Frame Rate
 
