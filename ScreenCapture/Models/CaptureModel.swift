@@ -123,10 +123,10 @@ enum ScreenCorner: String, Codable, CaseIterable, Sendable {
     /// Animation offset direction for entrance animation
     var entranceOffset: CGSize {
         switch self {
-        case .topLeft:     return CGSize(width: -30, height: 30)
-        case .topRight:    return CGSize(width: 30, height: 30)
-        case .bottomLeft:  return CGSize(width: -30, height: -30)
-        case .bottomRight: return CGSize(width: 30, height: -30)
+        case .topLeft:     return CGSize(width: -30, height: -30)
+        case .topRight:    return CGSize(width: 30, height: -30)
+        case .bottomLeft:  return CGSize(width: -30, height: 30)
+        case .bottomRight: return CGSize(width: 30, height: 30)
         }
     }
 }
