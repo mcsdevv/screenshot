@@ -4,10 +4,16 @@ import AppKit
 @main
 struct ScreenCaptureApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
+    @AppStorage(ScreenRecordingManager.recordWindowSelectionModeKey) private var isSelectingRecordWindow = false
+
+    private var menuBarSymbolName: String {
+        isSelectingRecordWindow ? "video" : "camera.viewfinder"
+    }
 
     var body: some Scene {
         // Menu bar extra - this is the SwiftUI native way to create menu bar items
-        MenuBarExtra("ScreenCapture", systemImage: "camera.viewfinder") {
+        MenuBarExtra("ScreenCapture", systemImage: menuBarSymbolName, isInserted: $showMenuBarIcon) {
             MenuBarMenuView(appDelegate: appDelegate)
         }
         .menuBarExtraStyle(.menu)
@@ -102,6 +108,14 @@ struct MenuBarMenuView: View {
                     Label("Record Screen", systemImage: "record.circle")
                 }
                 .keyboardShortcut("7", modifiers: captureModifiers)
+
+                Button {
+                    debugLog("MenuBar: Record Window clicked")
+                    appDelegate.screenRecordingManager.startWindowRecordingSelection()
+                } label: {
+                    Label("Record Window", systemImage: "video")
+                }
+                .keyboardShortcut("8", modifiers: [.shift, .option])
             } header: {
                 Label("Record", systemImage: "video.fill")
             }

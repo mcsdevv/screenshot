@@ -21,6 +21,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     private var terminationHandled = false
     private var userInitiatedQuit = false
     private var terminationReplyPending = false
+    private var quickAccessDismissWorkItem: DispatchWorkItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -152,9 +153,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         screenRecordingManager.stopActiveRecordingIfNeeded(reason: reason) {
             completion?()
         }
+        quickAccessDismissWorkItem?.cancel()
+        quickAccessDismissWorkItem = nil
         webcamManager?.hideWebcam()
         toastController?.teardown()
         storageManager.saveHistory()
+        storageManager.releaseSecurityScopedAccess()
         keyboardShortcuts.unregisterAll()
         DebugLogger.shared.flush()
     }
@@ -187,6 +191,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         keyboardShortcuts.register(shortcut: .recordScreen) { [weak self] in
             DispatchQueue.main.async {
                 self?.screenRecordingManager.toggleRecording()
+            }
+        }
+
+        keyboardShortcuts.register(shortcut: .recordWindow) { [weak self] in
+            DispatchQueue.main.async {
+                self?.screenRecordingManager.startWindowRecordingSelection()
             }
         }
 
@@ -236,7 +246,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             .sink { [weak self] capture in
                 // Defer overlay display to ensure capture processing is complete
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    self?.showQuickAccessOverlay(for: capture)
+                    self?.handleCaptureCompleted(capture)
                 }
             }
             .store(in: &cancellables)
@@ -247,7 +257,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             .sink { [weak self] capture in
                 // Defer overlay display to ensure recording processing is complete
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    self?.showQuickAccessOverlay(for: capture)
+                    self?.handleCaptureCompleted(capture)
                 }
             }
             .store(in: &cancellables)
@@ -269,6 +279,66 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
                 debugLog("AppDelegate: Re-registered shortcuts after remap, useNative=\(useNative)")
             }
             .store(in: &cancellables)
+    }
+
+    private func handleCaptureCompleted(_ capture: CaptureItem) {
+        switch afterCaptureAction {
+        case "clipboard":
+            if copyCaptureToClipboard(capture) {
+                return
+            }
+        case "save":
+            revealCaptureInFinder(capture)
+            return
+        case "editor":
+            if canOpenEditor(for: capture) {
+                showAnnotationEditor(for: capture)
+                return
+            }
+        default:
+            break
+        }
+
+        guard shouldShowQuickAccessOverlay else { return }
+        showQuickAccessOverlay(for: capture)
+    }
+
+    private var afterCaptureAction: String {
+        UserDefaults.standard.string(forKey: "afterCaptureAction") ?? "quickAccess"
+    }
+
+    private func canOpenEditor(for capture: CaptureItem) -> Bool {
+        capture.type == .screenshot || capture.type == .scrollingCapture
+    }
+
+    private func copyCaptureToClipboard(_ capture: CaptureItem) -> Bool {
+        guard canOpenEditor(for: capture) else { return false }
+
+        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+        guard let image = NSImage(contentsOf: url) else {
+            return false
+        }
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([image])
+        ToastManager.shared.show(.copy)
+        return true
+    }
+
+    private func revealCaptureInFinder(_ capture: CaptureItem) {
+        let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+        ToastManager.shared.show(.save)
+    }
+
+    private var shouldShowQuickAccessOverlay: Bool {
+        guard UserDefaults.standard.object(forKey: "showQuickAccess") != nil else { return true }
+        return UserDefaults.standard.bool(forKey: "showQuickAccess")
+    }
+
+    private var quickAccessDismissDelay: TimeInterval {
+        guard UserDefaults.standard.object(forKey: "quickAccessDuration") != nil else { return 5.0 }
+        return max(0, UserDefaults.standard.double(forKey: "quickAccessDuration"))
     }
 
     func showQuickAccessOverlay(for capture: CaptureItem) {
@@ -352,10 +422,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             window.orderFrontRegardless()
 
             debugLog("QuickAccessOverlay: Window shown and app activated for keyboard focus")
+
+            let dismissDelay = quickAccessDismissDelay
+            if dismissDelay > 0 {
+                let dismissWorkItem = DispatchWorkItem { [weak self] in
+                    self?.closeQuickAccessOverlay()
+                }
+                quickAccessDismissWorkItem = dismissWorkItem
+                DispatchQueue.main.asyncAfter(deadline: .now() + dismissDelay, execute: dismissWorkItem)
+            }
         }
     }
 
     func closeQuickAccessOverlay() {
+        quickAccessDismissWorkItem?.cancel()
+        quickAccessDismissWorkItem = nil
+
         guard let windowToClose = quickAccessWindow else { return }
         quickAccessWindow = nil
 

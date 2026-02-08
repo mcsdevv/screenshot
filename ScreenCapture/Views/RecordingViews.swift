@@ -83,7 +83,7 @@ struct RecordingSelectionView: View {
                 }
 
                 if let onWindowSelect = onWindowSelect {
-                    DSSecondaryButton("Record Window", icon: "macwindow") {
+                    DSSecondaryButton("Record Window", icon: "video") {
                         onWindowSelect()
                     }
                 }

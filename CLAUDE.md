@@ -2,6 +2,11 @@
 
 macOS screenshot/screen capture app. Swift + SwiftUI + ScreenCaptureKit.
 
+## Native-Only Rule (CRITICAL)
+
+Only native Apple frameworks/APIs are permitted for implementation and runtime behavior unless explicitly requested otherwise.
+Do not introduce or rely on shelling out to external binaries, private system utilities, or third-party tooling when a native API path exists.
+
 ## Build Commands
 
 ```bash

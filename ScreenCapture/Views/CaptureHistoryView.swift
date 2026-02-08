@@ -1,6 +1,8 @@
 import SwiftUI
 import AppKit
 import QuickLookUI
+import AVFoundation
+import ImageIO
 
 struct CaptureHistoryView: View {
     @EnvironmentObject var storageManager: StorageManager
@@ -510,7 +512,7 @@ struct CaptureGridCard: View {
     private func loadThumbnail() {
         Task { @MainActor in
             let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-            if let image = NSImage(contentsOf: url) {
+            if let image = makeThumbnailImage(for: capture.type, at: url, maxPixelSize: 440) {
                 thumbnail = image
             }
         }
@@ -667,7 +669,7 @@ struct CaptureListRow: View {
     private func loadThumbnail() {
         Task { @MainActor in
             let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-            if let image = NSImage(contentsOf: url) {
+            if let image = makeThumbnailImage(for: capture.type, at: url, maxPixelSize: 160) {
                 thumbnail = image
             }
         }
@@ -741,5 +743,33 @@ struct CaptureListItem: View {
             onSelect: {},
             onDoubleClick: {}
         )
+    }
+}
+
+private func makeThumbnailImage(for type: CaptureType, at url: URL, maxPixelSize: CGFloat) -> NSImage? {
+    switch type {
+    case .recording:
+        let asset = AVURLAsset(url: url)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: maxPixelSize, height: maxPixelSize)
+
+        if let cgImage = try? generator.copyCGImage(at: CMTime(seconds: 0.1, preferredTimescale: 600), actualTime: nil) {
+            return NSImage(cgImage: cgImage, size: .zero)
+        }
+        if let cgImage = try? generator.copyCGImage(at: .zero, actualTime: nil) {
+            return NSImage(cgImage: cgImage, size: .zero)
+        }
+        return nil
+
+    case .screenshot, .scrollingCapture, .gif:
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        return NSImage(cgImage: cgImage, size: .zero)
     }
 }

@@ -1,6 +1,7 @@
 import AppKit
 import ScreenCaptureKit
 import SwiftUI
+import Vision
 
 @MainActor
 class ScrollingCapture: NSObject {
@@ -215,8 +216,17 @@ class ImageStitcher {
             maxWidth = max(maxWidth, image.size.width)
         }
 
-        let overlapEstimate = images[0].size.height * 0.1
-        let adjustedHeight = totalHeight - (overlapEstimate * CGFloat(images.count - 1))
+        var overlaps: [CGFloat] = []
+        overlaps.reserveCapacity(max(0, images.count - 1))
+
+        for index in 1..<images.count {
+            let overlap = estimateOverlap(previous: images[index - 1], next: images[index])
+                ?? (images[index].size.height * 0.1)
+            overlaps.append(max(0, min(overlap, images[index].size.height * 0.5)))
+        }
+
+        let totalOverlap = overlaps.reduce(0, +)
+        let adjustedHeight = max(1, totalHeight - totalOverlap)
 
         let stitchedSize = NSSize(width: maxWidth, height: adjustedHeight)
         let stitchedImage = NSImage(size: stitchedSize)
@@ -226,14 +236,15 @@ class ImageStitcher {
         var currentY = adjustedHeight
 
         for (index, image) in images.enumerated() {
-            let drawHeight = index == 0 ? image.size.height : image.size.height - overlapEstimate
+            let overlap = index == 0 ? 0 : overlaps[index - 1]
+            let drawHeight = index == 0 ? image.size.height : image.size.height - overlap
             currentY -= (index == 0 ? image.size.height : drawHeight)
 
             let sourceRect: NSRect
             if index == 0 {
                 sourceRect = NSRect(origin: .zero, size: image.size)
             } else {
-                sourceRect = NSRect(x: 0, y: overlapEstimate, width: image.size.width, height: drawHeight)
+                sourceRect = NSRect(x: 0, y: overlap, width: image.size.width, height: drawHeight)
             }
 
             let destRect = NSRect(x: 0, y: currentY, width: image.size.width, height: index == 0 ? image.size.height : drawHeight)
@@ -244,6 +255,129 @@ class ImageStitcher {
         stitchedImage.unlockFocus()
 
         return stitchedImage
+    }
+
+    private func estimateOverlap(previous: NSImage, next: NSImage) -> CGFloat? {
+        guard let previousCG = previous.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              let nextCG = next.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
+
+        let request = VNTranslationalImageRegistrationRequest(targetedCGImage: previousCG)
+        let handler = VNImageRequestHandler(cgImage: nextCG, options: [:])
+
+        do {
+            try handler.perform([request])
+            guard let observation = request.results?.first as? VNImageTranslationAlignmentObservation,
+                  observation.confidence > 0.3 else {
+                return nil
+            }
+
+            let translationY = abs(observation.alignmentTransform.ty)
+            let overlap = previous.size.height - translationY
+            let maxAllowedOverlap = min(previous.size.height, next.size.height) * 0.6
+            guard overlap.isFinite, overlap > 0, overlap <= maxAllowedOverlap else {
+                return nil
+            }
+
+            // Vision can return unstable alignment for low-texture inputs.
+            // Verify that the predicted overlap bands are visually similar.
+            guard hasSufficientOverlapSimilarity(previous: previous, next: next, overlap: overlap) else {
+                return nil
+            }
+
+            return overlap
+        } catch {
+            return nil
+        }
+    }
+
+    private func hasSufficientOverlapSimilarity(previous: NSImage, next: NSImage, overlap: CGFloat) -> Bool {
+        guard let previousRep = bitmapRepresentation(for: previous),
+              let nextRep = bitmapRepresentation(for: next) else {
+            return false
+        }
+
+        let minWidth = min(previousRep.pixelsWide, nextRep.pixelsWide)
+        let maxOverlapPixels = min(previousRep.pixelsHigh, nextRep.pixelsHigh)
+        let overlapPixels = max(1, min(Int(overlap.rounded()), maxOverlapPixels))
+
+        guard minWidth >= 8, overlapPixels >= 8 else { return false }
+
+        let sampleColumns = min(24, max(4, minWidth / 8))
+        let sampleRows = min(16, max(4, overlapPixels / 8))
+
+        guard sampleColumns > 0, sampleRows > 0 else { return false }
+
+        let xStep = max(1, minWidth / sampleColumns)
+        let yStep = max(1, overlapPixels / sampleRows)
+        let previousStartY = previousRep.pixelsHigh - overlapPixels
+
+        var totalDifference: CGFloat = 0
+        var channelSampleCount: CGFloat = 0
+        var pixelSampleCount: CGFloat = 0
+        var previousLuminanceSum: CGFloat = 0
+        var previousLuminanceSquaredSum: CGFloat = 0
+        var nextLuminanceSum: CGFloat = 0
+        var nextLuminanceSquaredSum: CGFloat = 0
+
+        for row in 0..<sampleRows {
+            let prevY = min(previousRep.pixelsHigh - 1, previousStartY + (row * yStep))
+            let nextY = min(nextRep.pixelsHigh - 1, row * yStep)
+
+            for column in 0..<sampleColumns {
+                let x = min(minWidth - 1, column * xStep)
+                guard let previousColor = previousRep.colorAt(x: x, y: prevY)?.usingColorSpace(.sRGB),
+                      let nextColor = nextRep.colorAt(x: x, y: nextY)?.usingColorSpace(.sRGB) else {
+                    continue
+                }
+
+                totalDifference += abs(previousColor.redComponent - nextColor.redComponent)
+                totalDifference += abs(previousColor.greenComponent - nextColor.greenComponent)
+                totalDifference += abs(previousColor.blueComponent - nextColor.blueComponent)
+                channelSampleCount += 3
+
+                let previousLuminance = (0.2126 * previousColor.redComponent)
+                    + (0.7152 * previousColor.greenComponent)
+                    + (0.0722 * previousColor.blueComponent)
+                let nextLuminance = (0.2126 * nextColor.redComponent)
+                    + (0.7152 * nextColor.greenComponent)
+                    + (0.0722 * nextColor.blueComponent)
+
+                previousLuminanceSum += previousLuminance
+                previousLuminanceSquaredSum += previousLuminance * previousLuminance
+                nextLuminanceSum += nextLuminance
+                nextLuminanceSquaredSum += nextLuminance * nextLuminance
+                pixelSampleCount += 1
+            }
+        }
+
+        guard channelSampleCount > 0, pixelSampleCount > 0 else { return false }
+        let averageDifference = totalDifference / channelSampleCount
+
+        let previousMean = previousLuminanceSum / pixelSampleCount
+        let previousVariance = max(0, (previousLuminanceSquaredSum / pixelSampleCount) - (previousMean * previousMean))
+        let nextMean = nextLuminanceSum / pixelSampleCount
+        let nextVariance = max(0, (nextLuminanceSquaredSum / pixelSampleCount) - (nextMean * nextMean))
+
+        // Flat-color regions are ambiguous for registration and often produce unstable shifts.
+        guard previousVariance > 0.0008, nextVariance > 0.0008 else {
+            return false
+        }
+
+        // 0 = identical colors, 1 = completely different.
+        return averageDifference < 0.20
+    }
+
+    private func bitmapRepresentation(for image: NSImage) -> NSBitmapImageRep? {
+        if let bitmap = image.representations.compactMap({ $0 as? NSBitmapImageRep }).first {
+            return bitmap
+        }
+
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
+        return NSBitmapImageRep(cgImage: cgImage)
     }
 }
 

@@ -8,6 +8,7 @@ class KeyboardShortcuts {
         case captureFullscreen = "captureFullscreen"
         case captureScrolling = "captureScrolling"
         case recordScreen = "recordScreen"
+        case recordWindow = "recordWindow"
         case recordGIF = "recordGIF"
         case allInOne = "allInOne"
         case ocr = "ocr"
@@ -21,6 +22,7 @@ class KeyboardShortcuts {
             case .captureFullscreen: return UInt32(kVK_ANSI_3)
             case .captureScrolling: return UInt32(kVK_ANSI_6)
             case .recordScreen: return UInt32(kVK_ANSI_7)
+            case .recordWindow: return UInt32(kVK_ANSI_8)
             case .recordGIF: return UInt32(kVK_ANSI_8)
             case .allInOne: return UInt32(kVK_ANSI_A)
             case .ocr: return UInt32(kVK_ANSI_O)
@@ -38,6 +40,8 @@ class KeyboardShortcuts {
                     return UInt32(cmdKey | shiftKey)
                 case .captureScrolling:
                     return UInt32(cmdKey | shiftKey)
+                case .recordWindow:
+                    return UInt32(optionKey | shiftKey)
                 case .recordScreen, .recordGIF, .ocr, .pinScreenshot:
                     return UInt32(cmdKey | shiftKey)
                 case .allInOne:
@@ -50,6 +54,8 @@ class KeyboardShortcuts {
                 switch self {
                 case .captureArea, .captureWindow, .captureFullscreen, .captureScrolling:
                     return UInt32(controlKey | shiftKey)
+                case .recordWindow:
+                    return UInt32(optionKey | shiftKey)
                 case .recordScreen, .recordGIF, .ocr, .pinScreenshot:
                     return UInt32(controlKey | shiftKey)
                 case .allInOne:
@@ -72,6 +78,7 @@ class KeyboardShortcuts {
             case .captureFullscreen: return "Capture Fullscreen"
             case .captureScrolling: return "Scrolling Capture"
             case .recordScreen: return "Record Screen"
+            case .recordWindow: return "Record Window"
             case .recordGIF: return "Record GIF"
             case .allInOne: return "All-in-One Menu"
             case .ocr: return "Capture Text (OCR)"
@@ -89,6 +96,7 @@ class KeyboardShortcuts {
                 case .captureFullscreen: return "⌘⇧3"
                 case .captureScrolling: return "⌘⇧6"
                 case .recordScreen: return "⌘⇧7"
+                case .recordWindow: return "⌥⇧8"
                 case .recordGIF: return "⌘⇧8"
                 case .allInOne: return "⌘⇧⌥A"
                 case .ocr: return "⌘⇧O"
@@ -102,6 +110,7 @@ class KeyboardShortcuts {
                 case .captureFullscreen: return "⌃⇧3"
                 case .captureScrolling: return "⌃⇧6"
                 case .recordScreen: return "⌃⇧7"
+                case .recordWindow: return "⌥⇧8"
                 case .recordGIF: return "⌃⇧8"
                 case .allInOne: return "⌃⇧⌥A"
                 case .ocr: return "⌃⇧O"
@@ -133,8 +142,8 @@ class KeyboardShortcuts {
 
     init() {
         KeyboardShortcuts.sharedInstance = self
-        // Check if native shortcuts have been remapped
-        useNativeShortcuts = SystemShortcutManager.shared.shortcutsRemapped
+        // Snapshot shortcut mode without crossing MainActor during initialization.
+        useNativeShortcuts = UserDefaults.standard.bool(forKey: "systemShortcutsRemapped")
         setupEventHandler()
     }
 

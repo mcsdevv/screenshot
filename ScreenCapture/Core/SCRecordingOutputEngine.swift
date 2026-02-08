@@ -203,12 +203,13 @@ final class SCRecordingOutputEngine: NSObject, CaptureEngine {
             guard let window = content.windows.first(where: { $0.windowID == windowID }) else {
                 throw CaptureEngineError.invalidWindowTarget(windowID)
             }
+            let display = try await ScreenCaptureContentProvider.shared.getDisplay(containing: window.frame)
             let filter = SCContentFilter(desktopIndependentWindow: window)
             return FilterContext(
                 filter: filter,
                 baseWidthPoints: window.frame.width,
                 baseHeightPoints: window.frame.height,
-                scaleFactor: NSScreen.main?.backingScaleFactor ?? 2.0,
+                scaleFactor: displayScaleFactor(for: display.displayID),
                 sourceRect: nil
             )
         }
