@@ -687,8 +687,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
         window.title = "Settings"
         window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
+        window.titleVisibility = .visible
         window.toolbarStyle = .unified
+
+        let toolbar = NSToolbar(identifier: "SettingsToolbar")
+        window.toolbar = toolbar
         window.contentView = hostingView
         window.center()
         window.delegate = self
