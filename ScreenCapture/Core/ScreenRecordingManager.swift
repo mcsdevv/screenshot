@@ -689,7 +689,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
         let probeTime = CMTime(seconds: min(duration.seconds * 0.05, max(duration.seconds - 0.001, 0)), preferredTimescale: 600)
 
         do {
-            _ = try generator.copyCGImage(at: probeTime, actualTime: nil)
+            _ = try await generator.generateCGImageAsync(at: probeTime)
         } catch {
             throw CaptureEngineError.outputFileInvalid(url, reason: "First-frame decode failed (\(describe(error: error)))")
         }
@@ -992,3 +992,27 @@ extension ScreenRecordingManager {
     }
 }
 #endif
+
+private enum AVAssetImageGeneratorAsyncError: Error {
+    case imageUnavailable
+}
+
+extension AVAssetImageGenerator {
+    func generateCGImageAsync(at requestedTime: CMTime) async throws -> CGImage {
+        try await withCheckedThrowingContinuation { continuation in
+            generateCGImageAsynchronously(for: requestedTime) { image, _, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                guard let image else {
+                    continuation.resume(throwing: AVAssetImageGeneratorAsyncError.imageUnavailable)
+                    return
+                }
+
+                continuation.resume(returning: image)
+            }
+        }
+    }
+}

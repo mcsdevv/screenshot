@@ -512,7 +512,12 @@ struct CaptureGridCard: View {
     private func loadThumbnail() {
         Task { @MainActor in
             let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-            if let image = makeThumbnailImage(for: capture.type, at: url, maxPixelSize: 440) {
+            let captureType = capture.type
+            let image = await Task.detached(priority: .userInitiated) {
+                await makeThumbnailImage(for: captureType, at: url, maxPixelSize: 440)
+            }.value
+
+            if let image {
                 thumbnail = image
             }
         }
@@ -669,7 +674,12 @@ struct CaptureListRow: View {
     private func loadThumbnail() {
         Task { @MainActor in
             let url = storageManager.screenshotsDirectory.appendingPathComponent(capture.filename)
-            if let image = makeThumbnailImage(for: capture.type, at: url, maxPixelSize: 160) {
+            let captureType = capture.type
+            let image = await Task.detached(priority: .userInitiated) {
+                await makeThumbnailImage(for: captureType, at: url, maxPixelSize: 160)
+            }.value
+
+            if let image {
                 thumbnail = image
             }
         }
@@ -746,7 +756,7 @@ struct CaptureListItem: View {
     }
 }
 
-private func makeThumbnailImage(for type: CaptureType, at url: URL, maxPixelSize: CGFloat) -> NSImage? {
+private func makeThumbnailImage(for type: CaptureType, at url: URL, maxPixelSize: CGFloat) async -> NSImage? {
     switch type {
     case .recording:
         let asset = AVURLAsset(url: url)
@@ -754,10 +764,10 @@ private func makeThumbnailImage(for type: CaptureType, at url: URL, maxPixelSize
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: maxPixelSize, height: maxPixelSize)
 
-        if let cgImage = try? generator.copyCGImage(at: CMTime(seconds: 0.1, preferredTimescale: 600), actualTime: nil) {
+        if let cgImage = try? await generator.generateCGImageAsync(at: CMTime(seconds: 0.1, preferredTimescale: 600)) {
             return NSImage(cgImage: cgImage, size: .zero)
         }
-        if let cgImage = try? generator.copyCGImage(at: .zero, actualTime: nil) {
+        if let cgImage = try? await generator.generateCGImageAsync(at: .zero) {
             return NSImage(cgImage: cgImage, size: .zero)
         }
         return nil
