@@ -416,7 +416,7 @@ extension AVAssetWriterCaptureEngine: SCStreamDelegate {
     }
 }
 
-final class AVAssetWriterStreamOutput: NSObject, SCStreamOutput {
+final class AVAssetWriterStreamOutput: NSObject, SCStreamOutput, @unchecked Sendable {
     struct OutputSummary: Sendable {
         let videoFrameCount: Int
         let systemAudioBufferCount: Int
