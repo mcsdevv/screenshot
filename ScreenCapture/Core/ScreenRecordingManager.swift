@@ -418,7 +418,7 @@ class ScreenRecordingManager: NSObject, ObservableObject {
     }
 
     private func startRecordingForWindowID(_ windowID: UInt32) {
-        startCaptureSession(target: .window(windowID: windowID))
+        prepareRecording(target: .window(windowID: windowID))
     }
 
     // MARK: - Session Start
