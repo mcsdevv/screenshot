@@ -17,6 +17,10 @@ struct ScreenCaptureApp: App {
             MenuBarMenuView(appDelegate: appDelegate)
         }
         .menuBarExtraStyle(.menu)
+
+        Settings {
+            PreferencesView()
+        }
         .commands {
             CommandGroup(replacing: .appInfo) { }
             CommandGroup(replacing: .appSettings) {
