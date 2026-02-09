@@ -21,8 +21,6 @@ struct ScreenCaptureApp: App {
         Settings {
             PreferencesView()
         }
-        .windowStyle(.automatic)
-        .windowToolbarStyle(.unified)
         .commands {
             CommandGroup(replacing: .appInfo) { }
         }

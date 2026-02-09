@@ -12,7 +12,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     var quickAccessWindow: NSWindow?
     var quickAccessController: QuickAccessOverlayController?
     var selectionOverlayWindow: NSWindow?
-    var settingsWindow: NSWindow?
+
     var annotationWindow: NSWindow?
     var keyboardShortcutsWindow: NSWindow?
     private var toastController: ToastWindowController?
@@ -647,10 +647,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             quickAccessController = nil
         }
 
-        // Handle Settings window close
-        if window === settingsWindow {
-            settingsWindow = nil
-        }
 
         // Handle Annotation Editor window close
         if window === annotationWindow {
@@ -666,38 +662,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     // MARK: - Settings
 
     @objc func openSettings() {
-        if let existingWindow = settingsWindow {
-            existingWindow.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-
-        let preferencesView = PreferencesView()
-        let hostingView = NSHostingView(rootView: preferencesView)
-
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 750, height: 600),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
-
-        // CRITICAL: Prevent double-release crash under ARC
-        window.isReleasedWhenClosed = false
-
-        window.title = "Settings"
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.toolbarStyle = .unified
-        window.contentView = hostingView
-        window.center()
-        window.delegate = self
-        window.minSize = NSSize(width: 700, height: 550)
-        window.maxSize = NSSize(width: 1200, height: 900)
-
-        settingsWindow = window
-        window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.main.async {
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        }
     }
 
     // MARK: - Annotation Editor
