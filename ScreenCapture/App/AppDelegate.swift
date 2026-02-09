@@ -665,10 +665,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
     // MARK: - Settings
 
+    private func bringSettingsWindowToFront(_ window: NSWindow) {
+        // Accessory apps can be activated programmatically; make the Settings window key
+        // and force it to the front so menu-triggered opens are immediately visible.
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+    }
+
     @objc func openSettings() {
         if let existingWindow = settingsWindow {
-            existingWindow.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            bringSettingsWindowToFront(existingWindow)
             return
         }
 
@@ -699,8 +706,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         window.maxSize = NSSize(width: 1200, height: 900)
 
         settingsWindow = window
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        bringSettingsWindowToFront(window)
     }
 
     // MARK: - Annotation Editor
