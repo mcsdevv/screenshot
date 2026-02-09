@@ -210,6 +210,54 @@ final class MenuBarMenuItemTests: XCTestCase {
     }
 }
 
+@MainActor
+final class AppDelegateSettingsWindowTests: XCTestCase {
+    private var appDelegate: AppDelegate!
+
+    override func setUp() {
+        super.setUp()
+        _ = NSApplication.shared
+        appDelegate = AppDelegate()
+    }
+
+    override func tearDown() {
+        appDelegate?.settingsWindow?.close()
+        appDelegate = nil
+        super.tearDown()
+    }
+
+    func testOpenSettingsCreatesAndReusesSingleWindowInstance() {
+        appDelegate.openSettings()
+
+        guard let firstWindow = appDelegate.settingsWindow else {
+            XCTFail("Expected settings window to be created")
+            return
+        }
+        XCTAssertTrue(firstWindow.isVisible)
+
+        appDelegate.openSettings()
+
+        guard let secondWindow = appDelegate.settingsWindow else {
+            XCTFail("Expected settings window to remain available")
+            return
+        }
+        XCTAssertTrue(firstWindow === secondWindow)
+        XCTAssertTrue(secondWindow.isVisible)
+    }
+
+    func testClosingSettingsWindowClearsStoredReference() {
+        appDelegate.openSettings()
+
+        guard let settingsWindow = appDelegate.settingsWindow else {
+            XCTFail("Expected settings window to be created")
+            return
+        }
+
+        settingsWindow.close()
+        XCTAssertNil(appDelegate.settingsWindow)
+    }
+}
+
 final class PreferencesSettingsContractTests: XCTestCase {
     private let actionBackedKeys: Set<String> = [
         "launchAtLogin"

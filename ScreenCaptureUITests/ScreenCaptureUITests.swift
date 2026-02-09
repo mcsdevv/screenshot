@@ -35,14 +35,13 @@ final class ScreenCaptureUITests: XCTestCase {
     // MARK: - Preferences Window Tests
 
     func testPreferencesWindowCanOpen() throws {
-        // Note: Opening preferences in a menu bar app typically requires
-        // clicking the menu bar icon first. This test may need adjustment
-        // based on the actual app behavior.
+        app.typeKey(",", modifierFlags: .command)
 
-        // For menu bar apps, we might need to use keyboard shortcuts
-        // or accessibility features to trigger actions
-
-        XCTAssertTrue(app.exists)
+        let settingsWindow = app.windows.firstMatch
+        XCTAssertTrue(
+            settingsWindow.waitForExistence(timeout: 2.0),
+            "Expected the Preferences window to appear after Cmd+,."
+        )
     }
 
     // MARK: - Accessibility Tests
