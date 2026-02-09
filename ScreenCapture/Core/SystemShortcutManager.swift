@@ -11,6 +11,9 @@ class SystemShortcutManager: NSObject, ObservableObject, NSWindowDelegate {
     /// Key for tracking if user has been prompted for shortcut mode
     private let hasPromptedForRemapKey = "hasPromptedForShortcutRemap"
 
+    /// Key for tracking if user has explicitly selected a shortcut mode.
+    private let hasChosenShortcutModeKey = "hasChosenShortcutMode"
+
     /// Key for tracking whether ScreenCapture should use Cmd+Shift layout
     private let shortcutsRemappedKey = "systemShortcutsRemapped"
 
@@ -49,6 +52,18 @@ class SystemShortcutManager: NSObject, ObservableObject, NSWindowDelegate {
         set { UserDefaults.standard.set(newValue, forKey: hasPromptedForRemapKey) }
     }
 
+    /// True once the user has explicitly chosen Standard or Safe mode.
+    /// Falls back to the existence of the persisted shortcut mode key for backwards compatibility.
+    var hasChosenShortcutMode: Bool {
+        get {
+            if let explicit = UserDefaults.standard.object(forKey: hasChosenShortcutModeKey) as? Bool {
+                return explicit
+            }
+            return UserDefaults.standard.object(forKey: shortcutsRemappedKey) != nil
+        }
+        set { UserDefaults.standard.set(newValue, forKey: hasChosenShortcutModeKey) }
+    }
+
     /// Whether ScreenCapture should use the standard Cmd+Shift layout.
     var shortcutsRemapped: Bool {
         get { UserDefaults.standard.bool(forKey: shortcutsRemappedKey) }
@@ -82,13 +97,14 @@ class SystemShortcutManager: NSObject, ObservableObject, NSWindowDelegate {
     /// Show the initial prompt asking user to choose shortcut mode.
     @discardableResult
     func showRemapPromptIfNeeded(from window: NSWindow? = nil) -> Bool {
-        guard !hasPromptedForRemap else { return false }
+        guard !hasChosenShortcutMode else { return false }
 
         let shown = showRemapAlert(from: window)
         if shown {
+            // Keep this key for analytics/legacy behavior, but do not use it to suppress future prompts.
             hasPromptedForRemap = true
         }
-        debugLog("ShortcutModePicker: promptIfNeeded shown=\(shown), hasPrompted=\(hasPromptedForRemap)")
+        debugLog("ShortcutModePicker: promptIfNeeded shown=\(shown), hasPrompted=\(hasPromptedForRemap), hasChosen=\(hasChosenShortcutMode)")
         return shown
     }
 
@@ -113,6 +129,9 @@ class SystemShortcutManager: NSObject, ObservableObject, NSWindowDelegate {
             },
             onChooseSafe: { [weak self] in
                 self?.applyShortcutModeSelection(useStandardShortcuts: false)
+            },
+            onDismiss: { [weak self] in
+                self?.dismissPickerWindow()
             },
             onOpenSettings: { [weak self] in
                 self?.openKeyboardShortcutsSettings()
@@ -141,7 +160,9 @@ class SystemShortcutManager: NSObject, ObservableObject, NSWindowDelegate {
         // CRITICAL: Prevent double-release crash under ARC
         pickerWindow.isReleasedWhenClosed = false
 
+        // Use a transparent full-size titlebar so only the traffic light is visible.
         pickerWindow.titlebarAppearsTransparent = true
+        pickerWindow.titlebarSeparatorStyle = .none
         pickerWindow.titleVisibility = .hidden
         pickerWindow.title = "Choose Shortcuts"
         pickerWindow.backgroundColor = .clear
@@ -154,8 +175,8 @@ class SystemShortcutManager: NSObject, ObservableObject, NSWindowDelegate {
         pickerWindow.hasShadow = true
         pickerWindow.isMovableByWindowBackground = true
 
-        // Keep red close traffic light visible so users can dismiss.
-        pickerWindow.standardWindowButton(.closeButton)?.isHidden = false
+        // Hide native traffic lights. The picker renders its own in-content red close control.
+        pickerWindow.standardWindowButton(.closeButton)?.isHidden = true
         pickerWindow.standardWindowButton(.miniaturizeButton)?.isHidden = true
         pickerWindow.standardWindowButton(.zoomButton)?.isHidden = true
 
@@ -174,6 +195,8 @@ class SystemShortcutManager: NSObject, ObservableObject, NSWindowDelegate {
         let succeeded = useStandardShortcuts ? disableNativeShortcuts() : enableNativeShortcuts()
 
         if succeeded {
+            hasChosenShortcutMode = true
+            hasPromptedForRemap = true
             NotificationCenter.default.post(name: .shortcutsRemapped, object: nil)
             ToastManager.shared.show(useStandardShortcuts ? .shortcutStandardEnabled : .shortcutSafeEnabled)
             dismissPickerWindow()

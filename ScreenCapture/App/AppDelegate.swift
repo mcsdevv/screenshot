@@ -98,10 +98,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
         // Show shortcut remapping prompt on first launch
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            SystemShortcutManager.shared.showRemapPromptIfNeeded()
+            self.attemptShortcutModePrompt(trigger: "launch-delay")
         }
 
         debugLog("Application finished launching")
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        // Retry when app becomes active in case launch timing missed the visible/active space.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            self.attemptShortcutModePrompt(trigger: "didBecomeActive")
+        }
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -148,6 +155,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         let preferencesItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
         preferencesItem.target = self
         appMenu.addItem(preferencesItem)
+
+        let shortcutPreferencesItem = NSMenuItem(title: "Shortcut Preferences...", action: #selector(openShortcutPreferences), keyEquivalent: "")
+        shortcutPreferencesItem.target = self
+        appMenu.addItem(shortcutPreferencesItem)
 
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(NSMenuItem(title: "Hide ScreenCapture", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"))
@@ -833,6 +844,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         bringSettingsWindowToFront(window)
     }
 
+    @objc func openShortcutPreferences() {
+        let shown = SystemShortcutManager.shared.showRemapAlert(from: settingsWindow ?? NSApp.keyWindow)
+        debugLog("ShortcutModePicker: manual open shown=\(shown)")
+    }
+
     // MARK: - Annotation Editor
 
     func showAnnotationEditor(for capture: CaptureItem) {
@@ -1074,6 +1090,13 @@ struct MenuButton: View {
             isHovered = hovering
         }
         .padding(.horizontal, 8)
+    }
+}
+
+private extension AppDelegate {
+    func attemptShortcutModePrompt(trigger: String) {
+        let shown = SystemShortcutManager.shared.showRemapPromptIfNeeded()
+        debugLog("ShortcutModePicker: trigger=\(trigger), shown=\(shown), hasPrompted=\(SystemShortcutManager.shared.hasPromptedForRemap), hasChosen=\(SystemShortcutManager.shared.hasChosenShortcutMode)")
     }
 }
 

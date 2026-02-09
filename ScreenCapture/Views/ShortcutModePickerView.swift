@@ -8,6 +8,7 @@ import AppKit
 struct ShortcutModePickerView: View {
     let onChooseStandard: () -> Void
     let onChooseSafe: () -> Void
+    let onDismiss: () -> Void
     let onOpenSettings: () -> Void
 
     @State private var isAppearing = false
@@ -85,6 +86,11 @@ struct ShortcutModePickerView: View {
             RoundedRectangle(cornerRadius: DSRadius.xl)
                 .strokeBorder(Color.dsBorder, lineWidth: 1)
         )
+        .overlay(alignment: .topLeading) {
+            PickerCloseTrafficLight(action: onDismiss)
+                .padding(.leading, 10)
+                .padding(.top, 10)
+        }
         .opacity(isAppearing ? 1 : 0)
         .scaleEffect(isAppearing ? 1 : 0.95)
         .onAppear {
@@ -96,6 +102,31 @@ struct ShortcutModePickerView: View {
             // Escape dismisses — defaults to safe mode
             onChooseSafe()
         }
+    }
+}
+
+private struct PickerCloseTrafficLight: View {
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(Color(red: 1, green: 0.38, blue: 0.36))
+                    .frame(width: 12, height: 12)
+
+                if isHovered {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 6, weight: .bold))
+                        .foregroundColor(Color(white: 0.2))
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .accessibilityLabel("Close")
     }
 }
 
