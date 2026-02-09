@@ -845,7 +845,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     }
 
     @objc func openShortcutPreferences() {
-        let shown = SystemShortcutManager.shared.showRemapAlert(from: settingsWindow ?? NSApp.keyWindow)
+        let shown = SystemShortcutManager.shared.showRemapAlert(from: NSApp.keyWindow)
         debugLog("ShortcutModePicker: manual open shown=\(shown)")
     }
 
