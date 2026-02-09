@@ -3,8 +3,66 @@ import SwiftUI
 import ScreenCaptureKit
 import Combine
 
+final class QuickAccessWindow: NSWindow {
+    var onHorizontalSwipe: (() -> Void)?
+
+    private var accumulatedHorizontalScroll: CGFloat = 0
+    private let horizontalDismissThreshold: CGFloat = 60
+
+    override func sendEvent(_ event: NSEvent) {
+        if handleHorizontalDismissGesture(event) {
+            return
+        }
+        super.sendEvent(event)
+    }
+
+    private func handleHorizontalDismissGesture(_ event: NSEvent) -> Bool {
+        switch event.type {
+        case .swipe:
+            if abs(event.deltaX) > abs(event.deltaY), abs(event.deltaX) > 0 {
+                onHorizontalSwipe?()
+                return true
+            }
+        case .scrollWheel:
+            let horizontal = event.scrollingDeltaX
+            let vertical = event.scrollingDeltaY
+            guard abs(horizontal) > abs(vertical), abs(horizontal) > 0 else {
+                resetAccumulatedHorizontalScrollIfNeeded(for: event)
+                return false
+            }
+
+            if event.phase == .began || event.phase == .mayBegin {
+                accumulatedHorizontalScroll = 0
+            }
+
+            accumulatedHorizontalScroll += horizontal
+            if abs(accumulatedHorizontalScroll) >= horizontalDismissThreshold {
+                accumulatedHorizontalScroll = 0
+                onHorizontalSwipe?()
+                return true
+            }
+
+            resetAccumulatedHorizontalScrollIfNeeded(for: event)
+        default:
+            break
+        }
+
+        return false
+    }
+
+    private func resetAccumulatedHorizontalScrollIfNeeded(for event: NSEvent) {
+        if event.phase == .ended || event.phase == .cancelled || event.momentumPhase == .ended || event.momentumPhase == .cancelled {
+            accumulatedHorizontalScroll = 0
+        }
+    }
+}
+
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, ObservableObject {
+    private static let quickAccessDurationKey = "quickAccessDuration"
+    private static let quickAccessDurationConfiguredKey = "quickAccessDurationConfigured"
+    private static let legacyQuickAccessDefaultDuration: TimeInterval = 5.0
+
     lazy var storageManager = StorageManager()
     lazy var screenshotManager = ScreenshotManager(storageManager: storageManager)
     lazy var screenRecordingManager = ScreenRecordingManager(storageManager: storageManager)
@@ -24,6 +82,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        migrateQuickAccessAutoDismissDefaultsIfNeeded()
 
         // Initialize debug logger
         debugLog("Application launching...")
@@ -336,8 +395,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
     }
 
     private var quickAccessDismissDelay: TimeInterval {
-        guard UserDefaults.standard.object(forKey: "quickAccessDuration") != nil else { return 5.0 }
-        return max(0, UserDefaults.standard.double(forKey: "quickAccessDuration"))
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: Self.quickAccessDurationConfiguredKey) else { return 0 }
+        return max(0, defaults.double(forKey: Self.quickAccessDurationKey))
+    }
+
+    private func migrateQuickAccessAutoDismissDefaultsIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: Self.quickAccessDurationConfiguredKey) == nil else { return }
+
+        let storedDuration = defaults.object(forKey: Self.quickAccessDurationKey) as? Double
+        switch storedDuration {
+        case nil:
+            // New installs should default to no timed auto-dismiss.
+            defaults.set(0.0, forKey: Self.quickAccessDurationKey)
+            defaults.set(false, forKey: Self.quickAccessDurationConfiguredKey)
+        case let value? where value == Self.legacyQuickAccessDefaultDuration:
+            // Migrate legacy implicit 5s default to "never" unless user explicitly reconfigures.
+            defaults.set(0.0, forKey: Self.quickAccessDurationKey)
+            defaults.set(false, forKey: Self.quickAccessDurationConfiguredKey)
+        default:
+            // Preserve non-default legacy values as explicit user intent.
+            defaults.set(true, forKey: Self.quickAccessDurationConfiguredKey)
+        }
     }
 
     func showQuickAccessOverlay(for capture: CaptureItem) {
@@ -350,9 +430,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         let controller = QuickAccessOverlayController(capture: capture, storageManager: storageManager)
         quickAccessController = controller
 
-        controller.setDismissAction { [weak self] in
+        controller.setDismissAction { [weak self] dismissMode in
             DispatchQueue.main.async {
-                self?.closeQuickAccessOverlay()
+                self?.closeQuickAccessOverlay(mode: dismissMode)
             }
         }
 
@@ -373,12 +453,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
             // Position using the full frame size so title bar doesn't push content down
             let origin = corner.windowOrigin(screenFrame: screenFrame, windowSize: frameRect.size, padding: DSSpacing.lg)
 
-            let window = NSWindow(
+            let window = QuickAccessWindow(
                 contentRect: NSRect(origin: .zero, size: windowSize),
                 styleMask: styleMask,
                 backing: .buffered,
                 defer: false
             )
+
+            window.onHorizontalSwipe = { [weak controller] in
+                debugLog("QuickAccessOverlay: Horizontal swipe detected, dismissing preview")
+                controller?.dismissWithSwipeAnimation()
+            }
 
             // Set the actual window frame position
             window.setFrameOrigin(origin)
@@ -433,7 +518,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         }
     }
 
-    func closeQuickAccessOverlay() {
+    func closeQuickAccessOverlay(mode: QuickAccessOverlayController.DismissMode = .immediate) {
         quickAccessDismissWorkItem?.cancel()
         quickAccessDismissWorkItem = nil
 
@@ -443,13 +528,52 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, Observable
         // Mark controller as not visible to prevent any further actions
         quickAccessController?.isVisible = false
 
+        if mode == .swipeToNearestEdge {
+            animateQuickAccessOverlayDismissal(windowToClose)
+        } else {
+            cleanupQuickAccessOverlayWindow(windowToClose)
+        }
+    }
+
+    private func animateQuickAccessOverlayDismissal(_ window: NSWindow) {
+        guard let screen = window.screen ?? NSScreen.main else {
+            cleanupQuickAccessOverlayWindow(window)
+            return
+        }
+
+        let screenFrame = screen.frame
+        let currentFrame = window.frame
+        let distanceToLeftEdge = abs(currentFrame.minX - screenFrame.minX)
+        let distanceToRightEdge = abs(screenFrame.maxX - currentFrame.maxX)
+        let shouldExitLeft = distanceToLeftEdge <= distanceToRightEdge
+        let horizontalPadding: CGFloat = 24
+
+        var targetFrame = currentFrame
+        targetFrame.origin.x = shouldExitLeft
+            ? screenFrame.minX - currentFrame.width - horizontalPadding
+            : screenFrame.maxX + horizontalPadding
+
+        window.ignoresMouseEvents = true
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.22
+            window.animator().setFrame(targetFrame, display: true)
+            window.animator().alphaValue = 0
+        } completionHandler: { [weak self] in
+            DispatchQueue.main.async {
+                self?.cleanupQuickAccessOverlayWindow(window)
+            }
+        }
+    }
+
+    private func cleanupQuickAccessOverlayWindow(_ window: NSWindow) {
         // Hide window immediately
-        windowToClose.orderOut(nil)
+        window.orderOut(nil)
 
         // Defer cleanup to next run loop to allow SwiftUI to finish
         DispatchQueue.main.async { [weak self] in
-            windowToClose.contentView = nil
-            windowToClose.close()
+            window.contentView = nil
+            window.close()
             self?.quickAccessController = nil
         }
     }

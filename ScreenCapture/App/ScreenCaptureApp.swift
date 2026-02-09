@@ -23,6 +23,12 @@ struct ScreenCaptureApp: App {
         }
         .commands {
             CommandGroup(replacing: .appInfo) { }
+            CommandGroup(replacing: .appSettings) {
+                Button("Preferences...") {
+                    appDelegate.openSettings()
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
         }
 
         WindowGroup("Capture History", id: "history") {
@@ -130,7 +136,10 @@ struct MenuBarMenuView: View {
             }
             .keyboardShortcut("s", modifiers: captureModifiers)
 
-            SettingsLink {
+            Button {
+                debugLog("MenuBar: Preferences clicked")
+                appDelegate.openSettings()
+            } label: {
                 Label("Preferences...", systemImage: "gearshape")
             }
             .keyboardShortcut(",", modifiers: .command)

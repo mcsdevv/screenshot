@@ -59,7 +59,8 @@ struct GeneralPreferencesView: View {
     @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
     @AppStorage("playSound") private var playSound = true
     @AppStorage("showQuickAccess") private var showQuickAccess = true
-    @AppStorage("quickAccessDuration") private var quickAccessDuration = 5.0
+    @AppStorage("quickAccessDuration") private var quickAccessDuration = 0.0
+    @AppStorage("quickAccessDurationConfigured") private var quickAccessDurationConfigured = false
     @AppStorage("popupCorner") private var popupCorner = ScreenCorner.bottomLeft.rawValue
     @AppStorage("afterCaptureAction") private var afterCaptureAction = "quickAccess"
 
@@ -82,7 +83,13 @@ struct GeneralPreferencesView: View {
                 Toggle("Show Quick Access overlay after capture", isOn: $showQuickAccess)
 
                 if showQuickAccess {
-                    Picker("Auto-dismiss after", selection: $quickAccessDuration) {
+                    Picker("Auto-dismiss after", selection: Binding(
+                        get: { quickAccessDuration },
+                        set: { newValue in
+                            quickAccessDuration = newValue
+                            quickAccessDurationConfigured = true
+                        }
+                    )) {
                         Text("3 seconds").tag(3.0)
                         Text("5 seconds").tag(5.0)
                         Text("10 seconds").tag(10.0)
