@@ -14,9 +14,14 @@ class FirstMouseView: NSView {
 // Use a class to safely manage the overlay's actions and lifecycle
 @MainActor
 class QuickAccessOverlayController: ObservableObject {
+    enum DismissMode {
+        case immediate
+        case swipeToNearestEdge
+    }
+
     let capture: CaptureItem
     let storageManager: StorageManager
-    private var dismissAction: (() -> Void)?
+    private var dismissAction: ((DismissMode) -> Void)?
 
     // NOT @Published - we manually control when SwiftUI updates
     // This prevents crashes from @Published updates during teardown
@@ -31,7 +36,7 @@ class QuickAccessOverlayController: ObservableObject {
         // Don't load thumbnail in init - do it when view appears
     }
 
-    func setDismissAction(_ action: @escaping () -> Void) {
+    func setDismissAction(_ action: @escaping (DismissMode) -> Void) {
         self.dismissAction = action
     }
 
@@ -112,7 +117,13 @@ class QuickAccessOverlayController: ObservableObject {
         isVisible = false
         // Call dismiss action - the window cleanup will handle releasing resources
         // Do NOT set thumbnail = nil here as it triggers SwiftUI re-render during teardown
-        dismissAction?()
+        dismissAction?(.immediate)
+    }
+
+    func dismissWithSwipeAnimation() {
+        guard isVisible else { return }
+        isVisible = false
+        dismissAction?(.swipeToNearestEdge)
     }
 
     func copyToClipboard() {
