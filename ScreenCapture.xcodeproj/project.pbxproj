@@ -46,6 +46,7 @@
 		SC045 /* CaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC145 /* CaptureEngine.swift */; };
 		SC046 /* SCRecordingOutputEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC146 /* SCRecordingOutputEngine.swift */; };
 		SC047 /* AVAssetWriterCaptureEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC147 /* AVAssetWriterCaptureEngine.swift */; };
+		SC048 /* ShortcutModePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SC148 /* ShortcutModePickerView.swift */; };
 		TST001 /* CaptureItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF001 /* CaptureItemTests.swift */; };
 		TST002 /* CaptureHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF002 /* CaptureHistoryTests.swift */; };
 		TST003 /* AnnotationTypesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSTF003 /* AnnotationTypesTests.swift */; };
@@ -129,6 +130,7 @@
 		SC145 /* CaptureEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureEngine.swift; sourceTree = "<group>"; };
 		SC146 /* SCRecordingOutputEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SCRecordingOutputEngine.swift; sourceTree = "<group>"; };
 		SC147 /* AVAssetWriterCaptureEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVAssetWriterCaptureEngine.swift; sourceTree = "<group>"; };
+		SC148 /* ShortcutModePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutModePickerView.swift; sourceTree = "<group>"; };
 		SC150 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		SC151 /* MainMenu.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = MainMenu.xib; sourceTree = "<group>"; };
 		SC152 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -270,6 +272,7 @@
 				SC122 /* BackgroundTool.swift */,
 				SC126 /* KeyboardShortcutsOverlay.swift */,
 				SC127 /* LayerPanelView.swift */,
+				SC148 /* ShortcutModePickerView.swift */,
 				SC309 /* Toast */,
 			);
 			path = Views;
@@ -589,6 +592,7 @@
 				SC030 /* ToastView.swift in Sources */,
 				SC031 /* ToastManager.swift in Sources */,
 				SC032 /* ToastWindow.swift in Sources */,
+				SC048 /* ShortcutModePickerView.swift in Sources */,
 				C54EEA7994EE4C18A04034F7 /* ScreenCaptureContentProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
