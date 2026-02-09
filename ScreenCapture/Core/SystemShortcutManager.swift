@@ -1,17 +1,24 @@
 import Foundation
 import AppKit
+import SwiftUI
 
 /// Manages screenshot shortcut mode within the app.
 /// Native macOS APIs do not support programmatic remapping of system screenshot shortcuts.
 @MainActor
-class SystemShortcutManager: ObservableObject {
+class SystemShortcutManager: NSObject, ObservableObject, NSWindowDelegate {
     static let shared = SystemShortcutManager()
 
     /// Key for tracking if user has been prompted for shortcut mode
     private let hasPromptedForRemapKey = "hasPromptedForShortcutRemap"
 
+    /// Key for tracking if user has explicitly selected a shortcut mode.
+    private let hasChosenShortcutModeKey = "hasChosenShortcutMode"
+
     /// Key for tracking whether ScreenCapture should use Cmd+Shift layout
     private let shortcutsRemappedKey = "systemShortcutsRemapped"
+
+    /// Reference to the picker window (retained to prevent ARC release)
+    private var pickerWindow: NSWindow?
 
     /// macOS symbolic hotkey IDs for screenshot shortcuts (reference only).
     enum ScreenshotHotkeyID: Int, CaseIterable {
@@ -35,12 +42,26 @@ class SystemShortcutManager: ObservableObject {
     /// We cannot reliably introspect this value using public APIs.
     @Published private(set) var areNativeShortcutsDisabled: Bool = false
 
-    private init() { }
+    private static let pickerWindowIdentifier = NSUserInterfaceItemIdentifier("ShortcutModePickerWindow")
+
+    private override init() { }
 
     /// Check if user has already been prompted for shortcut remapping
     var hasPromptedForRemap: Bool {
         get { UserDefaults.standard.bool(forKey: hasPromptedForRemapKey) }
         set { UserDefaults.standard.set(newValue, forKey: hasPromptedForRemapKey) }
+    }
+
+    /// True once the user has explicitly chosen Standard or Safe mode.
+    /// Falls back to the existence of the persisted shortcut mode key for backwards compatibility.
+    var hasChosenShortcutMode: Bool {
+        get {
+            if let explicit = UserDefaults.standard.object(forKey: hasChosenShortcutModeKey) as? Bool {
+                return explicit
+            }
+            return UserDefaults.standard.object(forKey: shortcutsRemappedKey) != nil
+        }
+        set { UserDefaults.standard.set(newValue, forKey: hasChosenShortcutModeKey) }
     }
 
     /// Whether ScreenCapture should use the standard Cmd+Shift layout.
@@ -74,46 +95,128 @@ class SystemShortcutManager: ObservableObject {
     }
 
     /// Show the initial prompt asking user to choose shortcut mode.
-    func showRemapPromptIfNeeded(from window: NSWindow? = nil) {
-        guard !hasPromptedForRemap else { return }
-        hasPromptedForRemap = true
-        showRemapAlert(from: window)
+    @discardableResult
+    func showRemapPromptIfNeeded(from window: NSWindow? = nil) -> Bool {
+        guard !hasChosenShortcutMode else { return false }
+
+        let shown = showRemapAlert(from: window)
+        if shown {
+            // Keep this key for analytics/legacy behavior, but do not use it to suppress future prompts.
+            hasPromptedForRemap = true
+        }
+        debugLog("ShortcutModePicker: promptIfNeeded shown=\(shown), hasPrompted=\(hasPromptedForRemap), hasChosen=\(hasChosenShortcutMode)")
+        return shown
     }
 
-    /// Show the shortcut mode alert dialog.
-    func showRemapAlert(from window: NSWindow? = nil) {
-        let alert = NSAlert()
-        alert.messageText = "Use Standard Screenshot Shortcuts?"
-        alert.informativeText = """
-            ScreenCapture can use ⌘⇧3, ⌘⇧4, and ⌘⇧5 for capture actions.
+    /// Show the shortcut mode picker dialog.
+    @discardableResult
+    func showRemapAlert(from window: NSWindow? = nil) -> Bool {
+        if let existingWindow = pickerWindow {
+            NSApp.activate(ignoringOtherApps: true)
+            existingWindow.makeKeyAndOrderFront(nil)
+            existingWindow.orderFrontRegardless()
+            return true
+        }
 
-            macOS does not provide a public API for apps to disable the built-in Screenshot shortcuts automatically. If you enable standard shortcuts here, disable the native Screenshot shortcuts manually in:
-            System Settings → Keyboard → Keyboard Shortcuts → Screenshots.
-            """
-        alert.alertStyle = .informational
-        alert.icon = NSImage(systemSymbolName: "keyboard", accessibilityDescription: nil)
+        let mouseLocation = NSEvent.mouseLocation
+        let mouseScreen = NSScreen.screens.first { NSMouseInRect(mouseLocation, $0.frame, false) }
+        let targetScreen = window?.screen ?? NSApp.keyWindow?.screen ?? mouseScreen ?? NSScreen.main ?? NSScreen.screens.first
+        guard let screen = targetScreen else { return false }
 
-        alert.addButton(withTitle: "Use Standard Shortcuts")
-        alert.addButton(withTitle: "Keep Current Shortcuts")
-        alert.addButton(withTitle: "Open Keyboard Shortcuts")
+        let pickerView = ShortcutModePickerView(
+            onChooseStandard: { [weak self] in
+                self?.applyShortcutModeSelection(useStandardShortcuts: true)
+            },
+            onChooseSafe: { [weak self] in
+                self?.applyShortcutModeSelection(useStandardShortcuts: false)
+            },
+            onDismiss: { [weak self] in
+                self?.dismissPickerWindow()
+            },
+            onOpenSettings: { [weak self] in
+                self?.openKeyboardShortcutsSettings()
+            }
+        )
 
-        let response = alert.runModal()
+        let windowSize = NSSize(width: 420, height: 380)
+        let hostingView = NSHostingView(rootView: pickerView)
+        hostingView.frame = NSRect(origin: .zero, size: windowSize)
 
-        switch response {
-        case .alertFirstButtonReturn:
-            shortcutsRemapped = true
+        let screenFrame = screen.visibleFrame
+        let windowFrame = NSRect(
+            x: screenFrame.midX - windowSize.width / 2,
+            y: screenFrame.midY - windowSize.height / 2,
+            width: windowSize.width,
+            height: windowSize.height
+        )
+
+        let pickerWindow = NSWindow(
+            contentRect: windowFrame,
+            styleMask: [.titled, .closable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+
+        // CRITICAL: Prevent double-release crash under ARC
+        pickerWindow.isReleasedWhenClosed = false
+
+        // Use a transparent full-size titlebar so only the traffic light is visible.
+        pickerWindow.titlebarAppearsTransparent = true
+        pickerWindow.titlebarSeparatorStyle = .none
+        pickerWindow.titleVisibility = .hidden
+        pickerWindow.title = "Choose Shortcuts"
+        pickerWindow.backgroundColor = .clear
+        pickerWindow.isOpaque = false
+        pickerWindow.contentView = hostingView
+        pickerWindow.identifier = Self.pickerWindowIdentifier
+        pickerWindow.delegate = self
+        pickerWindow.level = .floating
+        pickerWindow.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+        pickerWindow.hasShadow = true
+        pickerWindow.isMovableByWindowBackground = true
+
+        // Hide native traffic lights. The picker renders its own in-content red close control.
+        pickerWindow.standardWindowButton(.closeButton)?.isHidden = true
+        pickerWindow.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        pickerWindow.standardWindowButton(.zoomButton)?.isHidden = true
+
+        self.pickerWindow = pickerWindow
+
+        NSApp.activate(ignoringOtherApps: true)
+        pickerWindow.makeKeyAndOrderFront(nil)
+        pickerWindow.orderFrontRegardless()
+        debugLog("ShortcutModePicker: shown at frame=\(NSStringFromRect(windowFrame))")
+        return true
+    }
+
+    // MARK: - Private
+
+    private func applyShortcutModeSelection(useStandardShortcuts: Bool) {
+        let succeeded = useStandardShortcuts ? disableNativeShortcuts() : enableNativeShortcuts()
+
+        if succeeded {
+            hasChosenShortcutMode = true
+            hasPromptedForRemap = true
             NotificationCenter.default.post(name: .shortcutsRemapped, object: nil)
-
-        case .alertSecondButtonReturn:
-            shortcutsRemapped = false
-            NotificationCenter.default.post(name: .shortcutsRemapped, object: nil)
-
-        default:
-            openKeyboardShortcutsSettings()
+            ToastManager.shared.show(useStandardShortcuts ? .shortcutStandardEnabled : .shortcutSafeEnabled)
+            dismissPickerWindow()
+        } else {
+            ToastManager.shared.show(.shortcutModeUpdateFailed)
         }
     }
 
-    private func openKeyboardShortcutsSettings() {
+    private func dismissPickerWindow() {
+        guard let windowToClose = pickerWindow else { return }
+        pickerWindow = nil
+        windowToClose.delegate = nil
+        windowToClose.orderOut(nil)
+        DispatchQueue.main.async {
+            windowToClose.contentView = nil
+            windowToClose.close()
+        }
+    }
+
+    func openKeyboardShortcutsSettings() {
         if let shortcutsURL = URL(string: "x-apple.systempreferences:com.apple.preference.keyboard?Shortcuts"),
            NSWorkspace.shared.open(shortcutsURL) {
             return
@@ -121,6 +224,20 @@ class SystemShortcutManager: ObservableObject {
 
         let settingsAppURL = URL(fileURLWithPath: "/System/Applications/System Settings.app")
         _ = NSWorkspace.shared.open(settingsAppURL)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard
+            let window = notification.object as? NSWindow,
+            window.identifier == Self.pickerWindowIdentifier
+        else {
+            return
+        }
+
+        window.contentView = nil
+        if pickerWindow === window {
+            pickerWindow = nil
+        }
     }
 }
 

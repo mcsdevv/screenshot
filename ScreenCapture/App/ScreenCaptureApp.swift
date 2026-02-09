@@ -144,6 +144,13 @@ struct MenuBarMenuView: View {
             }
             .keyboardShortcut(",", modifiers: .command)
 
+            Button {
+                debugLog("MenuBar: Shortcut Preferences clicked")
+                appDelegate.openShortcutPreferences()
+            } label: {
+                Label("Shortcut Preferences...", systemImage: "keyboard")
+            }
+
             Divider()
 
             Button {

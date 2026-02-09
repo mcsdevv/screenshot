@@ -10,6 +10,9 @@ enum ToastType: Identifiable, Equatable {
     case ocr
     case open
     case delete
+    case shortcutStandardEnabled
+    case shortcutSafeEnabled
+    case shortcutModeUpdateFailed
 
     var id: String {
         switch self {
@@ -19,6 +22,9 @@ enum ToastType: Identifiable, Equatable {
         case .ocr: return "ocr"
         case .open: return "open"
         case .delete: return "delete"
+        case .shortcutStandardEnabled: return "shortcutStandardEnabled"
+        case .shortcutSafeEnabled: return "shortcutSafeEnabled"
+        case .shortcutModeUpdateFailed: return "shortcutModeUpdateFailed"
         }
     }
 
@@ -30,6 +36,9 @@ enum ToastType: Identifiable, Equatable {
         case .ocr: return "text.viewfinder"
         case .open: return "folder.fill"
         case .delete: return "trash.fill"
+        case .shortcutStandardEnabled: return "command"
+        case .shortcutSafeEnabled: return "shield"
+        case .shortcutModeUpdateFailed: return "exclamationmark.triangle.fill"
         }
     }
 
@@ -41,6 +50,9 @@ enum ToastType: Identifiable, Equatable {
         case .ocr: return "Text copied"
         case .open: return "Opened in Finder"
         case .delete: return "Deleted"
+        case .shortcutStandardEnabled: return "Standard shortcuts enabled"
+        case .shortcutSafeEnabled: return "Safe mode enabled"
+        case .shortcutModeUpdateFailed: return "Could not update shortcut mode"
         }
     }
 
@@ -52,6 +64,9 @@ enum ToastType: Identifiable, Equatable {
         case .ocr: return .dsAccent
         case .open: return .dsAccent
         case .delete: return .dsDanger
+        case .shortcutStandardEnabled: return .dsSuccess
+        case .shortcutSafeEnabled: return .dsSuccess
+        case .shortcutModeUpdateFailed: return .dsDanger
         }
     }
 }
@@ -196,6 +211,9 @@ struct ToastView_Previews: PreviewProvider {
                 ToastView(toast: Toast(type: .ocr)) {}
                 ToastView(toast: Toast(type: .open)) {}
                 ToastView(toast: Toast(type: .delete)) {}
+                ToastView(toast: Toast(type: .shortcutStandardEnabled)) {}
+                ToastView(toast: Toast(type: .shortcutSafeEnabled)) {}
+                ToastView(toast: Toast(type: .shortcutModeUpdateFailed)) {}
             }
             .padding()
         }
