@@ -224,7 +224,6 @@ struct AnnotationCanvas: View {
                 }
             }
         }
-        .background(Color(nsColor: .controlBackgroundColor))
         .onExitCommand {
             state.selectedAnnotationId = nil
             showTextInput = false
