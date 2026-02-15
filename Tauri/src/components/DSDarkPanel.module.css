@@ -1,0 +1,24 @@
+.panel {
+  background: var(--ds-background-elevated);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  position: relative;
+}
+
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.pad-none { padding: 0; }
+.pad-sm { padding: var(--ds-spacing-sm); }
+.pad-md { padding: var(--ds-spacing-lg); }
+.pad-lg { padding: var(--ds-spacing-xxl); }

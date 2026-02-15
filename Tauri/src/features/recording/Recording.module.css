@@ -1,0 +1,193 @@
+/* Recording Controls + Overlay */
+
+/* ── Floating controls panel ── */
+
+.controls {
+  position: fixed;
+  bottom: var(--ds-spacing-xxl);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8500;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-lg);
+  padding: var(--ds-spacing-md) var(--ds-spacing-lg);
+  background: rgba(30, 30, 40, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-full);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: ds-slide-up 0.3s ease forwards;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.controls:active {
+  cursor: grabbing;
+}
+
+/* ── Status area (dot + timer) ── */
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-md);
+}
+
+.recordingDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ds-danger);
+  flex-shrink: 0;
+}
+
+.dotPulsing {
+  animation: recording-pulse 1s ease-in-out infinite;
+}
+
+.dotReady {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.dotStopping {
+  background: var(--ds-warm-accent);
+}
+
+.timer {
+  font: var(--ds-font-mono);
+  color: var(--ds-text-primary);
+  min-width: 72px;
+}
+
+/* ── Control buttons ── */
+
+.buttonGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-sm);
+}
+
+.controlButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ds-text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background var(--ds-transition-quick),
+    transform var(--ds-transition-quick);
+}
+
+.controlButton:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.controlButton:active {
+  transform: scale(0.92);
+}
+
+.stopButton {
+  background: var(--ds-danger);
+  color: white;
+}
+
+.stopButton:hover {
+  background: #ff6666;
+}
+
+.recordButton {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-xs);
+  padding: var(--ds-spacing-xxs) var(--ds-spacing-md);
+  border: none;
+  border-radius: var(--ds-radius-full);
+  background: white;
+  color: rgba(0, 0, 0, 0.85);
+  font: var(--ds-font-label-md);
+  cursor: pointer;
+  transition:
+    background var(--ds-transition-quick),
+    transform var(--ds-transition-quick);
+}
+
+.recordButton:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.recordButton:active {
+  transform: scale(0.96);
+}
+
+.countdownBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 28px;
+  border-radius: var(--ds-radius-full);
+  background: rgba(255, 255, 255, 0.95);
+  color: rgba(0, 0, 0, 0.85);
+  font: var(--ds-font-label-lg);
+}
+
+/* ── Recording overlay (border indicator) ── */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8400;
+  pointer-events: none;
+}
+
+.overlayBorder {
+  position: absolute;
+  border: 2px dashed var(--ds-border-active);
+  pointer-events: none;
+}
+
+.overlayIndicator {
+  position: absolute;
+  top: var(--ds-spacing-sm);
+  right: var(--ds-spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-xxs);
+  padding: 2px var(--ds-spacing-sm);
+  background: rgba(255, 68, 68, 0.85);
+  border-radius: var(--ds-radius-full);
+  font: var(--ds-font-label-sm);
+  color: white;
+}
+
+.overlayDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: white;
+  animation: recording-pulse 1s ease-in-out infinite;
+}
+
+/* ── Dimming for area recording ── */
+
+.dimmingCanvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ── Animations ── */
+
+@keyframes recording-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}

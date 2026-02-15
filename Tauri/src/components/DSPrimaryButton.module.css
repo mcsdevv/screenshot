@@ -1,0 +1,60 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-spacing-xs);
+  border: none;
+  border-radius: var(--ds-radius-md);
+  background: linear-gradient(135deg, var(--ds-accent), #0099cc);
+  color: #000;
+  font: var(--ds-font-label-lg);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--ds-transition-quick);
+  position: relative;
+  overflow: hidden;
+}
+
+.button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  background: radial-gradient(circle at center, var(--ds-accent-glow), transparent 70%);
+  transition: opacity var(--ds-transition-quick);
+}
+
+.button:hover::after {
+  opacity: 1;
+}
+
+.button:active {
+  transform: scale(0.97);
+}
+
+.sm {
+  padding: var(--ds-spacing-xxs) var(--ds-spacing-sm);
+  font: var(--ds-font-label-sm);
+  font-weight: 600;
+}
+
+.md {
+  padding: var(--ds-spacing-xs) var(--ds-spacing-md);
+}
+
+.lg {
+  padding: var(--ds-spacing-sm) var(--ds-spacing-xl);
+  font: var(--ds-font-label-lg);
+  font-weight: 600;
+}
+
+.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.icon {
+  display: inline-flex;
+  font-size: 1.1em;
+}

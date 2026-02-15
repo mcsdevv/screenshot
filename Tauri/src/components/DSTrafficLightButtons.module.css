@@ -1,0 +1,33 @@
+.row {
+  display: flex;
+  gap: var(--ds-spacing-sm);
+  align-items: center;
+}
+
+.close, .minimize, .zoom {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: filter var(--ds-transition-quick);
+}
+
+.close { background: #ff5f57; }
+.minimize { background: #febc2e; }
+.zoom { background: #28c840; }
+
+.close:hover { filter: brightness(1.2); }
+.minimize:hover { filter: brightness(1.2); }
+.zoom:hover { filter: brightness(1.2); }
+
+.icon {
+  font-size: 10px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.5);
+  font-weight: 700;
+}

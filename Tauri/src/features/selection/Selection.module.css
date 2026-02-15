@@ -1,0 +1,206 @@
+/* Selection Overlay — full-screen area selection for screenshot/recording */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ── Dimming mask (canvas-based in component, this is fallback) ── */
+
+.dimmingCanvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ── Selection rectangle ── */
+
+.selectionRect {
+  position: absolute;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+/* ── Resize handles ── */
+
+.handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
+/* ── Dimensions badge ── */
+
+.dimensions {
+  position: absolute;
+  transform: translateX(-50%);
+  font: 500 12px/1 "SF Mono", Menlo, monospace;
+  color: white;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: var(--ds-radius-full);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ── Crosshair lines ── */
+
+.crosshairV,
+.crosshairH {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+}
+
+.crosshairV {
+  width: 1px;
+  top: 0;
+  bottom: 0;
+}
+
+.crosshairH {
+  height: 1px;
+  left: 0;
+  right: 0;
+}
+
+/* ── Info panel (mouse position + dimensions) ── */
+
+.infoPanel {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--ds-spacing-sm);
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: var(--ds-radius-sm);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.infoRow {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-sm);
+  font: var(--ds-font-mono);
+  color: white;
+}
+
+.infoRow span:first-child {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+/* ── Instructions text ── */
+
+.instructions {
+  position: fixed;
+  bottom: var(--ds-spacing-xxxl);
+  left: 50%;
+  transform: translateX(-50%);
+  font: var(--ds-font-body-md);
+  color: white;
+  padding: var(--ds-spacing-sm) var(--ds-spacing-lg);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: var(--ds-radius-full);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: ds-fade-in 0.3s ease forwards;
+}
+
+/* ── Toolbar near selection ── */
+
+.toolbar {
+  position: absolute;
+  display: flex;
+  gap: var(--ds-spacing-xs);
+  padding: var(--ds-spacing-xs);
+  background: rgba(30, 30, 40, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  box-shadow: var(--ds-shadow-md);
+}
+
+.toolbarButton {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-xs);
+  padding: var(--ds-spacing-xxs) var(--ds-spacing-md);
+  border: none;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  color: var(--ds-text-primary);
+  font: var(--ds-font-label-md);
+  cursor: pointer;
+  transition: background var(--ds-transition-quick);
+}
+
+.toolbarButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.toolbarButtonPrimary {
+  background: var(--ds-accent);
+  color: #000;
+}
+
+.toolbarButtonPrimary:hover {
+  background: var(--ds-accent-muted);
+}
+
+/* ── Recording-specific extras ── */
+
+.recordingControls {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-md);
+  padding: var(--ds-spacing-xs) var(--ds-spacing-sm);
+}
+
+.qualitySelect {
+  padding: var(--ds-spacing-xxs) var(--ds-spacing-sm);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  color: var(--ds-text-primary);
+  font: var(--ds-font-label-md);
+  cursor: pointer;
+  appearance: none;
+}
+
+.audioToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-xxs);
+  padding: var(--ds-spacing-xxs) var(--ds-spacing-sm);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  font: var(--ds-font-label-md);
+  cursor: pointer;
+  transition: all var(--ds-transition-quick);
+}
+
+.audioToggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.audioToggleActive {
+  border-color: var(--ds-border-accent);
+  color: var(--ds-accent);
+  background: rgba(0, 212, 255, 0.08);
+}
