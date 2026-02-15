@@ -1,0 +1,180 @@
+/* Pinned Screenshot — always-on-top floating image */
+
+.window {
+  position: relative;
+  display: inline-block;
+  border-radius: var(--ds-radius-md);
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: var(--ds-radius-md);
+  transition: opacity var(--ds-transition-quick);
+}
+
+/* ── Hover controls overlay ── */
+
+.controls {
+  position: absolute;
+  top: var(--ds-spacing-sm);
+  right: var(--ds-spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-sm);
+  padding: var(--ds-spacing-sm) var(--ds-spacing-md);
+  background: rgba(30, 30, 40, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--ds-radius-md);
+  opacity: 0;
+  transition: opacity var(--ds-transition-standard);
+  pointer-events: none;
+}
+
+.window:hover .controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.controlBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--ds-radius-xs);
+  background: transparent;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--ds-transition-quick);
+}
+
+.controlBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.controlDivider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ── Opacity menu ── */
+
+.opacityMenu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: var(--ds-spacing-xs);
+  padding: var(--ds-spacing-xs);
+  background: rgba(30, 30, 40, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 80px;
+}
+
+.opacityOption {
+  padding: var(--ds-spacing-xxs) var(--ds-spacing-sm);
+  border: none;
+  border-radius: var(--ds-radius-xs);
+  background: transparent;
+  color: var(--ds-text-primary);
+  font: var(--ds-font-label-md);
+  cursor: pointer;
+  text-align: left;
+}
+
+.opacityOption:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Corner resize handles ── */
+
+.resizeHandle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  cursor: nwse-resize;
+}
+
+.resizeHandle::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  opacity: 0;
+  transition: opacity var(--ds-transition-quick);
+}
+
+.window:hover .resizeHandle::after {
+  opacity: 0.4;
+}
+
+.resizeHandle:hover::after {
+  opacity: 0.8 !important;
+}
+
+.handleTL { top: 0; left: 0; cursor: nwse-resize; }
+.handleTR { top: 0; right: 0; cursor: nesw-resize; }
+.handleBL { bottom: 0; left: 0; cursor: nesw-resize; }
+.handleBR { bottom: 0; right: 0; cursor: nwse-resize; }
+
+.handleTL::after { top: 2px; left: 2px; border-top: 2px solid white; border-left: 2px solid white; }
+.handleTR::after { top: 2px; right: 2px; border-top: 2px solid white; border-right: 2px solid white; }
+.handleBL::after { bottom: 2px; left: 2px; border-bottom: 2px solid white; border-left: 2px solid white; }
+.handleBR::after { bottom: 2px; right: 2px; border-bottom: 2px solid white; border-right: 2px solid white; }
+
+/* ── Context menu (used on right-click) ── */
+
+.contextMenu {
+  position: fixed;
+  padding: var(--ds-spacing-xs);
+  background: rgba(30, 30, 40, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  box-shadow: var(--ds-shadow-lg);
+  min-width: 160px;
+  z-index: 10000;
+}
+
+.contextMenuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-sm);
+  width: 100%;
+  padding: var(--ds-spacing-xxs) var(--ds-spacing-sm);
+  border: none;
+  border-radius: var(--ds-radius-xs);
+  background: transparent;
+  color: var(--ds-text-primary);
+  font: var(--ds-font-body-md);
+  cursor: pointer;
+  text-align: left;
+}
+
+.contextMenuItem:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.contextMenuIcon {
+  font-size: 14px;
+  color: var(--ds-text-secondary);
+  width: 20px;
+  text-align: center;
+}

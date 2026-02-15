@@ -1,0 +1,159 @@
+/* Quick Access Overlay — post-capture floating panel */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: var(--ds-spacing-lg);
+  pointer-events: none;
+}
+
+/* Corner positions */
+.bottomLeft { align-items: flex-end; justify-content: flex-start; }
+.bottomRight { align-items: flex-end; justify-content: flex-end; }
+.topLeft { align-items: flex-start; justify-content: flex-start; }
+.topRight { align-items: flex-start; justify-content: flex-end; }
+
+.panel {
+  width: 360px;
+  pointer-events: auto;
+  animation: qa-enter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  pointer-events: auto;
+}
+
+/* ── Traffic lights ── */
+
+.header {
+  padding: var(--ds-spacing-md) var(--ds-spacing-sm) var(--ds-spacing-xs);
+}
+
+/* ── Thumbnail ── */
+
+.thumbnailWrap {
+  position: relative;
+  margin: 0 var(--ds-spacing-lg) var(--ds-spacing-lg);
+  border-radius: var(--ds-radius-lg);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.preview {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  background: var(--ds-background-secondary);
+}
+
+.previewPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-spacing-sm);
+  height: 180px;
+  background: var(--ds-background-secondary);
+  color: var(--ds-text-tertiary);
+  font: var(--ds-font-caption);
+}
+
+.previewPlaceholder span:first-child {
+  font-size: 40px;
+  opacity: 0.4;
+}
+
+.badge {
+  position: absolute;
+  top: var(--ds-spacing-sm);
+  right: var(--ds-spacing-sm);
+}
+
+/* ── Actions row ── */
+
+.actions {
+  position: absolute;
+  bottom: var(--ds-spacing-sm);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: var(--ds-spacing-xs);
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background var(--ds-transition-quick),
+    border-color var(--ds-transition-quick),
+    transform var(--ds-transition-quick);
+}
+
+.actionButton:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--ds-accent-muted);
+  color: var(--ds-accent);
+}
+
+.actionButton:active {
+  transform: scale(0.9);
+}
+
+.destructive:hover {
+  border-color: rgba(255, 68, 68, 0.5);
+  color: var(--ds-danger);
+}
+
+/* ── Auto-dismiss timer bar ── */
+
+.timer {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 0 0 var(--ds-radius-lg) var(--ds-radius-lg);
+  overflow: hidden;
+}
+
+.timerBar {
+  height: 100%;
+  background: var(--ds-accent);
+  border-radius: inherit;
+  animation: timer-shrink var(--qa-duration, 5s) linear forwards;
+}
+
+/* ── Animations ── */
+
+@keyframes qa-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes timer-shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}

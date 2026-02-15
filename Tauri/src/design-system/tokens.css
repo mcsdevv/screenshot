@@ -1,0 +1,98 @@
+/* Prismatic Dark Design System — CSS Custom Properties
+ * Ported from ScreenCapture/Views/DesignSystem.swift
+ * Will be fully populated by design-system agent */
+
+:root {
+  /* Backgrounds */
+  --ds-background: #12121a;
+  --ds-background-elevated: #1a1a24;
+  --ds-background-secondary: #212130;
+  --ds-background-tertiary: #29293a;
+
+  /* Accent colors */
+  --ds-accent: #00d4ff;
+  --ds-accent-muted: rgba(0, 212, 255, 0.7);
+  --ds-accent-glow: rgba(0, 212, 255, 0.3);
+  --ds-warm-accent: #ff8a50;
+  --ds-success: #4ade80;
+  --ds-danger: #ff4444;
+
+  /* Text */
+  --ds-text-primary: rgba(255, 255, 255, 0.95);
+  --ds-text-secondary: rgba(255, 255, 255, 0.6);
+  --ds-text-tertiary: rgba(255, 255, 255, 0.4);
+  --ds-text-disabled: rgba(255, 255, 255, 0.25);
+
+  /* Borders */
+  --ds-border: rgba(255, 255, 255, 0.08);
+  --ds-border-active: rgba(255, 255, 255, 0.15);
+  --ds-border-accent: rgba(0, 212, 255, 0.5);
+
+  /* Spacing */
+  --ds-spacing-xxxs: 2px;
+  --ds-spacing-xxs: 4px;
+  --ds-spacing-xs: 6px;
+  --ds-spacing-sm: 8px;
+  --ds-spacing-md: 12px;
+  --ds-spacing-lg: 16px;
+  --ds-spacing-xl: 20px;
+  --ds-spacing-xxl: 24px;
+  --ds-spacing-xxxl: 32px;
+  --ds-spacing-huge: 48px;
+
+  /* Radius */
+  --ds-radius-xs: 4px;
+  --ds-radius-sm: 6px;
+  --ds-radius-md: 8px;
+  --ds-radius-lg: 12px;
+  --ds-radius-xl: 16px;
+  --ds-radius-xxl: 20px;
+  --ds-radius-full: 999px;
+
+  /* Typography */
+  --ds-font-display-lg: 700 34px/1.2 system-ui, -apple-system, sans-serif;
+  --ds-font-display-sm: 600 22px/1.3 system-ui, -apple-system, sans-serif;
+  --ds-font-headline-lg: 600 18px/1.3 system-ui, -apple-system, sans-serif;
+  --ds-font-headline-md: 600 16px/1.4 system-ui, -apple-system, sans-serif;
+  --ds-font-headline-sm: 600 14px/1.4 system-ui, -apple-system, sans-serif;
+  --ds-font-body-lg: 400 14px/1.5 system-ui, -apple-system, sans-serif;
+  --ds-font-body-md: 400 13px/1.5 system-ui, -apple-system, sans-serif;
+  --ds-font-body-sm: 400 12px/1.5 system-ui, -apple-system, sans-serif;
+  --ds-font-label-lg: 500 13px/1.4 system-ui, -apple-system, sans-serif;
+  --ds-font-label-md: 500 12px/1.4 system-ui, -apple-system, sans-serif;
+  --ds-font-label-sm: 500 11px/1.4 system-ui, -apple-system, sans-serif;
+  --ds-font-caption: 400 10px/1.4 system-ui, -apple-system, sans-serif;
+  --ds-font-mono: 400 12px/1.5 "SF Mono", Menlo, monospace;
+
+  /* Shadows */
+  --ds-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --ds-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --ds-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --ds-shadow-glow: 0 0 20px rgba(0, 212, 255, 0.3);
+
+  /* Transitions */
+  --ds-transition-quick: 0.15s ease;
+  --ds-transition-standard: 0.2s ease;
+  --ds-transition-smooth: 0.3s ease;
+  --ds-transition-slow: 0.4s ease;
+}
+
+/* Global resets */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background: var(--ds-background);
+  color: var(--ds-text-primary);
+  font: var(--ds-font-body-md);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--ds-accent-glow);
+  color: var(--ds-text-primary);
+}

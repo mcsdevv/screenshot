@@ -1,0 +1,309 @@
+/* Settings layout — macOS-style sidebar tabs + content area */
+
+.container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  background: var(--ds-surface);
+  color: var(--ds-text-primary);
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 200px;
+  min-width: 200px;
+  padding: var(--ds-spacing-xxl) var(--ds-spacing-sm) var(--ds-spacing-md);
+  border-right: 1px solid var(--ds-border);
+  background: rgba(255, 255, 255, 0.02);
+  gap: var(--ds-spacing-xxs);
+  -webkit-app-region: drag;
+}
+
+.trafficLights {
+  padding: 0 var(--ds-spacing-xs);
+  margin-bottom: var(--ds-spacing-lg);
+  -webkit-app-region: no-drag;
+}
+
+.tabList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+}
+
+.tabItem {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-sm);
+  padding: var(--ds-spacing-xs) var(--ds-spacing-sm);
+  border: none;
+  border-radius: var(--ds-radius-md);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  font: var(--ds-font-label-md);
+  cursor: pointer;
+  transition: all var(--ds-transition-quick);
+  text-align: left;
+  width: 100%;
+}
+
+.tabItem:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ds-text-primary);
+}
+
+.tabItemActive {
+  background: var(--ds-accent-glow);
+  color: var(--ds-accent);
+}
+
+.tabItemActive:hover {
+  background: var(--ds-accent-glow);
+  color: var(--ds-accent);
+}
+
+.tabIcon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+  opacity: 0.8;
+}
+
+/* ── Content ── */
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--ds-spacing-xxl) var(--ds-spacing-xl);
+}
+
+.content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+/* ── Shared section styles ── */
+
+.section {
+  margin-bottom: var(--ds-spacing-xl);
+}
+
+.sectionTitle {
+  font: var(--ds-font-label-sm);
+  color: var(--ds-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--ds-spacing-md);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--ds-spacing-sm) 0;
+  min-height: 36px;
+}
+
+.row + .row {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.label {
+  font: var(--ds-font-body-md);
+  color: var(--ds-text-primary);
+}
+
+.description {
+  font: var(--ds-font-label-sm);
+  color: var(--ds-text-tertiary);
+  margin-top: 2px;
+}
+
+/* ── Toggle switch ── */
+
+.toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  cursor: pointer;
+  transition: background var(--ds-transition-quick);
+  flex-shrink: 0;
+}
+
+.toggle::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--ds-text-secondary);
+  transition: all var(--ds-transition-quick);
+}
+
+.toggleOn {
+  background: var(--ds-accent);
+}
+
+.toggleOn::after {
+  left: 20px;
+  background: #000;
+}
+
+/* ── Select dropdown ── */
+
+.select {
+  padding: var(--ds-spacing-xxs) var(--ds-spacing-sm);
+  background: var(--ds-background);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  color: var(--ds-text-primary);
+  font: var(--ds-font-body-md);
+  cursor: pointer;
+  transition: border-color var(--ds-transition-quick);
+  appearance: none;
+  padding-right: var(--ds-spacing-xl);
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--ds-border-accent);
+}
+
+/* ── Slider ── */
+
+.sliderRow {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-md);
+}
+
+.slider {
+  flex: 1;
+  max-width: 180px;
+  accent-color: var(--ds-accent);
+  height: 4px;
+}
+
+.sliderValue {
+  font: var(--ds-font-label-md);
+  color: var(--ds-text-secondary);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* ── Chip group ── */
+
+.chipGroup {
+  display: flex;
+  gap: var(--ds-spacing-xs);
+  flex-wrap: wrap;
+}
+
+/* ── Shortcut row ── */
+
+.shortcutRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--ds-spacing-xs) 0;
+  min-height: 32px;
+}
+
+.shortcutRow + .shortcutRow {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.shortcutName {
+  font: var(--ds-font-body-md);
+  color: var(--ds-text-primary);
+}
+
+.shortcutBinding {
+  font: var(--ds-font-label-md);
+  font-family: "SF Mono", "Menlo", monospace;
+  color: var(--ds-text-secondary);
+  padding: 2px var(--ds-spacing-xs);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: var(--ds-radius-sm);
+}
+
+/* ── Path display ── */
+
+.pathRow {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-sm);
+  min-width: 0;
+}
+
+.pathText {
+  font: var(--ds-font-label-sm);
+  font-family: "SF Mono", "Menlo", monospace;
+  color: var(--ds-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+/* ── Storage usage bar ── */
+
+.storageBar {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin-top: var(--ds-spacing-xs);
+}
+
+.storageBarFill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--ds-accent);
+  transition: width var(--ds-transition-normal);
+}
+
+/* ── Danger zone ── */
+
+.dangerZone {
+  border: 1px solid rgba(255, 68, 68, 0.2);
+  border-radius: var(--ds-radius-md);
+  padding: var(--ds-spacing-md);
+  margin-top: var(--ds-spacing-md);
+}
+
+/* ── Mode badge ── */
+
+.modeBadge {
+  font: var(--ds-font-label-sm);
+  padding: 2px var(--ds-spacing-sm);
+  border-radius: var(--ds-radius-full);
+}
+
+.modeSafe {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ds-text-secondary);
+}
+
+.modeNative {
+  background: rgba(52, 199, 89, 0.15);
+  color: #34c759;
+}

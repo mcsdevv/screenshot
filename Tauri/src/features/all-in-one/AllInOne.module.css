@@ -1,0 +1,160 @@
+/* All-in-One Menu — combined capture/recording/tools dropdown */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  animation: ds-fade-in 0.15s ease forwards;
+}
+
+.menu {
+  width: 320px;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: ds-scale-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.menu::-webkit-scrollbar {
+  width: 4px;
+}
+
+.menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+/* ── Sections ── */
+
+.section {
+  padding: var(--ds-spacing-xs) 0;
+}
+
+.sectionTitle {
+  font: var(--ds-font-label-sm);
+  color: var(--ds-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: var(--ds-spacing-xxs) var(--ds-spacing-md);
+  margin-bottom: var(--ds-spacing-xxs);
+}
+
+/* ── Menu item ── */
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-sm);
+  width: 100%;
+  padding: var(--ds-spacing-xs) var(--ds-spacing-md);
+  border: none;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  color: var(--ds-text-primary);
+  font: var(--ds-font-body-md);
+  cursor: pointer;
+  transition: background var(--ds-transition-quick);
+  text-align: left;
+}
+
+.menuItem:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.menuItem:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.menuItemIcon {
+  color: var(--ds-text-secondary);
+  font-size: 16px;
+  width: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.menuItemLabel {
+  flex: 1;
+}
+
+.shortcutHint {
+  font: var(--ds-font-caption);
+  font-family: "SF Mono", Menlo, monospace;
+  color: var(--ds-text-tertiary);
+  flex-shrink: 0;
+}
+
+/* ── Divider ── */
+
+.divider {
+  height: 1px;
+  background: var(--ds-border);
+  margin: var(--ds-spacing-xs) var(--ds-spacing-md);
+}
+
+/* ── Recent captures row ── */
+
+.recentSection {
+  padding: var(--ds-spacing-xs) var(--ds-spacing-md);
+}
+
+.recentTitle {
+  font: var(--ds-font-label-sm);
+  color: var(--ds-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--ds-spacing-sm);
+}
+
+.recentRow {
+  display: flex;
+  gap: var(--ds-spacing-sm);
+}
+
+.recentThumb {
+  width: 80px;
+  height: 50px;
+  border-radius: var(--ds-radius-sm);
+  object-fit: cover;
+  background: var(--ds-background-secondary);
+  border: 1px solid var(--ds-border);
+  cursor: pointer;
+  transition: border-color var(--ds-transition-quick);
+}
+
+.recentThumb:hover {
+  border-color: var(--ds-border-accent);
+}
+
+/* ── Footer settings link ── */
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ds-spacing-sm);
+  border-top: 1px solid var(--ds-border);
+}
+
+.settingsButton {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-spacing-xs);
+  padding: var(--ds-spacing-xxs) var(--ds-spacing-md);
+  border: none;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  font: var(--ds-font-label-md);
+  cursor: pointer;
+  transition: color var(--ds-transition-quick);
+}
+
+.settingsButton:hover {
+  color: var(--ds-text-primary);
+}

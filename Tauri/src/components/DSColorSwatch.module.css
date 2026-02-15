@@ -1,0 +1,25 @@
+.swatch {
+  border-radius: var(--ds-radius-full);
+  border: 2px solid transparent;
+  padding: 2px;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color var(--ds-transition-quick);
+}
+
+.swatch:hover {
+  border-color: var(--ds-border-active);
+}
+
+.selected {
+  border-color: var(--ds-accent);
+}
+
+.inner {
+  border-radius: var(--ds-radius-full);
+  background: var(--swatch-color);
+}
+
+.sm .inner { width: 20px; height: 20px; }
+.md .inner { width: 26px; height: 26px; }
+.lg .inner { width: 32px; height: 32px; }
