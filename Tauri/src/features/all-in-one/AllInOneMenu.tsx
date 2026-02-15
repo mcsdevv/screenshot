@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { DSGlassPanel, DSDivider } from "@/components";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import * as ipc from "@/lib/ipc";
 import styles from "./AllInOne.module.css";
 
@@ -47,60 +48,66 @@ export const AllInOneMenu: React.FC<AllInOneMenuProps> = ({
     onDismiss();
   };
 
+  const openOverlayWindow = async (label: string, path: string) => {
+    const existing = await WebviewWindow.getByLabel(label);
+    if (existing) {
+      await existing.show();
+      await existing.setFocus();
+      return;
+    }
+    new WebviewWindow(label, {
+      url: path,
+      fullscreen: true,
+      decorations: false,
+      alwaysOnTop: true,
+    });
+  };
+
   const screenshotItems: MenuItem[] = [
     {
       icon: "\u{1F5BC}",
       label: "Capture Fullscreen",
-      safeShortcut: "\u2303\u21E75",
-      nativeShortcut: "\u2318\u21E75",
+      safeShortcut: "\u2303\u21E73",
+      nativeShortcut: "\u2318\u21E73",
       action: () => doAction(() => ipc.captureFullscreen()),
     },
     {
       icon: "\u2B1C",
       label: "Capture Area",
-      safeShortcut: "\u2303\u21E73",
-      nativeShortcut: "\u2318\u21E73",
+      safeShortcut: "\u2303\u21E74",
+      nativeShortcut: "\u2318\u21E74",
       action: () => doAction(() => {
-        window.dispatchEvent(new CustomEvent("start-area-capture"));
+        openOverlayWindow("selection", "/selection");
       }),
     },
     {
       icon: "\u{1FA9F}",
       label: "Capture Window",
-      safeShortcut: "\u2303\u21E74",
-      nativeShortcut: "\u2318\u21E74",
+      safeShortcut: "\u2303\u21E75",
+      nativeShortcut: "\u2318\u21E75",
       action: () => doAction(() => {
-        window.dispatchEvent(new CustomEvent("start-window-capture"));
+        openOverlayWindow("window-picker", "/selection?mode=window");
       }),
     },
   ];
 
   const recordingItems: MenuItem[] = [
     {
-      icon: "\u{1F534}",
-      label: "Record Fullscreen",
-      safeShortcut: "\u2303\u21E78",
-      nativeShortcut: "\u2318\u21E78",
-      action: () => doAction(() => {
-        window.dispatchEvent(new CustomEvent("start-fullscreen-recording"));
-      }),
-    },
-    {
       icon: "\u{1F7E5}",
       label: "Record Area",
-      safeShortcut: "\u2303\u21E76",
-      nativeShortcut: "\u2318\u21E76",
-      action: () => doAction(() => {
-        window.dispatchEvent(new CustomEvent("start-area-recording"));
-      }),
-    },
-    {
-      icon: "\u{1F3AC}",
-      label: "Record Window",
       safeShortcut: "\u2303\u21E77",
       nativeShortcut: "\u2318\u21E77",
       action: () => doAction(() => {
-        window.dispatchEvent(new CustomEvent("start-window-recording"));
+        openOverlayWindow("recording-selection", "/recording-selection?mode=area");
+      }),
+    },
+    {
+      icon: "\u{1F534}",
+      label: "Record Fullscreen",
+      safeShortcut: "\u2303\u21E79",
+      nativeShortcut: "\u2318\u21E79",
+      action: () => doAction(() => {
+        openOverlayWindow("recording-selection", "/recording-selection");
       }),
     },
   ];
@@ -111,8 +118,15 @@ export const AllInOneMenu: React.FC<AllInOneMenuProps> = ({
       label: "Capture Text (OCR)",
       safeShortcut: "\u2303\u21E7O",
       nativeShortcut: "\u2318\u21E7O",
-      action: () => doAction(() => {
-        window.dispatchEvent(new CustomEvent("start-ocr-capture"));
+      action: () => doAction(async () => {
+        try {
+          const item = await ipc.captureFullscreen();
+          const info = await ipc.getStorageInfo();
+          const fullPath = `${info.path}/${item.filename}`;
+          const blocks = await ipc.recognizeText(fullPath);
+          const text = blocks.map((b) => b.text).join("\n");
+          await navigator.clipboard.writeText(text);
+        } catch { /* noop */ }
       }),
     },
     {
@@ -121,7 +135,7 @@ export const AllInOneMenu: React.FC<AllInOneMenuProps> = ({
       safeShortcut: "",
       nativeShortcut: "",
       action: () => doAction(() => {
-        window.dispatchEvent(new CustomEvent("start-color-picker"));
+        openOverlayWindow("color-picker", "/selection?mode=color");
       }),
     },
   ];

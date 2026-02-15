@@ -9,6 +9,7 @@ import { RecordingControlsView } from "./features/recording/RecordingControlsVie
 import { PinnedScreenshot } from "./features/pinned/PinnedScreenshot";
 import { KeyboardShortcutsOverlay } from "./features/shortcuts/KeyboardShortcutsOverlay";
 import { AllInOneMenu } from "./features/all-in-one/AllInOneMenu";
+import { useGlobalShortcuts } from "./hooks/useGlobalShortcuts";
 
 const closeWindow = () => {
   window.close();
@@ -69,6 +70,8 @@ function PinnedPage() {
 }
 
 export default function App() {
+  useGlobalShortcuts();
+
   return (
     <Routes>
       <Route path="/" element={<AllInOneMenu onDismiss={closeWindow} />} />

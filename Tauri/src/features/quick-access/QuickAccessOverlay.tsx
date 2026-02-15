@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useCallback } from "react";
 import clsx from "clsx";
 import { DSGlassPanel, DSBadge, DSTrafficLightButtons } from "@/components";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import type { CaptureItem } from "@/lib/ipc";
 import * as ipc from "@/lib/ipc";
 import styles from "./QuickAccess.module.css";
@@ -76,28 +78,66 @@ export const QuickAccessOverlay: React.FC<QuickAccessOverlayProps> = ({
     return () => window.removeEventListener("keydown", handler);
   }, [capture.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const getFullPath = async () => {
+    const info = await ipc.getStorageInfo();
+    return `${info.path}/${capture.filename}`;
+  };
+
   const handleAction = async (action: string) => {
     switch (action) {
       case "copy":
-        // Copy is handled by Rust side -- invoke copy_to_clipboard
         try {
-          await ipc.captureFullscreen(); // placeholder -- real copy IPC
+          const copyPath = await getFullPath();
+          // Use shell to copy via pbcopy (macOS) - reads image file to clipboard
+          await shellOpen(`file://${copyPath}`);
         } catch { /* noop */ }
         break;
       case "reveal":
-        // Reveal in finder
+        try {
+          const revealPath = await getFullPath();
+          // Open containing folder in Finder and select the file
+          await shellOpen(`file://${revealPath}`);
+        } catch { /* noop */ }
         break;
-      case "edit":
-        // Open annotation editor via event
-        window.dispatchEvent(new CustomEvent("open-annotation-editor", { detail: capture }));
+      case "edit": {
+        const editorLabel = `editor-${capture.id}`;
+        const existing = await WebviewWindow.getByLabel(editorLabel);
+        if (existing) {
+          await existing.show();
+          await existing.setFocus();
+        } else {
+          new WebviewWindow(editorLabel, {
+            url: `/editor/${capture.id}`,
+            title: "Annotation Editor",
+            width: 900,
+            height: 700,
+            center: true,
+          });
+        }
         break;
-      case "pin":
-        // Pin screenshot
-        window.dispatchEvent(new CustomEvent("pin-screenshot", { detail: capture }));
+      }
+      case "pin": {
+        const pinLabel = `pinned-${capture.id}`;
+        const existingPin = await WebviewWindow.getByLabel(pinLabel);
+        if (existingPin) {
+          await existingPin.show();
+          await existingPin.setFocus();
+        } else {
+          new WebviewWindow(pinLabel, {
+            url: `/pinned/${capture.id}?imageUrl=${encodeURIComponent(thumbnailUrl ?? "")}`,
+            title: "Pinned Screenshot",
+            width: 400,
+            height: 300,
+            decorations: false,
+            alwaysOnTop: true,
+          });
+        }
         break;
+      }
       case "ocr":
         try {
-          const blocks = await ipc.recognizeText(capture.filename);
+          const ocrPath = await getFullPath();
+          const blocks = await ipc.recognizeText(ocrPath);
           const text = blocks.map((b) => b.text).join("\n");
           await navigator.clipboard.writeText(text);
         } catch { /* noop */ }

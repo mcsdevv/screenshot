@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::Utc;
+use crate::error::CaptureError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -94,20 +95,74 @@ pub struct StorageManager {
 
 impl StorageManager {
     pub fn new() -> Self {
-        Self {
-            history: CaptureHistory::new(),
-            location: StorageLocation::Default,
+        Self::load()
+    }
+
+    /// Load history and settings from disk, falling back to defaults
+    pub fn load() -> Self {
+        let data_dir = Self::data_dir();
+
+        let history = std::fs::read_to_string(data_dir.join("history.json"))
+            .ok()
+            .and_then(|data| serde_json::from_str(&data).ok())
+            .unwrap_or_else(CaptureHistory::new);
+
+        let location = std::fs::read_to_string(data_dir.join("settings.json"))
+            .ok()
+            .and_then(|data| serde_json::from_str(&data).ok())
+            .unwrap_or(StorageLocation::Default);
+
+        Self { history, location }
+    }
+
+    pub fn save_history(&self) -> Result<(), CaptureError> {
+        let data_dir = Self::data_dir();
+        std::fs::create_dir_all(&data_dir)?;
+        let json = serde_json::to_string_pretty(&self.history)?;
+        std::fs::write(data_dir.join("history.json"), json)?;
+        Ok(())
+    }
+
+    pub fn save_settings(&self) -> Result<(), CaptureError> {
+        let data_dir = Self::data_dir();
+        std::fs::create_dir_all(&data_dir)?;
+        let json = serde_json::to_string_pretty(&self.location)?;
+        std::fs::write(data_dir.join("settings.json"), json)?;
+        Ok(())
+    }
+
+    pub fn compute_storage_info(&self) -> StorageInfo {
+        let dir = self.screenshots_dir();
+        let (total_items, total_size_bytes) = if dir.exists() {
+            std::fs::read_dir(&dir)
+                .map(|entries| {
+                    entries.filter_map(|e| e.ok()).fold((0usize, 0u64), |(c, s), entry| {
+                        (c + 1, s + entry.metadata().map(|m| m.len()).unwrap_or(0))
+                    })
+                })
+                .unwrap_or((0, 0))
+        } else {
+            (0, 0)
+        };
+
+        StorageInfo {
+            location: self.location.clone(),
+            path: dir.to_string_lossy().to_string(),
+            total_items,
+            total_size_bytes,
         }
     }
 
-    /// Get the screenshots directory path
+    fn data_dir() -> std::path::PathBuf {
+        dirs::data_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+            .join("ScreenCapture")
+    }
+
     pub fn screenshots_dir(&self) -> std::path::PathBuf {
         match &self.location {
             StorageLocation::Default => {
-                let mut path = dirs::data_dir().unwrap_or_default();
-                path.push("ScreenCapture");
-                path.push("Screenshots");
-                path
+                Self::data_dir().join("Screenshots")
             }
             StorageLocation::Desktop => {
                 dirs::desktop_dir().unwrap_or_default()
@@ -118,7 +173,6 @@ impl StorageManager {
         }
     }
 
-    /// Generate a filename for a new capture
     pub fn generate_filename(&self, capture_type: &CaptureType, extension: &str) -> String {
         let now = chrono::Local::now();
         let prefix = match capture_type {

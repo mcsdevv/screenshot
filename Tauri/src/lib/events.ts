@@ -13,7 +13,8 @@ export interface CaptureCompletedPayload {
   id: string;
   capture_type: "screenshot" | "recording" | "gif";
   filename: string;
-  path: string;
+  created_at: string;
+  is_favorite: boolean;
 }
 
 export interface ShortcutPayload {
