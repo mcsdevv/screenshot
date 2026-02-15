@@ -54,16 +54,24 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                     open_settings_window(app);
                 }
                 "open_folder" => {
-                    let path = dirs::data_dir()
-                        .unwrap_or_default()
-                        .join("ScreenCapture")
-                        .join("Screenshots");
+                    let state: tauri::State<'_, crate::state::app_state::AppState> = app.state();
+                    let storage = state.storage.lock().unwrap();
+                    let path = storage.screenshots_dir();
+                    drop(storage);
                     let _ = std::fs::create_dir_all(&path);
                     let _ = std::process::Command::new("open").arg(&path).spawn();
                 }
-                "capture_fullscreen" | "capture_area" | "capture_window" => {
-                    // Emit event to frontend — capture commands are stubs for now
-                    let _ = app.emit(event.id().as_ref(), ());
+                "capture_fullscreen" => {
+                    let app_handle = app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        do_tray_capture_fullscreen(&app_handle).await;
+                    });
+                }
+                "capture_area" => {
+                    open_selection_window(app, "selection", "/selection");
+                }
+                "capture_window" => {
+                    open_selection_window(app, "window-picker", "/selection?mode=window");
                 }
                 _ => {}
             }
@@ -96,6 +104,56 @@ fn open_settings_window(app: &AppHandle) {
             eprintln!("Failed to open settings window: {e}");
         }
     }
+}
+
+/// Perform fullscreen capture triggered from tray menu
+async fn do_tray_capture_fullscreen(app: &AppHandle) {
+    use crate::capture::config::ImageFormat;
+    use crate::capture::screenshot;
+    use crate::services::storage::manager::CaptureType;
+    use crate::state::app_state::AppState;
+
+    let format = ImageFormat::Png;
+    let data = match screenshot::capture_fullscreen(None, false, &format).await {
+        Ok(d) => d,
+        Err(e) => {
+            log::error!("Tray capture failed: {}", e);
+            return;
+        }
+    };
+
+    let state: tauri::State<'_, AppState> = app.state();
+    let mut storage = state.storage.lock().unwrap();
+    let filename = storage.generate_filename(&CaptureType::Screenshot, "png");
+    let dir = storage.screenshots_dir();
+    let _ = std::fs::create_dir_all(&dir);
+    let path = dir.join(&filename);
+    if let Err(e) = std::fs::write(&path, &data) {
+        log::error!("Failed to save screenshot: {}", e);
+        return;
+    }
+    let item = crate::services::storage::manager::CaptureItem::new_screenshot(filename);
+    storage.history.add(item.clone());
+    let _ = storage.save_history();
+    drop(storage);
+
+    // Emit capture completed event so frontend can show quick-access overlay
+    let _ = app.emit("capture:completed", &item);
+}
+
+/// Open a fullscreen transparent selection window
+fn open_selection_window(app: &AppHandle, label: &str, path: &str) {
+    if let Some(window) = app.get_webview_window(label) {
+        let _ = window.show();
+        let _ = window.set_focus();
+        return;
+    }
+    let url = tauri::WebviewUrl::App(path.into());
+    let _ = tauri::WebviewWindowBuilder::new(app, label, url)
+        .fullscreen(true)
+        .decorations(false)
+        .always_on_top(true)
+        .build();
 }
 
 /// Update tray icon for recording state

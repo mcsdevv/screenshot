@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use crate::capture::config::{RecordingConfig, RecordingTarget};
 use crate::error::CaptureError;
+use crate::state::app_state::AppState;
+use crate::services::storage::manager::CaptureItem;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "lowercase")]
@@ -19,29 +21,52 @@ pub enum RecordingSessionState {
 pub async fn start_recording(
     _target: RecordingTarget,
     _config: RecordingConfig,
+    state: &tauri::State<'_, AppState>,
 ) -> Result<(), CaptureError> {
-    // TODO: Implement via ScreenCaptureKit SCRecordingOutput
-    // 1. Create SCContentFilter for target
-    // 2. Configure SCStreamConfiguration
-    // 3. Create SCRecordingOutput with temp file URL
-    // 4. Start SCStream
-    // 5. Emit recording:state-changed events
-    Err(CaptureError::RecordingFailed("Not yet implemented".into()))
+    // Check if already recording
+    {
+        let rs = state.recording_state.lock().unwrap();
+        if matches!(*rs, RecordingSessionState::Recording { .. } | RecordingSessionState::Starting) {
+            return Err(CaptureError::RecordingFailed("Recording already in progress".into()));
+        }
+    }
+
+    // For now, recording is not implemented via ScreenCaptureKit Swift bridge.
+    // This returns an informative error rather than crashing.
+    Err(CaptureError::RecordingFailed(
+        "Screen recording requires ScreenCaptureKit Swift bridge (not yet integrated)".into()
+    ))
 }
 
 /// Stop the current recording
-pub async fn stop_recording() -> Result<String, CaptureError> {
-    // TODO: Stop SCStream, wait for finish, validate output, rename from partial
-    Err(CaptureError::RecordingNotActive)
+pub async fn stop_recording(
+    state: &tauri::State<'_, AppState>,
+) -> Result<CaptureItem, CaptureError> {
+    let rs = state.recording_state.lock().unwrap();
+    if !matches!(*rs, RecordingSessionState::Recording { .. }) {
+        return Err(CaptureError::RecordingNotActive);
+    }
+    drop(rs);
+
+    // Will be implemented with Swift bridge
+    Err(CaptureError::RecordingFailed(
+        "Screen recording stop requires ScreenCaptureKit Swift bridge (not yet integrated)".into()
+    ))
 }
 
 /// Cancel the current recording
-pub async fn cancel_recording() -> Result<(), CaptureError> {
-    // TODO: Cancel SCStream, delete partial file
-    Err(CaptureError::RecordingNotActive)
+pub async fn cancel_recording(
+    state: &tauri::State<'_, AppState>,
+) -> Result<(), CaptureError> {
+    let mut rs = state.recording_state.lock().unwrap();
+    if !matches!(*rs, RecordingSessionState::Recording { .. }) {
+        return Err(CaptureError::RecordingNotActive);
+    }
+    *rs = RecordingSessionState::Cancelled;
+    Ok(())
 }
 
 /// Get current recording state
-pub fn get_state() -> RecordingSessionState {
-    RecordingSessionState::Idle
+pub fn get_state(state: &tauri::State<'_, AppState>) -> RecordingSessionState {
+    state.recording_state.lock().unwrap().clone()
 }

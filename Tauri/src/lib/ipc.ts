@@ -117,7 +117,13 @@ export const stopRecording = () => invoke<CaptureItem>("stop_recording");
 
 export const cancelRecording = () => invoke<void>("cancel_recording");
 
-export const getRecordingState = () => invoke<string>("get_recording_state");
+export interface RecordingState {
+  state: "idle" | "selecting" | "starting" | "recording" | "stopping" | "completed" | "failed" | "cancelled";
+  elapsed_seconds?: number;
+  message?: string;
+}
+
+export const getRecordingState = () => invoke<RecordingState>("get_recording_state");
 
 // === Content Discovery ===
 

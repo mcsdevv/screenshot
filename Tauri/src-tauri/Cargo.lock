@@ -4038,6 +4038,7 @@ dependencies = [
  "env_logger",
  "image",
  "log",
+ "objc",
  "serde",
  "serde_json",
  "sha2",

@@ -20,12 +20,13 @@ import {
   type CaptureRect,
   type RecordingConfig,
   type RecordingTarget,
+  type RecordingState,
   type TextBlock,
   type PermissionStatus,
 } from "@/lib/ipc";
 
 // Re-export types for consumers
-export type { CaptureItem, CaptureRect, RecordingConfig, RecordingTarget, TextBlock, PermissionStatus };
+export type { CaptureItem, CaptureRect, RecordingConfig, RecordingTarget, RecordingState, TextBlock, PermissionStatus };
 
 // ─── Screenshot ─────────────────────────────────────────
 
@@ -67,24 +68,11 @@ export async function stopRecording(): Promise<CaptureItem> {
   return ipcStopRecording();
 }
 
-export async function pauseRecording(): Promise<void> {
-  // Note: pause/resume may not be in the current Rust backend.
-  // This is a forward-looking API that will invoke "pause_recording"
-  // once the command is implemented.
-  const { invoke } = await import("@tauri-apps/api/core");
-  return invoke("pause_recording");
-}
-
-export async function resumeRecording(): Promise<void> {
-  const { invoke } = await import("@tauri-apps/api/core");
-  return invoke("resume_recording");
-}
-
 export async function cancelRecording(): Promise<void> {
   return ipcCancelRecording();
 }
 
-export async function getRecordingState(): Promise<string> {
+export async function getRecordingState(): Promise<RecordingState> {
   return ipcGetRecordingState();
 }
 

@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 pub mod error;
 pub mod events;
 pub mod capture;
@@ -15,6 +17,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_os::init())
+        .manage(state::app_state::AppState::new())
         .setup(|app| {
             // Hide from dock — this is a menu bar (tray) app
             #[cfg(target_os = "macos")]
@@ -22,6 +25,9 @@ pub fn run() {
 
             // Set up system tray icon with menu
             tray::menu::setup_tray(app.handle())?;
+
+            // Register default keyboard shortcuts (Safe mode)
+            shortcuts::commands::register_default_shortcuts(app.handle());
 
             Ok(())
         })

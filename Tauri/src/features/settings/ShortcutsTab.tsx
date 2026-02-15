@@ -2,6 +2,7 @@ import React from "react";
 import clsx from "clsx";
 import { DSChip, DSDivider, DSSecondaryButton } from "@/components";
 import { useSettingsStore } from "@/stores/settingsStore";
+import * as ipc from "@/lib/ipc";
 import styles from "./Settings.module.css";
 
 interface ShortcutDef {
@@ -11,15 +12,14 @@ interface ShortcutDef {
 }
 
 const SCREENSHOT_SHORTCUTS: ShortcutDef[] = [
-  { name: "Capture Area", safeBinding: "\u2303\u21E7 3", nativeBinding: "\u2318\u21E7 3" },
-  { name: "Capture Window", safeBinding: "\u2303\u21E7 4", nativeBinding: "\u2318\u21E7 4" },
-  { name: "Capture Fullscreen", safeBinding: "\u2303\u21E7 5", nativeBinding: "\u2318\u21E7 5" },
+  { name: "Capture Fullscreen", safeBinding: "\u2303\u21E7 3", nativeBinding: "\u2318\u21E7 3" },
+  { name: "Capture Area", safeBinding: "\u2303\u21E7 4", nativeBinding: "\u2318\u21E7 4" },
+  { name: "Capture Window", safeBinding: "\u2303\u21E7 5", nativeBinding: "\u2318\u21E7 5" },
 ];
 
 const RECORDING_SHORTCUTS: ShortcutDef[] = [
-  { name: "Record Area", safeBinding: "\u2303\u21E7 6", nativeBinding: "\u2318\u21E7 6" },
-  { name: "Record Window", safeBinding: "\u2303\u21E7 7", nativeBinding: "\u2318\u21E7 7" },
-  { name: "Record Fullscreen", safeBinding: "\u2303\u21E7 8", nativeBinding: "\u2318\u21E7 8" },
+  { name: "Record Area", safeBinding: "\u2303\u21E7 7", nativeBinding: "\u2318\u21E7 7" },
+  { name: "Record Fullscreen", safeBinding: "\u2303\u21E7 9", nativeBinding: "\u2318\u21E7 9" },
 ];
 
 const TOOL_SHORTCUTS: ShortcutDef[] = [
@@ -74,7 +74,11 @@ export const ShortcutsTab: React.FC = () => {
           </p>
         )}
 
-        <DSSecondaryButton onClick={() => setSetting("shortcutMode", isNative ? "safe" : "native")}>
+        <DSSecondaryButton onClick={() => {
+          const newMode = isNative ? "safe" : "native";
+          setSetting("shortcutMode", newMode);
+          ipc.setShortcutMode(newMode).catch(() => {});
+        }}>
           {isNative ? "Switch to Safe Shortcuts" : "Switch to Standard Shortcuts"}
         </DSSecondaryButton>
       </section>
